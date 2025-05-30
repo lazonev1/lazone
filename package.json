@@ -1,6 +1,7 @@
 {
   "name": "lazone",
   "version": "1.0.0",
+  "private": true,
   "description": "Monorepo for LaZone project",
   "scripts": {
     "dev:mobile": "pnpm --filter ./apps/mobile start"
@@ -8,5 +9,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.11.0"
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {},
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
