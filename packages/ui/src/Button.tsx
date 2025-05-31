@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 type Props = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'success'; // Orange, Blue, Green
+  variant?: 'primary' | 'secondary' | 'success'; //Blue, Orange, Green
 };
 
 export default function Button({ label, onPress, variant = 'primary' }: Props) {

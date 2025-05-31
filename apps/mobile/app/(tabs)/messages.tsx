@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 
-export default function ExploreScreen() {
+export default function Messages() {
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">Explore</ThemedText>
+      <ThemedText type="title">Messages</ThemedText>
     </ThemedView>
   );
 }
