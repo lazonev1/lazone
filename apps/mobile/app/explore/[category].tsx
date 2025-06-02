@@ -1,14 +1,13 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
-import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-import ProviderCard from '@/components/home/ProviderCard';
 import ProviderListItem from '@/components/home/ProviderListItem';
 
 export default function CategoryScreen() {
   const { category } = useLocalSearchParams();
+  const router = useRouter();
 
-  // Fake data for now — will come from API later
+  // Fake data for now
   const providers = [
     { id: 1, name: 'Sarah Tailor', service: category },
     { id: 2, name: 'Moussa Fix', service: category },
@@ -23,15 +22,15 @@ export default function CategoryScreen() {
 
       {providers.map((provider) => (
         <ProviderListItem
-            key={provider.id}
-            name={provider.name}
-            description="Experienced electricians for all installations."
-            rating={4.7}
-            // image={require('@/assets/providers/sarah.png')}
-            onPress={() => {
-                // TODO: navigate to provider profile
-            }}
-            />
+          key={provider.id}
+          name={provider.name}
+          description="Experienced electricians for all installations."
+          rating={4.7}
+            // image={require('@/assets/images/sarah.png')}
+          onPress={() => {
+            router.push(`/provider/${provider.id}`);
+          }}
+        />
       ))}
     </ScrollView>
   );
@@ -45,3 +44,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 });
+
+
+// const scrollTo = (ref) => {
+//     if (ref.current && scrollRef.current) {
+//         ref.current.measure((x, y, width, height, pageX, pageY) => {
+//             scrollRef.current.scrollTo({ y: pageY, animated: true });
+//           });
+//     }
+//   };

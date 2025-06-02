@@ -1,13 +1,16 @@
 import { ScrollView, StyleSheet, TextInput, Image, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import ServiceCategoryCard from '../../components/home/ServiceCategoryCard';
 import ProviderCard from '@/components/home/ProviderCard'
+import ProviderListItem from '@/components/home/ProviderListItem';
 
 export default function HomeScreen() {
   const theme = useColorScheme();
+  const router = useRouter();
   const tint = Colors[theme ?? 'light'].tint;
 
   const categories = [
@@ -21,7 +24,7 @@ export default function HomeScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Logo */}
       <Image
-        source={require('../../assets/images/react-logo.png')}
+        source={require('../../assets/images/lazone-logo.png')}
         style={styles.logo}
       />
 
@@ -48,22 +51,36 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
 
-      <ThemedText type="title" style={{ marginTop: 30, marginBottom: 10 }}>
+      <ThemedText type="subtitle" style={{ marginTop: 30, marginBottom: 10 }}>
   Explore beautiful work
-</ThemedText>
+      </ThemedText>
 
-<ScrollView horizontal showsHorizontalScrollIndicator={false}>
+<ScrollView showsHorizontalScrollIndicator={false}>
   {[
-    { name: 'Alex Johnson', service: 'Electrician' },
-    { name: 'Sarah Doe', service: 'Tailor' },
-    { name: 'John Fixit', service: 'Plumber' },
+    {id: 1, name: 'Alex Johnson', service: 'Electrician' },
+    { id: 2, name: 'Sarah Doe', service: 'Tailor' },
+    { id: 3, name: 'John Fixit', service: 'Plumber' },
   ].map((item) => (
-    <ProviderCard
-      key={item.name}
-      name={item.name}
-      service={item.service}
-      // image={require('@/assets/providers/alex.png')} To be used later
-    />
+    //We can use this or the Proider list Item, I don't know which one looks better so I am leaVing both here
+    // <ProviderCard
+    //   key={item.name}
+    //   name={item.name}
+    //   service={item.service}
+    //   // image={require('@/assets/providers/alex.png')} To be used later
+    //   onPress={() => {
+    //     router.push(`/provider/${item.id}`);
+    //   }}
+    // />
+    <ProviderListItem
+    key={item.id}
+    name={item.name}
+    description="Experienced electricians for all installations."
+    rating={4.7}
+    onPress={() => {
+      router.push(`/provider/${item.id}`);
+    }}
+  />
+
   ))}
 </ScrollView>
     </ScrollView>
