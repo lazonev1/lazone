@@ -6,6 +6,7 @@ type Props = {
   label?: string;
   value: string;
   onChangeText: (text: string) => void;
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
 };
 
 export default function EditableField({ label, value, onChangeText }: Props) {
