@@ -30,7 +30,7 @@ function RootLayoutNav() {
   return (
     <Stack>
       <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, title: ''}} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
@@ -48,21 +48,11 @@ export default function RootLayout() {
   }
 
   return (
-// <<<<<<< HEAD
-//     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-//       <Stack>
-//         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
-//         <Stack.Screen name="+not-found" />
-//       </Stack>
-//       <StatusBar style="auto" />
-//     </ThemeProvider>
-=======
     <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <RootLayoutNav />
         <StatusBar style="auto" />
       </ThemeProvider>
     </AuthProvider>
->>>>>>> upstream/main
   );
 }
