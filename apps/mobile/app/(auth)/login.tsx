@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
+import { Button, TextInput } from '@lazone/ui/'
+import { ThemedView } from '@/components/ThemedView';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -16,7 +18,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <Text style={styles.title}>Login</Text>
       <TextInput
         style={styles.input}
@@ -31,10 +33,8 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
       />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-    </View>
+      <Button label="Login" onPress={handleLogin}/>
+    </ThemedView>
   );
 }
 
