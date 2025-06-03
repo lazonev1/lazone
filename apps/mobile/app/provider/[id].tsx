@@ -1,10 +1,14 @@
-import { ScrollView, StyleSheet, Image, View, Pressable, Text, TouchableOpacity, Animated } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Pressable, Text, TouchableOpacity, Animated, Appearance } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useNavigation } from '@react-navigation/native';
+import { Colors } from '@/constants/Colors';
 
 export default function ProviderProfileScreen() {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
 
   const scrollRef = useRef(null);
@@ -48,12 +52,19 @@ export default function ProviderProfileScreen() {
       { name: 'Sarah P.', quote: 'Alex’s work was exceptional and timely. Highly recommend!' },
       { name: 'John D.', quote: 'Professional and efficient service. Will hire again.' },
     ],
-    pricing: '$50 - $150'
+    pricing: '$50 - $150',
   };
 
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [testimonialsExpanded, setTestimonialsExpanded] = useState(false);
+
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({ title: provider.name });
+  }, [provider.name]);
+
+  const styles = createStyles(theme, colorScheme);
 
   return (
     <View style={{ flex: 1 }}>
@@ -161,73 +172,75 @@ export default function ProviderProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  cover: { width: '100%', height: 180 },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: -40,
-  },
-  avatarInline: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginRight: 12,
-  },
-  name: { fontSize: 18 },
-  rating: { marginTop: 4 },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    marginVertical: 16,
-  },
-  actionButton: {
-    backgroundColor: '#0A58A5',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 24,
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold', textAlign: 'center' },
-  tabsRowSticky: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#444',
-    paddingVertical: 10,
-    backgroundColor: '#000',
-  },
-  tab: { paddingHorizontal: 16 },
-  tabText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  section: { padding: 20 },
-  card: { marginRight: 12 },
-  image: { width: 140, height: 100, borderRadius: 12 },
-  caption: { marginTop: 6, fontSize: 12 },
-  toggle: { marginTop: 10, color: '#FF9900' },
-  serviceCard: {
-    backgroundColor: '#1e1e1e',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  testimonial: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#2b2b2b',
-  },
-  quoteButton: {
-    backgroundColor: '#0A58A5',
-    paddingVertical: 14,
-    marginTop: 16,
-    borderRadius: 12,
-  },
-  spacer: { height: 12 },
-});
+function createStyles(theme, colorScheme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.background },
+    cover: { width: '100%', height: 180 },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      marginTop: -40,
+    },
+    avatarInline: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      marginRight: 12,
+    },
+    name: { fontSize: 18, color: theme.text },
+    rating: { marginTop: 4, color: theme.icon },
+    actionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingHorizontal: 20,
+      marginVertical: 16,
+    },
+    actionButton: {
+      backgroundColor: '#0A58A5',
+      paddingVertical: 10,
+      paddingHorizontal: 24,
+      borderRadius: 24,
+    },
+    buttonText: { color: '#fff', fontWeight: 'bold', textAlign: 'center' },
+    tabsRowSticky: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: theme.icon,
+      paddingVertical: 10,
+      backgroundColor: theme.background,
+    },
+    tab: { paddingHorizontal: 16 },
+    tabText: {
+      color: theme.tint,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    section: { padding: 20 },
+    card: { marginRight: 12 },
+    image: { width: 140, height: 100, borderRadius: 12 },
+    caption: { marginTop: 6, fontSize: 12, color: theme.text },
+    toggle: { marginTop: 10, color: '#FF9900' },
+    serviceCard: {
+      backgroundColor: colorScheme === 'dark' ? '#1e1e1e' : '#f4f4f4',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+    },
+    testimonial: {
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 10,
+      backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#eaeaea',
+    },
+    quoteButton: {
+      backgroundColor: '#0A58A5',
+      paddingVertical: 14,
+      marginTop: 16,
+      borderRadius: 12,
+    },
+    spacer: { height: 12 },
+  });
+}

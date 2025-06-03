@@ -1,5 +1,6 @@
-import { View, StyleSheet, Image, Pressable } from 'react-native';
+import { View, StyleSheet, Image, Pressable, Appearance } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
+import { Colors } from '@/constants/Colors';
 
 type Props = {
   name: string;
@@ -10,6 +11,10 @@ type Props = {
 };
 
 export default function ProviderListItem({ name, description, rating, image, onPress }: Props) {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme, colorScheme);
+
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <Image
@@ -32,35 +37,38 @@ export default function ProviderListItem({ name, description, rating, image, onP
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: '#333',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 12,
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 14,
-    color: '#ccc',
-  },
-  rating: {
-    marginTop: 6,
-    fontSize: 13,
-    color: '#ffd700', // gold-ish star color
-  },
-});
+function createStyles(theme,colorScheme) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      backgroundColor: colorScheme ==='dark'?'#333':theme.background,
+      padding: 12,
+      borderRadius: 12,
+      marginBottom: 12,
+      alignItems: 'center',
+    },
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      marginRight: 12,
+    },
+    info: {
+      flex: 1,
+    },
+    name: {
+      fontSize: 16,
+      marginBottom: 4,
+      color: theme.text,
+    },
+    description: {
+      fontSize: 14,
+      color: theme.icon,
+    },
+    rating: {
+      marginTop: 6,
+      fontSize: 13,
+      color: '#FFD700',
+    },
+  });
+}

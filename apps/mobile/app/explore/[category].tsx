@@ -2,6 +2,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import ProviderListItem from '@/components/home/ProviderListItem';
+import { useEffect } from 'react'
+import { useNavigation } from '@react-navigation/native';
+import { Appearance } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 export default function CategoryScreen() {
   const { category } = useLocalSearchParams();
@@ -14,10 +18,18 @@ export default function CategoryScreen() {
     { id: 3, name: 'Fatou Creative', service: category },
   ];
 
+  const navigation = useNavigation();
+
+  //Capitalise the first char
+  const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
+  useEffect(() => {
+    navigation.setOptions({ title: capitalizedCategory });
+  }, [capitalizedCategory]);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ThemedText type="title" style={{ marginBottom: 20 }}>
-        {category}
+        {capitalizedCategory}
       </ThemedText>
 
       {providers.map((provider) => (

@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, TextInput, Image, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, Image, View,Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,9 +9,9 @@ import ProviderCard from '@/components/home/ProviderCard'
 import ProviderListItem from '@/components/home/ProviderListItem';
 
 export default function HomeScreen() {
-  const theme = useColorScheme();
+  const colorScheme = Appearance.getColorScheme()
+  const theme = colorScheme === 'dark'? Colors.dark: Colors.light;
   const router = useRouter();
-  const tint = Colors[theme ?? 'light'].tint;
 
   const categories = [
     { name: 'Tailor' },
@@ -20,11 +20,13 @@ export default function HomeScreen() {
     { name: 'Caterer' },
   ];
 
+  const styles = createStyles(theme, colorScheme)
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Logo */}
-      <Image
-        source={require('../../assets/images/lazone-logo.png')}
+        <Image
+        source={colorScheme === 'dark'? require('../../assets/images/lazone-logo.png'): require('../../assets/images/lazone-logo-lightTheme.png') }
         style={styles.logo}
       />
 
@@ -32,13 +34,7 @@ export default function HomeScreen() {
       <TextInput
         placeholder="Find a service..."
         placeholderTextColor="#999"
-        style={[
-          styles.search,
-          {
-            backgroundColor: theme === 'dark' ? '#222' : '#eee',
-            color: tint,
-          },
-        ]}
+        style={[styles.search,]}
       />
 
       {/* Popular Services */}
@@ -87,30 +83,36 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    paddingTop:50,
-    padding:15
-  },
-  logo: {
-    width: 140,
-    height: 40,
-    resizeMode: 'contain',
-    marginBottom: 20,
-  },
-  search: {
-    padding: 12,
-    borderRadius: 12,
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  categories: {
-    flexDirection: 'row',
-  },
-});
+// ToDo: To be modified tosupport white theme
+function createStyles(theme, colorScheme) {
+  
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    content: {
+      paddingTop:50,
+      padding:15
+    },
+    logo: {
+      width: 140,
+      height: 40,
+      resizeMode: 'contain',
+      marginBottom: 20,
+    },
+    search: {
+      padding: 12,
+      borderRadius: 12,
+      fontSize: 16,
+      marginBottom: 24,
+      Color: theme.tint,
+      backgroundColor: theme.background,
+    },
+    sectionTitle: {
+      marginBottom: 12,
+    },
+    categories: {
+      flexDirection: 'row',
+    },
+  });
+}

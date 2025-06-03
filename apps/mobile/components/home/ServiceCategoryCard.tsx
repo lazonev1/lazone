@@ -1,6 +1,8 @@
 import { View, Image, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
+import { Appearance } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 type Props = {
   name: string;
@@ -9,6 +11,9 @@ type Props = {
 
 export default function ServiceCategoryCard({ name, image }: Props) {
   const router = useRouter();
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme, colorScheme);
 
   return (
     <Pressable
@@ -29,36 +34,44 @@ export default function ServiceCategoryCard({ name, image }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    width: 100,
-    alignItems: 'center',
-    marginRight: 12,
-    backgroundColor: '#1c1c1e',
-    borderRadius: 12,
-    padding: 10,
-  },
-  image: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    resizeMode: 'cover',
-    marginBottom: 6,
-  },
-  imagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#ccc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  imageText: {
-    fontSize: 24,
-  },
-  label: {
-    textAlign: 'center',
-    fontSize: 14,
-  },
-});
+function createStyles(theme, colorScheme) {
+  return StyleSheet.create({
+    card: {
+      width: 100,
+      alignItems: 'center',
+      marginRight: 12,
+      backgroundColor: colorScheme ==='dark'?'#1c1c1e':theme.background,
+      borderRadius: 12,
+      padding: 10,
+      shadowColor: theme.icon,
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    image: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      resizeMode: 'cover',
+      marginBottom: 6,
+    },
+    imagePlaceholder: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      backgroundColor: theme.icon,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    imageText: {
+      fontSize: 24,
+      color: theme.text,
+    },
+    label: {
+      textAlign: 'center',
+      fontSize: 14,
+      color: theme.text,
+    },
+  });
+}
