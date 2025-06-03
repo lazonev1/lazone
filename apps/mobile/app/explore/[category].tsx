@@ -4,8 +4,6 @@ import { ThemedText } from '@/components/ThemedText';
 import ProviderListItem from '@/components/home/ProviderListItem';
 import { useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native';
-import { Appearance } from 'react-native';
-import { Colors } from '@/constants/Colors';
 
 export default function CategoryScreen() {
   const { category } = useLocalSearchParams();

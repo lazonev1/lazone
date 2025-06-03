@@ -1,8 +1,6 @@
 import { ScrollView, StyleSheet, TextInput, Image, View,Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import ServiceCategoryCard from '../../components/home/ServiceCategoryCard';
 import ProviderCard from '@/components/home/ProviderCard'
