@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import ServiceCategoryCard from '../../components/home/ServiceCategoryCard';
-import ProviderCard from '@/components/home/ProviderCard'
 import ProviderListItem from '@/components/home/ProviderListItem';
 
 export default function HomeScreen() {
@@ -55,16 +54,6 @@ export default function HomeScreen() {
     { id: 2, name: 'Sarah Doe', service: 'Tailor' },
     { id: 3, name: 'John Fixit', service: 'Plumber' },
   ].map((item) => (
-    //We can use this or the Proider list Item, I don't know which one looks better so I am leaVing both here
-    // <ProviderCard
-    //   key={item.name}
-    //   name={item.name}
-    //   service={item.service}
-    //   // image={require('@/assets/providers/alex.png')} To be used later
-    //   onPress={() => {
-    //     router.push(`/provider/${item.id}`);
-    //   }}
-    // />
     <ProviderListItem
     key={item.id}
     name={item.name}
