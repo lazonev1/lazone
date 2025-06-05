@@ -5,7 +5,7 @@ export default {
     login: {
       title: 'Hello again!',
       subtitle: 'Welcome back, we missed you!',
-      emailPhone: 'Phone Number/Email',
+      emailPhone: 'Phone Number Or Email',
       password: 'Password',
       loginButton: 'Login',
       rememberMe: 'Remember me',
