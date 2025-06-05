@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 
 function RootLayoutNav() {
@@ -48,11 +49,13 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <RootLayoutNav />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <RootLayoutNav />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
