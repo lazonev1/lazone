@@ -8,7 +8,6 @@ import AppHeader from '@/components/ui/AppHeader';
 import strings from '@/strings';
 import EditableField from '@/components/account/EditableField';
 import { ThemedText } from '@/components/ThemedText';
-import ClickableText from '@/components/ui/ClickableText';
 import CheckBox from '@/components/ui/CheckBox';
 import { ButtonIcon } from '@/components/ui/ButtonIcon';
 
@@ -54,12 +53,13 @@ export default function LoginScreen() {
             <CheckBox isChecked = {remembermeChecked} setChecked={()=>{setRemembermeChecked(!remembermeChecked)}}/>
             <ThemedText>{strings.auth.login.rememberMe}</ThemedText>
           </View>
-          <ClickableText label={strings.auth.login.forgotPassword} onClick={() => Alert.alert('Your password will be reset')}/>
+          <ThemedText type='link' onPress={() => Alert.alert('Your password will be reset soon')}
+            >{strings.auth.login.forgotPassword}</ThemedText>
         </View>
         <View style={{height: 48}}/>
         <View style={styles.noAccount}>
           <ThemedText>{strings.auth.login.noAccount}</ThemedText>
-          <ClickableText label={strings.auth.login.signUpLink} onClick={() => Alert.alert('You will sign up soon')}/>
+          <ThemedText type='link' onPress={() => router.replace('/(auth)/signup')}>{strings.auth.login.signUpLink}</ThemedText>
         </View>
         <View style={{height: 64}}/>
         <ButtonIcon
