@@ -1,26 +1,28 @@
 import { PropsWithChildren, useState } from 'react';
-import { StyleSheet, TouchableOpacity, TouchableOpacityProps } from 'react-native';
+import { Button, StyleSheet, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import { Colors } from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
+import { StyleProp } from 'react-native';
 
 import type { IconSymbolName } from '../../components/ui/IconSymbol';
 
 type Props = TouchableOpacityProps & {
     label: string;
     icon: IconSymbolName;
+    style?: StyleProp<Button>;
     onPress: () => void
 }
-export function ButtonIcon({ icon, label, onPress }: Props) {
+export function ButtonIcon({style, icon, label, onPress }: Props) {
   const theme = useColorScheme() ?? 'light';
 
   return (
     <ThemedView>
       <TouchableOpacity
-        style={styles.heading}
+        style={[styles.heading, style]}
         onPress={() => onPress()}
         activeOpacity={0.8}>
         <IconSymbol
@@ -30,7 +32,7 @@ export function ButtonIcon({ icon, label, onPress }: Props) {
           color={theme === 'light' ? Colors.light.icon : Colors.dark.icon}
           style={undefined}
         />
-        <ThemedText type="defaultSemiBold">{label}</ThemedText>
+        <ThemedText style={{color: '#0a7ea4'}} >{label}</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );

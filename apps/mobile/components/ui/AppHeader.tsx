@@ -23,7 +23,7 @@ const AppHeader = () => {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    height: '15%',
+    height: '10%',
     width: '100%',
     // backgroundColor: '#292829',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
