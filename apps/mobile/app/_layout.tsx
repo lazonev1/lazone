@@ -14,6 +14,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  // const publicRoutes = ['login', 'signup']
 
   // Set navigation as ready after initial render
   useEffect(() => {
@@ -23,7 +24,7 @@ function RootLayoutNav() {
   useEffect(() => {
     // Redirect to login if not authenticated and trying to access a protected route
     // This assumes that the first segment is the main route, e.g., 'login' or '(tabs)'
-    if (isNavigationReady && !isAuthenticated && segments[0] !== 'login') {
+    if (isNavigationReady && !isAuthenticated && segments[0] !== '(auth)') {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, segments, isNavigationReady, router]);

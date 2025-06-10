@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet, Alert, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
 import EditableField from '../../components/account/EditableField';
 import ProfileAvatar from '../../components/account/ProfileAvatar';
@@ -14,6 +16,8 @@ export default function AccountInfoScreen() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { logout } = useAuth()
+  const router = useRouter()
 
   //Load user data from local storage or API later
   useEffect(() => {
@@ -89,7 +93,12 @@ export default function AccountInfoScreen() {
         <Text style={styles.arrow}>{'›'}</Text>
       </Pressable>
 
-      <Pressable style={styles.logout}>
+      <Pressable style={styles.logout} 
+        onPress={() => {
+          logout();
+          router.replace('/(auth)/login');
+            }
+        }>
         <Text style={styles.logoutIcon}>⎋</Text>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
