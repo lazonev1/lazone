@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import ServiceCategoryCard from '../../components/home/ServiceCategoryCard';
 import ProviderListItem from '@/components/home/ProviderListItem';
+import AppHeader from '@/components/ui/AppHeader';
 
 export default function HomeScreen() {
   const colorScheme = Appearance.getColorScheme()
@@ -22,10 +23,11 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Logo */}
-        <Image
+        {/* <Image
         source={colorScheme === 'dark'? require('../../assets/images/lazone-logo.png'): require('../../assets/images/lazone-logo-lightTheme.png') }
         style={styles.logo}
-      />
+      /> */}
+      <AppHeader/>
 
       {/* Search */}
       <TextInput
