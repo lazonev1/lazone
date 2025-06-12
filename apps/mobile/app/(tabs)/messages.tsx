@@ -1,7 +1,7 @@
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
-import { MessageList } from '../messages/messages';
+import MessageList from '../messages/messages';
 import AppHeader from '@/components/ui/AppHeader';
 
 export default function Messages() {

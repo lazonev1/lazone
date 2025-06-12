@@ -15,7 +15,7 @@ export default function MessageBubble({ message, time, isOutgoing, senderAvatar 
     <View style={[
       styles.container,
       isOutgoing ? styles.outgoingContainer : styles.incomingContainer,
-      // Add conditional style for avatar presence
+      
       !isOutgoing && senderAvatar ? styles.incomingContainerWithAvatar : null
     ]}>
       {!isOutgoing && senderAvatar && (
@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
   },
   incomingContainer: {
     justifyContent: 'flex-start',
-    // Add padding to maintain alignment when avatar is missing
-    paddingLeft: 40, // Width of avatar (32) + margin (8)
+    
+    paddingLeft: 40,
   },
   incomingContainerWithAvatar: {
     paddingLeft: 0,

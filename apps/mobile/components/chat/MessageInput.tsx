@@ -20,7 +20,7 @@ export default function MessageInput({ onSendMessage }: Props) {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.emojiButton}>
-        {/* Decid between Ionicons and SF icons */}
+        {/* todo: Decid between Ionicons and SF icons late*/}
         <Ionicons name="happy-outline" size={24} color="#888" />
       </TouchableOpacity>
       

@@ -1,10 +1,12 @@
 import { ScrollView } from "react-native-gesture-handler";
 import MessageListItem from "@/components/messages/MessageListItem"
-import { Alert } from "react-native";
+import { useRouter } from 'expo-router';
 
 
 
-export function MessageList() {
+export default function MessageList() {
+    const router = useRouter();
+    
     return (
         <ScrollView>
             {
@@ -17,7 +19,7 @@ export function MessageList() {
                         sender={message.sender}
                         text={message.text}
                         time={message.time}
-                        onPress={() => {Alert.alert("Hello")}}
+                        onPress={() => router.push(`/messages/chat/${message.id}`)}
                     />
                 ))
             }
