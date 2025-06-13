@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Image, View, Pressable, Text, TouchableOpacity, Animated, Appearance } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Pressable, Text, TouchableOpacity, Animated, Appearance, SafeAreaView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
@@ -47,7 +47,7 @@ export default function ProviderProfileScreen() {
   const styles = createStyles(theme, colorScheme);
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyOffset }]}> 
         <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}><Text style={styles.tabText}>About</Text></TouchableOpacity>
         <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}><Text style={styles.tabText}>Portfolio</Text></TouchableOpacity>
@@ -148,13 +148,15 @@ export default function ProviderProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 function createStyles(theme, colorScheme) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
+    container: { flex: 1, 
+      backgroundColor: theme.background,
+     padding:16},
     cover: { width: '100%', height: 180 },
     profileHeader: {
       flexDirection: 'row',
