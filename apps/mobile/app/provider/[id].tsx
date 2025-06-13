@@ -5,6 +5,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
+import { Providers } from '@/constants/providers';
+import { Strings } from '@/constants/strings';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -31,29 +33,7 @@ export default function ProviderProfileScreen() {
     extrapolate: 'clamp'
   });
 
-  const provider = {
-    id,
-    name: 'Alex Johnson',
-    profession: 'Electrician',
-    rating: 4.8,
-    reviews: 150,
-    bio: 'Experienced electrician specializing in household repairs and lighting.',
-    avatar: require('@/assets/images/avatar-placeholder.png'),
-    cover: require('@/assets/images/favicon.png'),
-    portfolio: [
-      { image: require('@/assets/images/react-logo.png'), caption: 'Wiring work' },
-      { image: require('@/assets/images/splash-icon.png'), caption: 'Panel install' },
-    ],
-    services: [
-      { name: 'Lighting Installation', price: '$75 - $150', availability: 'Book for Later' },
-      { name: 'Electrical Repairs', price: '$50 - $100', availability: 'Available Now' },
-    ],
-    testimonials: [
-      { name: 'Sarah P.', quote: 'Alex’s work was exceptional and timely. Highly recommend!' },
-      { name: 'John D.', quote: 'Professional and efficient service. Will hire again.' },
-    ],
-    pricing: '$50 - $150',
-  };
+  const provider = Providers.find((p) => p.id === parseInt(id, 10)) || Providers[0];
 
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
