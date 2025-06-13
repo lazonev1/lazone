@@ -62,7 +62,7 @@ function createStyles(theme) {
         container: {
             flexDirection: 'row',
             alignItems: 'center',
-            padding: 8,
+            padding: 16,
           },
           inputContainer: {
             flex: 1,
@@ -85,7 +85,10 @@ function createStyles(theme) {
           filterButton: {
             padding: 8,
             borderRadius: 8,
-            backgroundColor: '#f2f2f2',
+            fontSize: 16,
+            color : theme.text,
+            backgroundColor: theme.background,
+            marginLeft: 8,
           },
     });
   }

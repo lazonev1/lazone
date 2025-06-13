@@ -8,7 +8,7 @@ export const Providers = [
     reviews: 150,
     bio: 'Experienced electrician specializing in household repairs and lighting.',
     avatar: require('@/assets/images/avatar-placeholder.png'),
-    cover: require('@/assets/images/favicon.png'),
+    cover: require('@/assets/images/loginbg.png'),
     location: { latitude: 37.7749, longitude: -122.4194 }, // Example location
     distance: 10, // Distance in km
     portfolio: [

@@ -150,25 +150,15 @@ function createStyles(theme) {
       flex: 1,
       padding: 16,
     },
-    searchHeader: {
-      flexDirection: 'row',
-      padding: 16,
-      alignItems: 'center',
-      borderBottomWidth: 1,
-      borderBottomColor: theme.border,
-    },
-    filterButton: {
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: theme.background === '#fff' ? '#f2f2f2' : '#222',
-    },
     filtersContainer: {
       padding: 16,
-      borderBottomWidth: 1,
       borderBottomColor: theme.border,
     },
     filterItem: {
       marginBottom: 5,
+      borderRadius: 8,
+      color : theme.text,
+      backgroundColor: theme.background,
     },
     resultsContainer: {
       flex: 1,
@@ -176,7 +166,6 @@ function createStyles(theme) {
     },
     resultsHeader: {
       padding: 16,
-      borderBottomWidth: 1,
       marginBottom: 8,
       borderBottomColor: theme.border,
     },

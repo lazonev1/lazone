@@ -6,7 +6,6 @@ import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
-import { Strings } from '@/constants/strings';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -27,17 +26,23 @@ export default function ProviderProfileScreen() {
     }
   };
 
-  const stickyOffset = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp'
-  });
-
   const provider = Providers.find((p) => p.id === parseInt(id, 10)) || Providers[0];
 
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [testimonialsExpanded, setTestimonialsExpanded] = useState(false);
+  const [mainTabsPosition, setMainTabsPosition] = useState(0);
+
+  const stickyHeaderOpacity = scrollY.interpolate({
+    inputRange: [mainTabsPosition - 1, mainTabsPosition],
+    outputRange: [0, 1],
+    extrapolate: 'clamp'
+  });
+
+  const onMainTabsLayout = (event) => {
+    const layout = event.nativeEvent.layout;
+    setMainTabsPosition(layout.y);
+  };
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -46,21 +51,29 @@ export default function ProviderProfileScreen() {
 
   const styles = createStyles(theme, colorScheme);
 
+  const handleScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.y;
+    scrollY.setValue(scrollPosition);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <Animated.View style={[styles.tabsRowSticky, { opacity: stickyOffset }]}> 
-        <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}><Text style={styles.tabText}>About</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}><Text style={styles.tabText}>Portfolio</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}><Text style={styles.tabText}>Reviews</Text></TouchableOpacity>
+      <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
+        <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
+          <Text style={styles.tabText}>About</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
+          <Text style={styles.tabText}>Portfolio</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
+          <Text style={styles.tabText}>Reviews</Text>
+        </TouchableOpacity>
       </Animated.View>
 
       <ScrollView
         style={styles.container}
         ref={scrollRef}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
       >
         <Image source={provider.cover} style={styles.cover} />
@@ -81,10 +94,16 @@ export default function ProviderProfileScreen() {
 
         <View style={styles.spacer} />
 
-        <View style={styles.tabsRowSticky}>
-          <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}><Text style={styles.tabText}>About</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}><Text style={styles.tabText}>Portfolio</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}><Text style={styles.tabText}>Reviews</Text></TouchableOpacity>
+        <View style={styles.tabsRow} onLayout={onMainTabsLayout}>
+          <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
+            <Text style={styles.tabText}>About</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
+            <Text style={styles.tabText}>Portfolio</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
+            <Text style={styles.tabText}>Reviews</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section} ref={aboutRef}>
@@ -186,6 +205,19 @@ function createStyles(theme, colorScheme) {
     },
     buttonText: { color: '#fff', fontWeight: 'bold', textAlign: 'center' },
     tabsRowSticky: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      borderBottomWidth: 1,
+      borderColor: theme.icon,
+      paddingVertical: 10,
+      backgroundColor: theme.background,
+    },
+    tabsRow: {
       flexDirection: 'row',
       justifyContent: 'space-around',
       borderTopWidth: 1,
