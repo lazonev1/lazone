@@ -10,9 +10,18 @@ import { ThemedText } from '@/components/ThemedText';
 export default function CategoryScreen() {
   const { category } = useLocalSearchParams();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const selectedCategory = Categories.find((cat) => cat.name.toLowerCase() === category?.toLowerCase());
   const filteredProviders = Providers.filter((provider) => provider.categoryName.toLowerCase() === category?.toLowerCase());
+
+  useEffect(() => {
+    if (selectedCategory) {
+      navigation.setOptions({ 
+        title: selectedCategory.name
+      });
+    }
+  }, [selectedCategory]);
 
   if (!selectedCategory) {
     return (
