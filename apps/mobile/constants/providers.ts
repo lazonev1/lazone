@@ -30,7 +30,7 @@ export const Providers = [
     name: 'Sarah Doe',
     profession: 'Tailor',
     categoryName: 'Tailor', // Matches the "Tailor" category
-    rating: 4.7,
+    rating: 5,
     reviews: 120,
     bio: 'Expert tailor specializing in custom clothing and alterations.',
     avatar: require('@/assets/images/avatar-placeholder.png'),
@@ -54,13 +54,13 @@ export const Providers = [
     name: 'John Fixit',
     profession: 'Plumber',
     categoryName: 'Plumber', // Matches the "Plumber" category
-    rating: 4.6,
+    rating: 2.6,
     reviews: 90,
     bio: 'Reliable plumber for all your household needs.',
     avatar: require('@/assets/images/avatar-placeholder.png'),
     cover: require('@/assets/images/favicon.png'),
     location: { latitude: 40.7128, longitude: -74.0060 }, // Example location
-    distance: 20, // Distance in km
+    distance: 50, // Distance in km
     portfolio: [
       { image: require('@/assets/images/splash-icon.png'), caption: 'Pipe repair' },
     ],
@@ -71,20 +71,20 @@ export const Providers = [
     testimonials: [
       { name: 'Mark T.', quote: 'John fixed my plumbing issues quickly and efficiently.' },
     ],
-    pricing: '$50 - $200',
+    pricing: '10000 CFA - 200000 CFA',
   },
   {
     id: 4,
     name: 'Catering Co.',
     profession: 'Caterer',
     categoryName: 'Caterer', // Matches the "Caterer" category
-    rating: 4.9,
+    rating: 3.9,
     reviews: 200,
     bio: 'Delicious catering services for all occasions.',
     avatar: require('@/assets/images/avatar-placeholder.png'),
     cover: require('@/assets/images/favicon.png'),
     location: { latitude: 41.8781, longitude: -87.6298 }, // Example location
-    distance: 25, // Distance in km
+    distance: 30, // Distance in km
     portfolio: [
       { image: require('@/assets/images/react-logo.png'), caption: 'Wedding catering' },
     ],
@@ -95,6 +95,6 @@ export const Providers = [
     testimonials: [
       { name: 'Anna K.', quote: 'The food was amazing, and the service was top-notch!' },
     ],
-    pricing: '$500 - $2000',
+    pricing: '5000 CFA - 20000 CFA',
   },
 ];
