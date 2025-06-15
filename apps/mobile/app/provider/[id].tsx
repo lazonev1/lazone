@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Image, View, Pressable, Text, TouchableOpacity, Animated, Appearance, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
+import { Button } from '@lazone/ui';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -88,8 +89,20 @@ export default function ProviderProfileScreen() {
         </ThemedView>
 
         <View style={styles.actionsRow}>
-          <Pressable style={styles.actionButton}><ThemedText style={styles.buttonText}>Message</ThemedText></Pressable>
-          <Pressable style={styles.actionButton}><ThemedText style={styles.buttonText}>Follow</ThemedText></Pressable>
+          <Button
+            label="Message"
+            onPress={() => {}}
+            variant="primary"
+            size="small"
+            style={styles.actionButton}
+          />
+          <Button
+            label="Follow"
+            onPress={() => {}}
+            variant="primary"
+            size="small"
+            style={styles.actionButton}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -162,9 +175,12 @@ export default function ProviderProfileScreen() {
         <View style={styles.section}>
           <ThemedText type="subtitle">Pricing Estimate</ThemedText>
           <ThemedText>{provider.pricing}</ThemedText>
-          <Pressable style={styles.quoteButton}>
-            <ThemedText style={styles.buttonText}>Request a Quote</ThemedText>
-          </Pressable>
+          <Button
+            label="Request a Quote"
+            onPress={() => {}}
+            variant="primary"
+            style={styles.quoteButton}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -198,10 +214,8 @@ function createStyles(theme, colorScheme) {
       marginVertical: 16,
     },
     actionButton: {
-      backgroundColor: '#0A58A5',
-      paddingVertical: 10,
-      paddingHorizontal: 24,
-      borderRadius: 24,
+      flex: 1,
+      marginHorizontal: 8,
     },
     buttonText: { color: '#fff', fontWeight: 'bold', textAlign: 'center' },
     tabsRowSticky: {
@@ -250,10 +264,7 @@ function createStyles(theme, colorScheme) {
       backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#eaeaea',
     },
     quoteButton: {
-      backgroundColor: '#0A58A5',
-      paddingVertical: 14,
       marginTop: 16,
-      borderRadius: 12,
     },
     spacer: { height: 12 },
   });
