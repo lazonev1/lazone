@@ -1,37 +1,72 @@
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+
+type ButtonSize = 'small' | 'medium' | 'large';
+type ButtonVariant = 'primary' | 'secondary' | 'success';
 
 type Props = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'success'; //Blue, Orange, Green
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 };
 
-export default function Button({ label, onPress, variant = 'primary' }: Props) {
+export default function Button({ 
+  label, 
+  onPress, 
+  variant = 'primary',
+  size = 'medium',
+  disabled = false,
+  style,
+  textStyle
+}: Props) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.button, styles[variant]]}
+      disabled={disabled}
+      style={[
+        styles.button,
+        styles[variant],
+        styles[size],
+        disabled && styles.disabled,
+        style
+      ]}
     >
-      <Text style={styles.text}>{label}</Text>
+      <Text style={[styles.text, textStyle]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
   },
   primary: {
-    backgroundColor: '#0A58A5', // Blue 
+    backgroundColor: '#0A58A5',
   },
   secondary: {
-    backgroundColor: '#FF9900', // Orange
+    backgroundColor: '#FF9900',
   },
   success: {
-    backgroundColor: '#56B224', // Green
+    backgroundColor: '#56B224',
+  },
+  small: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  medium: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  large: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   text: {
     color: '#FFFFFF',
