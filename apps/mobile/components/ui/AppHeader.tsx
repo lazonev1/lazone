@@ -13,7 +13,7 @@ const AppHeader = () => {
       />
       <View style={styles.innerContainer}>
         <Image
-          source={require('../../assets/images/lazonelogoblack.png')}
+          source={require('../../assets/images/lazone-logo.png')}
           style={styles.lazonelogo}
         />
       </View>
