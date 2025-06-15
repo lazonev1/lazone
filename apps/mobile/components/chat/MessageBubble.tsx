@@ -1,33 +1,41 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image, Appearance } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import { Image } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 type Props = {
   message: string;
   time: string;
   isOutgoing: boolean;
-  senderAvatar?: string;
+  senderAvatar?: any; // Changed to accept any image source
 };
 
 export default function MessageBubble({ message, time, isOutgoing, senderAvatar }: Props) {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  
   return (
     <View style={[
       styles.container,
       isOutgoing ? styles.outgoingContainer : styles.incomingContainer,
-      
-      !isOutgoing && senderAvatar ? styles.incomingContainerWithAvatar : null
+      !isOutgoing && !senderAvatar && { paddingLeft: 40 }
     ]}>
       {!isOutgoing && senderAvatar && (
-        <Image source={{ uri: senderAvatar }} style={styles.avatar} />
+        <Image source={senderAvatar} style={styles.avatar} />
       )}
       
       <View style={[
         styles.bubble,
-        isOutgoing ? styles.outgoingBubble : styles.incomingBubble
+        isOutgoing ? styles.outgoingBubble : styles.incomingBubble,
+        isOutgoing ? { backgroundColor: '#0A58A5' } : 
+           { backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#eaeaea' }
       ]}>
-        <ThemedText style={styles.messageText}>{message}</ThemedText>
-        <ThemedText style={styles.timeText}>{time}</ThemedText>
+        <ThemedText style={[styles.messageText, isOutgoing && styles.outgoingText]}>
+          {message}
+        </ThemedText>
+        <ThemedText style={[styles.timeText, isOutgoing && styles.outgoingTimeText]}>
+          {time}
+        </ThemedText>
       </View>
     </View>
   );
@@ -36,7 +44,7 @@ export default function MessageBubble({ message, time, isOutgoing, senderAvatar 
 const styles = StyleSheet.create({
   container: {
     marginVertical: 4,
-    marginHorizontal: 12,
+    marginHorizontal: 4,
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
@@ -45,11 +53,6 @@ const styles = StyleSheet.create({
   },
   incomingContainer: {
     justifyContent: 'flex-start',
-    
-    paddingLeft: 40,
-  },
-  incomingContainerWithAvatar: {
-    paddingLeft: 0,
   },
   avatar: {
     width: 32,
@@ -58,27 +61,31 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   bubble: {
-    maxWidth: '80%',
+    maxWidth: '75%',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
   },
   outgoingBubble: {
-    backgroundColor: '#0078d7',
+    backgroundColor: '#0A58A5',
     borderTopRightRadius: 4,
   },
   incomingBubble: {
-    backgroundColor: '#2a2a2a',
     borderTopLeftRadius: 4,
   },
   messageText: {
-    color: '#ffffff',
     fontSize: 16,
   },
+  outgoingText: {
+    color: '#ffffff',
+  },
   timeText: {
-    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 11,
     alignSelf: 'flex-end',
     marginTop: 4,
+    opacity: 0.7,
+  },
+  outgoingTimeText: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 });
