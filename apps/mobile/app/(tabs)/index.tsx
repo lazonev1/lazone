@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Image, View, Appearance, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Appearance, SafeAreaView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
@@ -27,58 +27,59 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Image
-          source={
-            colorScheme === 'dark'
-              ? require('../../assets/images/lazone-logo.png')
-              : require('../../assets/images/lazone-logo-lightTheme.png')
-          }
-          style={styles.logo}
-        />
-
-        <SearchBar
-          value={searchText}
-          onChangeText={setSearchText}
-          onSubmit={handleSearch}
-          showSearchButton={true}
-        />
-      </View>
-
-      <ScrollView style={styles.scrollContent}>
-        {/* Popular Services */}
-        <View style={styles.contentPadding}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Popular Services
-          </ThemedText>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Image
+            source={
+              colorScheme === 'dark'
+                ? require('../../assets/images/lazone-logo.png')
+                : require('../../assets/images/lazone-logo-lightTheme.png')
+            }
+            style={styles.logo}
+          />
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmit={handleSearch}
+            showSearchButton={true}
+          />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
-          {Categories.map((cat, index) => (
-            <ServiceCategoryCard key={cat.name || index} name={cat.name} />
-          ))}
+        <ScrollView style={styles.scrollContent}>
+          {/* Popular Services */}
+          <View style={styles.contentPadding}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Popular Services
+            </ThemedText>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
+            {Categories.map((cat, index) => (
+              <ServiceCategoryCard key={cat.name || index} name={cat.name} />
+            ))}
+          </ScrollView>
+
+          <View style={styles.contentPadding}>
+            <ThemedText type="subtitle" style={styles.exploreTitle}>
+              Explore beautiful work
+            </ThemedText>
+
+            {Providers.map((item) => (
+              <ProviderListItem
+                key={item.id}
+                name={item.name}
+                description={item.bio}
+                rating={item.rating}
+                onPress={() => {
+                  router.push(`/provider/${item.id}`);
+                }}
+              />
+            ))}
+          </View>
         </ScrollView>
-
-        <View style={styles.contentPadding}>
-          <ThemedText type="subtitle" style={styles.exploreTitle}>
-            Explore beautiful work
-          </ThemedText>
-
-          {Providers.map((item) => (
-            <ProviderListItem
-              key={item.id}
-              name={item.name}
-              description={item.bio}
-              rating={item.rating}
-              onPress={() => {
-                router.push(`/provider/${item.id}`);
-              }}
-            />
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
