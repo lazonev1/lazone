@@ -4,11 +4,13 @@ export interface SearchFilters {
   minPrice: number;
   maxPrice: number;
   minRating: number;
+  remoteOnly: boolean;
 }
 
 export const DEFAULT_FILTERS: SearchFilters = {
   query: '',
   radius: 20,
+  remoteOnly: false,
   minPrice: 0,
   maxPrice: 200000, // 2,000,000 CF
   minRating: 0,

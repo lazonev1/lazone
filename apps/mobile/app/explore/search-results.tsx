@@ -8,6 +8,7 @@ import { Providers } from '@/constants/providers';
 import Slider from '@react-native-community/slider';
 import { SearchFilters, DEFAULT_FILTERS, FILTER_RANGES } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
+import CheckBox from '@/components/ui/CheckBox';
 
 export default function SearchResultsScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -26,10 +27,11 @@ export default function SearchResultsScreen() {
     ...DEFAULT_FILTERS,
     query: String(params.query) ?? '',
     radius: Number(params.radius) || DEFAULT_FILTERS.radius,
+    remoteOnly: params.remoteOnly === 'true' || DEFAULT_FILTERS.remoteOnly,
   });
 
   const [loading, setLoading] = useState(false);
-  const [filteredProviders, setFilteredProviders] = useState([]);
+  const [filteredProviders, setFilteredProviders] = useState<typeof Providers>([]);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -51,6 +53,11 @@ export default function SearchResultsScreen() {
           return priceRange[0] >= filters.minPrice && priceRange[1] <= filters.maxPrice;
         });
       // Combine all conditions
+      const meetRemoteCondition = provider.remoteService === filters.remoteOnly;
+      if (filters.remoteOnly) { // Do not include distance check if remoteOnly is true
+        return matchesSearch && meetsRating && meetsPrice && meetRemoteCondition;
+      }
+      // If remoteOnly is false, we don't filter by remoteService
       return matchesSearch && withinRadius && meetsRating && meetsPrice;
     });
 
@@ -58,8 +65,8 @@ export default function SearchResultsScreen() {
     setLoading(false);
   }, [filters]);
 
-  const updateFilter = (key: keyof SearchFilters, value: number | string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const updateFilter = (key: keyof SearchFilters, value: number | string | boolean) => {
+    setFilters((prev: SearchFilters) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -109,6 +116,17 @@ export default function SearchResultsScreen() {
               minimumTrackTintColor={'#0A58A5'}
               thumbTintColor={'#0A58A5'}
             />
+          </View>
+          {/* Remote Services Only */}
+          <View style={{ flexDirection: 'row',alignItems: 'center'}}>
+            <CheckBox
+              isChecked={filters.remoteOnly}
+              setChecked={() => updateFilter('remoteOnly', !filters.remoteOnly)}
+              color={filters.remoteOnly ? '#0A58A5' : undefined}
+            />
+            <ThemedText style={{ marginLeft: 8 }}>
+              Remote Services Only
+            </ThemedText>
           </View>
         </View>
       )}

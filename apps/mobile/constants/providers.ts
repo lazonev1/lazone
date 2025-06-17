@@ -4,6 +4,7 @@ export const Providers = [
     name: 'Alex Johnson',
     profession: 'Electrician',
     categoryName: 'Electrician', // Matches the "Electrician" category
+    remoteService: false,
     rating: 4.8,
     reviews: 150,
     bio: 'Experienced electrician specializing in household repairs and lighting.',
@@ -30,6 +31,7 @@ export const Providers = [
     name: 'Sarah Doe',
     profession: 'Tailor',
     categoryName: 'Tailor', // Matches the "Tailor" category
+    remoteService: false,
     rating: 5,
     reviews: 120,
     bio: 'Expert tailor specializing in custom clothing and alterations.',
@@ -54,6 +56,7 @@ export const Providers = [
     name: 'John Fixit',
     profession: 'Plumber',
     categoryName: 'Plumber', // Matches the "Plumber" category
+    remoteService: false,
     rating: 2.6,
     reviews: 90,
     bio: 'Reliable plumber for all your household needs.',
@@ -78,6 +81,7 @@ export const Providers = [
     name: 'Catering Co.',
     profession: 'Caterer',
     categoryName: 'Caterer', // Matches the "Caterer" category
+    remoteService: false,
     rating: 3.9,
     reviews: 200,
     bio: 'Delicious catering services for all occasions.',
@@ -94,6 +98,31 @@ export const Providers = [
     ],
     testimonials: [
       { name: 'Anna K.', quote: 'The food was amazing, and the service was top-notch!' },
+    ],
+    pricing: '5000 CFA - 20000 CFA',
+  },
+  {
+    id: 5,
+    name: 'Graphic Guru',
+    profession: 'Designer',
+    categoryName: 'Design', // Matches the "Caterer" category
+    remoteService: true,
+    rating: 4,
+    reviews: 200,
+    bio: 'Creative graphic designer specializing in branding and digital art.',
+    avatar: require('@/assets/images/avatar-placeholder.png'),
+    cover: require('@/assets/images/favicon.png'),
+    location: { latitude: 41.8781, longitude: -87.6298 }, // Example location
+    distance: 50, // Distance in km
+    portfolio: [
+      { image: require('@/assets/images/react-logo.png'), caption: 'Wedding catering' },
+    ],
+    services: [
+      { name: 'Webs Designing', price: '$500 - $2000', availability: 'Book for Later' },
+      { name: 'Logo Design', price: '$300 - $1000', availability: 'Available Now' },
+    ],
+    testimonials: [
+      { name: 'Anna K.', quote: 'The design was both creative an professional' },
     ],
     pricing: '5000 CFA - 20000 CFA',
   },

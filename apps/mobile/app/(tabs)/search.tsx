@@ -5,9 +5,10 @@ import Slider from '@react-native-community/slider';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Button } from '@react-navigation/elements';
+import { Button } from '@lazone/ui';
 import { DEFAULT_FILTERS } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
+import CheckBox from '@/components/ui/CheckBox';
 
 export default function SearchLocatorScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -17,14 +18,18 @@ export default function SearchLocatorScreen() {
 
   const [query, setQuery] = useState(DEFAULT_FILTERS.query);
   const [radius, setRadius] = useState(DEFAULT_FILTERS.radius);
+  const [remoteOnly, setRemoteOnly] = useState(DEFAULT_FILTERS.remoteOnly);
 
   const handleSearch = () => {
+    const searchParams = {
+      query: query.trim(),
+      radius: radius.toString(),
+      remoteOnly: Boolean(remoteOnly).toString(),
+    };
+
     router.push({
       pathname: '/explore/search-results',
-      params: {
-        query: query.trim(),
-        radius: radius.toString(),
-      },
+      params: searchParams,
     });
   };
 
@@ -51,9 +56,23 @@ export default function SearchLocatorScreen() {
           />
         </View>
 
-        <Button style={styles.searchButton} onPress={handleSearch}>
-          <ThemedText style={styles.submitText}>Search</ThemedText>
-        </Button>
+        <View style={styles.checkboxContainer}>
+          <CheckBox
+            isChecked={remoteOnly}
+            setChecked={() => setRemoteOnly(!remoteOnly)}
+            color={remoteOnly ? '#0A58A5' : undefined}
+          />
+          <ThemedText style={styles.checkboxLabel}>
+            Remote Only Services Only
+          </ThemedText>
+        </View>
+
+        <Button
+          label="Search"
+          onPress={handleSearch}
+          variant="primary"
+          style={styles.searchButton}
+        />
       </View>
     </TouchableWithoutFeedback>
   );
@@ -69,7 +88,17 @@ function createStyles(theme) {
     sliderBlock: {
       marginBottom: 40,
     },
+    checkboxContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+      marginTop: -20,
+    },
+    checkboxLabel: {
+      marginLeft: 8,
+    },
     searchButton: {
+      marginTop: 16,
       backgroundColor: '#0A58A5',
       paddingVertical: 14,
       borderRadius: 10,
