@@ -1,4 +1,4 @@
-import { StyleSheet, View, Appearance } from 'react-native';
+import { StyleSheet, View, Appearance, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Booking, BookingStatus as StatusType } from '@/types/booking';
@@ -16,24 +16,31 @@ export function BookingCard({ booking, onPress }: Props) {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
   return (
-    <ThemedView
-      style={[styles.card, { borderLeftWidth: 5, borderLeftColor: getStatusColor(booking.status) }]}
-      lightColor={theme.background}
-      darkColor="#333"
+    <TouchableOpacity
+      onPress={() => onPress?.(booking)}
+      activeOpacity={0.7}
     >
-      <View style={styles.content}>
-        <View style={styles.details}>
-          <ThemedText type="defaultSemiBold">{booking.name}</ThemedText>
-          <ThemedText>{booking.service}</ThemedText>
-          <ThemedText>{booking.time}</ThemedText>
-          <BookingStatus status={booking.status} />
+      <ThemedView
+        style={[styles.card, { borderLeftWidth: 5, borderLeftColor: getStatusColor(booking.status) }]}
+        lightColor={theme.background}
+        darkColor="#333"
+      >
+        <View style={styles.content}>
+          <View style={styles.details}>
+            <ThemedText type="defaultSemiBold">{booking.name}</ThemedText>
+            <ThemedText>{booking.service}</ThemedText>
+            <ThemedText>{booking.time}</ThemedText>
+            <BookingStatus status={booking.status} />
+          </View>
+          <View pointerEvents="none">
+            <ArrowButton 
+              onPress={() => {}} 
+              color={colorScheme === 'dark' ? '#fff' : '#666'}
+            />
+          </View>
         </View>
-        <ArrowButton 
-          onPress={() => onPress?.(booking)} 
-          color={colorScheme === 'dark' ? '#fff' : '#666'}
-        />
-      </View>
-    </ThemedView>
+      </ThemedView>
+    </TouchableOpacity>
   );
 }
 
