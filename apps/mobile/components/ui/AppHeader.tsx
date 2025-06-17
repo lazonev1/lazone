@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Image, StyleSheet, StatusBar, Platform } from 'react-native';
+import { View, Image, StyleSheet, StatusBar, Platform, Appearance } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 const AppHeader = () => {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   return (
     <View style={styles.headerContainer}>
       <StatusBar
@@ -13,7 +16,11 @@ const AppHeader = () => {
       />
       <View style={styles.innerContainer}>
         <Image
-          source={require('../../assets/images/lazone-logo.png')}
+          source={
+            colorScheme === 'dark'
+              ? require('../../assets/images/lazone-logo.png')
+              : require('../../assets/images/lazone-logo-lightTheme.png')
+          }
           style={styles.lazonelogo}
         />
       </View>

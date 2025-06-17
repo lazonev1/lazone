@@ -8,6 +8,7 @@ import { Providers } from '@/constants/providers';
 import { Categories } from '@/constants/categories';
 import SearchBar from '@/components/ui/SearchBar';
 import { useState } from 'react';
+import AppHeader from '@/components/ui/AppHeader';
 
 export default function HomeScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -29,23 +30,14 @@ export default function HomeScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Image
-            source={
-              colorScheme === 'dark'
-                ? require('../../assets/images/lazone-logo.png')
-                : require('../../assets/images/lazone-logo-lightTheme.png')
-            }
-            style={styles.logo}
-          />
+          <AppHeader/>
           <SearchBar
             value={searchText}
             onChangeText={setSearchText}
             onSubmit={handleSearch}
             showSearchButton={true}
           />
-        </View>
-
+          
         <ScrollView style={styles.scrollContent}>
           {/* Popular Services */}
           <View style={styles.contentPadding}>
@@ -83,21 +75,10 @@ export default function HomeScreen() {
   );
 }
 
-function createStyles(theme, colorScheme) {
+function createStyles(_theme, _colorScheme) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-    },
-    header: {
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.border,
-    },
-    logo: {
-      width: 140,
-      height: 40,
-      resizeMode: 'contain',
-      marginBottom: 12,
     },
     scrollContent: {
       flex: 1,
