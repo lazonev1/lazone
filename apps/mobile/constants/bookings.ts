@@ -26,7 +26,7 @@ export const Bookings = [
     name: 'Sarah Doe',
     service: 'Dress Alteration',
     time: '20th Oct 2023, 8:00 AM',
-    status: 'rejected',
+    status: 'cancelled',
     price: '25000 CFA',
     location: '789 Pine Lane, Brighton',
     description: 'Wedding dress adjustment',

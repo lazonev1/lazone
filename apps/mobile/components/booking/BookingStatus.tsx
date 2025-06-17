@@ -19,7 +19,7 @@ export function getStatusColor(status: StatusType): string {
   const colors = {
     confirmed: 'green',
     pending: '#e1a100',
-    rejected: 'red',
+    cancelled: 'red',
   };
   return colors[status] || '#999';
 }
