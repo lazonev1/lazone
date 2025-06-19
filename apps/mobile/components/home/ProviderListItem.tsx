@@ -6,11 +6,11 @@ type Props = {
   name: string;
   description: string;
   rating: number;
-  image?: any;
+  avatar?: any;
   onPress?: () => void;
 };
 
-export default function ProviderListItem({ name, description, rating, image, onPress }: Props) {
+export default function ProviderListItem({ name, description, avatar, rating, onPress }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -18,7 +18,7 @@ export default function ProviderListItem({ name, description, rating, image, onP
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <Image
-        source={image ?? require('@/assets/images/avatar-placeholder.png')}
+        source={avatar ?? require('@/assets/images/avatar-placeholder.png')}
         style={styles.avatar}
       />
 

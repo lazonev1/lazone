@@ -1,105 +1,164 @@
-import { View, StyleSheet, ScrollView, Image, TextInput, ActivityIndicator, Appearance } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { View, StyleSheet, ScrollView, ActivityIndicator, Appearance, SafeAreaView } from 'react-native';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import ProviderListItem from '@/components/home/ProviderListItem';
-import { useNavigation } from '@react-navigation/native';
+import { Providers } from '@/constants/providers';
+import Slider from '@react-native-community/slider';
+import { SearchFilters, DEFAULT_FILTERS, FILTER_RANGES } from '@/types/filters';
+import SearchBar from '@/components/ui/SearchBar';
+import CheckBox from '@/components/ui/CheckBox';
 
-// To be finished later, need filters and Real map in place of the logo
 export default function SearchResultsScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme);
   const router = useRouter();
-
   const params = useLocalSearchParams();
-  const [query, setQuery] = useState(params.query ?? '');
-  const [radius, setRadius] = useState(Number(params.radius) || 15);
-
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState([]);
 
   const navigation = useNavigation();
-    useEffect(() => {
-      navigation.setOptions({ title: 'Search' });
-    }, ['Search']);
+  useEffect(() => {
+    navigation.setOptions({ title: 'Search' });
+  }, ['Search']);
+
+  // Use the SearchFilters type and DEFAULT_FILTERS
+  const [filters, setFilters] = useState<SearchFilters>({
+    ...DEFAULT_FILTERS,
+    query: String(params.query) ?? '',
+    radius: Number(params.radius) || DEFAULT_FILTERS.radius,
+    remoteOnly: params.remoteOnly === 'true' || DEFAULT_FILTERS.remoteOnly,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [filteredProviders, setFilteredProviders] = useState<typeof Providers>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    if (!query.trim()) return;
-
+    console.log('Current filters:', filters);
     setLoading(true);
+    
+    const results = Providers.filter((provider) => {
+      //searching with query, radius,rating and price
+      const searchTerm = filters.query.toLowerCase().trim();
+      const matchesSearch = !searchTerm || 
+        provider.name.toLowerCase().includes(searchTerm) ||
+        provider.profession.toLowerCase().includes(searchTerm);
+      
+      const withinRadius = provider.distance <= filters.radius;
+      const meetsRating = provider.rating >= filters.minRating;
+      const meetsPrice = 
+        provider.services.some(service => {
+          const priceRange = service.price.split(' - ').map(price => parseFloat(price.replace(/[^0-9.-]+/g, '')));
+          return priceRange[0] >= filters.minPrice && priceRange[1] <= filters.maxPrice;
+        });
+      // Combine all conditions
+      const meetRemoteCondition = provider.remoteService === filters.remoteOnly;
+      if (filters.remoteOnly) { // Do not include distance check if remoteOnly is true
+        return matchesSearch && meetsRating && meetsPrice && meetRemoteCondition;
+      }
+      // If remoteOnly is false, we don't filter by remoteService
+      return matchesSearch && withinRadius && meetsRating && meetsPrice;
+    });
 
-    // Simulated API fetch; to be replaced by backend call
-    setTimeout(() => {
-      const fakeResults = [
-        {
-          id: 1,
-          name: 'John\'s Plumbing Services',
-          description: 'Highly rated plumbing solutions for your home.',
-          rating: 4.8,
-        },
-        {
-          id: 2,
-          name: 'Electric Solutions Co.',
-          description: 'Experienced electricians for all installations.',
-          rating: 4.7,
-        },
-        {
-          id: 3,
-          name: 'Crafty Carpentry',
-          description: 'Custom carpentry services with a touch of art.',
-          rating: 4.6,
-        },
-      ].filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+    setFilteredProviders(results);
+    setLoading(false);
+  }, [filters]);
 
-      setResults(fakeResults);
-      setLoading(false);
-    }, 600);
-
-    //API:
-    // fetch(`/api/search?query=${query}&radius=${radius}`)
-    //   .then(res => res.json())
-    //   .then(setResults)
-    //   .finally(() => setLoading(false));
-
-  }, [query, radius]);
+  const updateFilter = (key: keyof SearchFilters, value: number | string | boolean) => {
+    setFilters((prev: SearchFilters) => ({ ...prev, [key]: value }));
+  };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Search for services..."
-        placeholderTextColor={theme.icon}
-        style={styles.searchInput}
+    <SafeAreaView style={styles.container}>
+      <SearchBar
+        value={filters.query}
+        onChangeText={(value) => updateFilter('query', value)}
+        showFilterButton={true}
+        onFilterPress={() => setShowFilters(!showFilters)}
+        filterButtonText={showFilters ? 'Hide' : 'Filters'}
       />
 
-      <Image
-        source={require('@/assets/images/lazone-logo.png')} //require('@/assets/images/search-map-preview.png')
-        style={styles.map}
-      />
+      {/* Filters Section */}
+      {showFilters && (
+        <View style={styles.filtersContainer}>
+          {/* Distance Filter */}
+          <View style={styles.filterItem}>
+            <ThemedText>Distance: {filters.radius}km</ThemedText>
+            <Slider
+              value={filters.radius}
+              onValueChange={(value) => updateFilter('radius', Math.round(value))}
+              {...FILTER_RANGES.radius}
+              minimumTrackTintColor={'#0A58A5'}
+              thumbTintColor={'#0A58A5'}
+            />
+          </View>
 
-      <ThemedText type="subtitle" style={{ marginBottom: 10 }}>
-        {loading ? 'Searching...' : 'Nearby Service Providers'}
-      </ThemedText>
+          {/* Rating Filter */}
+          <View style={styles.filterItem}>
+            <ThemedText>Minimum Rating: {filters.minRating.toFixed(1)}⭐</ThemedText>
+            <Slider
+              value={filters.minRating}
+              onValueChange={(value) => updateFilter('minRating', value)}
+              {...FILTER_RANGES.rating}
+              minimumTrackTintColor={'#0A58A5'}
+              thumbTintColor={'#0A58A5'}
+            />
+          </View>
 
-      {loading && <ActivityIndicator color={theme.tint} />}
-
-      {!loading && results.map((provider) => (
-        <ProviderListItem
-          key={provider.id}
-          name={provider.name}
-          description={provider.description}
-          rating={provider.rating}
-          onPress={() => router.push(`/provider/${provider.id}`)}
-        />
-      ))}
-
-      {!loading && results.length === 0 && (
-        <ThemedText>No results found for "{query}".</ThemedText>
+          {/* Price Filter */}
+          <View style={styles.filterItem}>
+            <ThemedText>Maximum Price: {filters.maxPrice}CFA</ThemedText>
+            <Slider
+              value={filters.maxPrice}
+              onValueChange={(value) => updateFilter('maxPrice', value)}
+              {...FILTER_RANGES.price}
+              minimumTrackTintColor={'#0A58A5'}
+              thumbTintColor={'#0A58A5'}
+            />
+          </View>
+          {/* Remote Services Only */}
+          <View style={{ flexDirection: 'row',alignItems: 'center'}}>
+            <CheckBox
+              isChecked={filters.remoteOnly}
+              setChecked={() => updateFilter('remoteOnly', !filters.remoteOnly)}
+              color={filters.remoteOnly ? '#0A58A5' : undefined}
+            />
+            <ThemedText style={{ marginLeft: 8 }}>
+              Remote Services Only
+            </ThemedText>
+          </View>
+        </View>
       )}
-    </ScrollView>
+
+      {/* Results List */}
+      <ScrollView style={styles.resultsContainer}>
+        <ThemedText type="subtitle" style={styles.resultsHeader}>
+          {loading ? 'Searching...' : `Found ${filteredProviders.length} results`}
+        </ThemedText>
+
+        {loading ? (
+          <ActivityIndicator color={theme.tint} style={{ marginTop: 20 }} />
+        ) : filteredProviders.length > 0 ? (
+          filteredProviders.map((provider) => (
+            <ProviderListItem
+              key={provider.id}
+              name = {provider.name}
+              description={provider.bio}
+              avatar={provider.avatar}
+              rating={provider.rating}
+              onPress={() => router.push(`/provider/${provider.id}`)}
+            />
+            
+          ))
+        ) : (
+          <ThemedText style={styles.noResults}>
+            No providers found within {filters.radius}km
+            {filters.query ? ` matching "${filters.query}"` : ''}
+          </ThemedText>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -107,24 +166,30 @@ function createStyles(theme) {
   return StyleSheet.create({
     container: {
       flex: 1,
+      padding: 16,
+    },
+    filtersContainer: {
+      padding: 16,
+      borderBottomColor: theme.border,
+    },
+    filterItem: {
+      marginBottom: 5,
+      borderRadius: 8,
+      color : theme.text,
       backgroundColor: theme.background,
     },
-    content: {
+    resultsContainer: {
+      flex: 1,
+      padding: 16,
+    },
+    resultsHeader: {
+      padding: 16,
+      marginBottom: 8,
+      borderBottomColor: theme.border,
+    },
+    noResults: {
+      textAlign: 'center',
       padding: 20,
-    },
-    searchInput: {
-      borderRadius: 12,
-      backgroundColor: theme.background === '#fff' ? '#f2f2f2' : '#222',
-      color: theme.text,
-      padding: 14,
-      fontSize: 16,
-      marginBottom: 16,
-    },
-    map: {
-      width: '100%',
-      height: 180,
-      borderRadius: 12,
-      marginBottom: 16,
     },
   });
 }

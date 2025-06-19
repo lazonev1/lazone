@@ -1,11 +1,14 @@
-import { View, StyleSheet, TextInput, Appearance } from 'react-native';
+import { View, StyleSheet, Appearance, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Button } from '@react-navigation/elements';
+import { Button } from '@lazone/ui';
+import { DEFAULT_FILTERS } from '@/types/filters';
+import SearchBar from '@/components/ui/SearchBar';
+import CheckBox from '@/components/ui/CheckBox';
 
 export default function SearchLocatorScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -13,54 +16,65 @@ export default function SearchLocatorScreen() {
   const styles = createStyles(theme);
   const router = useRouter();
 
-  const [query, setQuery] = useState('');
-  const [radius, setRadius] = useState(5);
-
-  // const handleSearch = () => {
-  //   if (!query.trim()) return;
-  //   // router.push(`/search-results?query=${query.trim()}&radius=${radius}`);
-  //   router.push('/search-results')
-  // };
+  const [query, setQuery] = useState(DEFAULT_FILTERS.query);
+  const [radius, setRadius] = useState(DEFAULT_FILTERS.radius);
+  const [remoteOnly, setRemoteOnly] = useState(DEFAULT_FILTERS.remoteOnly);
 
   const handleSearch = () => {
-    if (!query.trim()) return;
-  
+    const searchParams = {
+      query: query.trim(),
+      radius: radius.toString(),
+      remoteOnly: Boolean(remoteOnly).toString(),
+    };
+
     router.push({
       pathname: '/explore/search-results',
-      params: {
-        query: query.trim(),
-        radius: radius.toString(),
-      },
+      params: searchParams,
     });
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <TextInput
-        placeholder="Search for a service (e.g. electrician)"
-        placeholderTextColor={theme.icon}
-        value={query}
-        onChangeText={setQuery}
-        style={styles.searchInput}
-      />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <SearchBar
+          value={query}
+          onChangeText={setQuery}
+          onSubmit={handleSearch}
+          showSearchButton={true}
+        />
 
-      <View style={styles.sliderBlock}>
-        <ThemedText type="defaultSemiBold">Search Radius: {radius} km</ThemedText>
-        <Slider
-          value={radius}
-          onValueChange={setRadius}
-          minimumValue={1}
-          maximumValue={50}
-          step={1}
-          minimumTrackTintColor={'#0A58A5'}
-          thumbTintColor={'#0A58A5'}
+        <View style={styles.sliderBlock}>
+          <ThemedText type="defaultSemiBold">Search Radius: {radius} km</ThemedText>
+          <Slider
+            value={radius}
+            onValueChange={setRadius}
+            minimumValue={1}
+            maximumValue={50}
+            step={1}
+            minimumTrackTintColor={'#0A58A5'}
+            thumbTintColor={'#0A58A5'}
+          />
+        </View>
+
+        <View style={styles.checkboxContainer}>
+          <CheckBox
+            isChecked={remoteOnly}
+            setChecked={() => setRemoteOnly(!remoteOnly)}
+            color={remoteOnly ? '#0A58A5' : undefined}
+          />
+          <ThemedText style={styles.checkboxLabel}>
+            Remote Only Services Only
+          </ThemedText>
+        </View>
+
+        <Button
+          label="Search"
+          onPress={handleSearch}
+          variant="primary"
+          style={styles.searchButton}
         />
       </View>
-
-      <Button style={styles.searchButton} onPress={handleSearch}>
-        <ThemedText style={styles.submitText}>Search</ThemedText>
-      </Button>
-    </ThemedView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -68,32 +82,27 @@ function createStyles(theme) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.background,
-      padding: 20,
+      padding: 16,
       justifyContent: 'center',
-    },
-    searchInput: {
-      borderRadius: 12,
-      backgroundColor: theme.background === '#fff' ? '#f2f2f2' : '#222',
-      color: theme.text,
-      padding: 14,
-      fontSize: 16,
-      marginBottom: 24,
     },
     sliderBlock: {
       marginBottom: 40,
     },
+    checkboxContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+      marginTop: -20,
+    },
+    checkboxLabel: {
+      marginLeft: 8,
+    },
     searchButton: {
+      marginTop: 16,
       backgroundColor: '#0A58A5',
       paddingVertical: 14,
       borderRadius: 10,
       alignItems: 'center',
-    },
-    actionButton: {
-      backgroundColor: '#0A58A5',
-      paddingVertical: 10,
-      paddingHorizontal: 24,
-      borderRadius: 24,
     },
     submitText: {
       color: '#fff',

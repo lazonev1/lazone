@@ -12,6 +12,7 @@ export default function CheckBox({isChecked, setChecked, ...props} : Props) {
           value={isChecked}
           onValueChange={setChecked}
           color={isChecked ? '#171617' : undefined}
+          {...props}            
         />
 
 }
