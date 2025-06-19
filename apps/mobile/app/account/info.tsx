@@ -93,6 +93,13 @@ export default function AccountInfoScreen() {
         <Text style={styles.arrow}>{'›'}</Text>
       </Pressable>
 
+      <Pressable style={styles.row} 
+        onPress={() => {
+          router.push('./wallet');
+            }
+        }>
+        <Text style={styles.logoutText}>Wallet</Text>
+      </Pressable>
       <Pressable style={styles.logout} 
         onPress={() => {
           logout();
