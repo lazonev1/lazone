@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { Button } from '@lazone/ui';
+import { PaymentMethodCard } from '@/components/account/PaymentCard';
 
 type PaymentMethod = {
   id: number;
@@ -13,7 +13,7 @@ type PaymentMethod = {
   image: any;
   isDefault?: boolean;
   number: string;
-  maskedNumber?: string;
+  cardNumber: string;
 };
 
 export default function WalletScreen() {
@@ -31,6 +31,7 @@ export default function WalletScreen() {
       image: require('@/assets/images/wallet-mtn.jpeg'),
       isDefault: true,
       number: '+226 123 456 7890',
+      cardNumber: '',
     },
     {
       id: 2,
@@ -38,6 +39,7 @@ export default function WalletScreen() {
       type: 'mobile',
       image: require('@/assets/images/wallet-orange.png'),
       number: '+226 123 456 7890',
+      cardNumber: '',
     },
     {
       id: 3,
@@ -45,7 +47,7 @@ export default function WalletScreen() {
       type: 'card',
       image: require('@/assets/images/wallet-card.png'),
       number: '4789',
-      maskedNumber: '•••••• 67890',
+      cardNumber: '•••••• 67890',
     },
   ];
   
@@ -75,42 +77,6 @@ export default function WalletScreen() {
   );
 }
 
-function PaymentMethodCard({ method }: { method: PaymentMethod }) {
-  return (
-    <ThemedView style={styles.card}>
-      <View style={styles.cardLeft}>
-        <Image source={method.image} style={styles.paymentLogo} />
-        <ThemedText style={styles.paymentType}>
-          {method.type === 'card' ? 'Credit / Debit' : 'Mobile'}
-        </ThemedText>
-      </View>
-      
-      <View style={styles.cardMiddle}>
-        <ThemedText type="defaultSemiBold">{method.name}</ThemedText>
-        {method.isDefault && <ThemedText style={styles.defaultLabel}>Default</ThemedText>}
-        
-        <ThemedText style={styles.accountLabel}>
-          {method.type === 'card' ? 'Credit' : 'Compte mobile'}
-        </ThemedText>
-        <ThemedText style={styles.accountNumber}>
-          {method.maskedNumber || method.number}
-        </ThemedText>
-      </View>
-      
-      {!method.isDefault && (
-        <View style={styles.cardRight}>
-          <Button 
-            label="Set as Default"
-            onPress={() => {}}
-            variant="primary"
-            size="small" 
-            style={styles.defaultButton}
-          />
-        </View>
-      )}
-    </ThemedView>
-  );
-}
 
 const styles = StyleSheet.create({
   container: {
