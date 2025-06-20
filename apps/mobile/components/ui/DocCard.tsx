@@ -18,7 +18,7 @@ const DocCard = ({ type, title, description }: DocType) => {
 		<ThemedText style={styles.desc}>
 			{description}
 		</ThemedText>
-		<Button label='Submit' style={styles.button} onPress={() => { Alert.alert("Bonjour") }}></Button>
+		<Button label='Submit' onPress={() => { Alert.alert("Bonjour") }}></Button>
 	</ThemedView>
 
 
