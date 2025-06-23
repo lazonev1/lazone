@@ -67,6 +67,14 @@ export default function AccountScreen() {
     router.push(route);
   };
 
+  // Filter resources based on current role
+  const getFilteredResources = (items: MenuItem[], role: 'requester' | 'provider') => {
+    return items.filter(item => {
+      if (!item.roleAccess) return true;
+      return item.roleAccess.includes(role);
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContent}>
@@ -117,7 +125,7 @@ export default function AccountScreen() {
         
         <MenuSection 
           title="Resources" 
-          items={ACCOUNT_MENU_ITEMS.resources}
+          items={getFilteredResources(ACCOUNT_MENU_ITEMS.resources, userRole)}
           onPress={navigateTo}
           styles={styles}
         />
