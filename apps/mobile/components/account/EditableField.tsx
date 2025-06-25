@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, TextInputProps } from 'react-native';
+import { View, Text, StyleSheet, TextInputProps, Appearance } from 'react-native';
 import React from 'react';
 import { TextInput } from '@lazone/ui';
+import { Colors } from '@/constants/Colors';
 
 type Props = TextInputProps & {
   label?: string;
@@ -10,6 +11,9 @@ type Props = TextInputProps & {
 };
 
 export default function EditableField({ label, value, onChangeText, ...props }: Props) {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme);
   return (
     <View style={styles.field}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -24,22 +28,24 @@ export default function EditableField({ label, value, onChangeText, ...props }: 
   );
 }
 
-const styles = StyleSheet.create({
-  field: {
-    marginBottom: 16,
-    width: '100%'
-  },
-  label: {
-    color: '#ccc',
-    marginBottom: 4,
-    fontSize: 14,
-  },
-  input: {
-    backgroundColor: '#333',
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    color: '#fff',
-    fontSize: 16,
-  },
-});
+function createStyles(theme) {
+  return StyleSheet.create({
+    field: {
+      marginBottom: 16,
+      width: '100%',
+    },
+    label: {
+      color: theme.textSecondary,
+      marginBottom: 4,
+      fontSize: 14,
+    },
+    input: {
+      borderRadius: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      color: theme.text,
+      fontSize: 16,
+      backgroundColor: theme.background,
+    },
+  });
+}
