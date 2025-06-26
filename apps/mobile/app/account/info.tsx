@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, StyleSheet, Alert, Pressable, ActivityIndicator, ScrollView, Appearance } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
@@ -6,6 +6,10 @@ import { Button } from '@lazone/ui';
 import EditableField from '../../components/account/EditableField';
 import ProfileAvatar from '../../components/account/ProfileAvatar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Colors } from '@/constants/Colors';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useNavigation } from '@react-navigation/native';
 
 const STORAGE_KEY = 'user-info';
 
@@ -16,10 +20,13 @@ export default function AccountInfoScreen() {
 	const [avatar, setAvatar] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [saving, setSaving] = useState(false);
-	const { logout } = useAuth()
-	const router = useRouter()
+	const { logout } = useAuth();
+	const router = useRouter();
+	const colorScheme = Appearance.getColorScheme();
+	const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+	const styles = createStyles(theme, colorScheme);
+	const navigation = useNavigation();
 
-	//Load user data from local storage or API later
 	useEffect(() => {
 		(async () => {
 			setLoading(true);
@@ -37,6 +44,7 @@ export default function AccountInfoScreen() {
 			}
 			setLoading(false);
 		})();
+		navigation.setOptions({ title: 'Account Info' });
 	}, []);
 
 	// Save to local storage (Todo: replace with API)
@@ -58,114 +66,114 @@ export default function AccountInfoScreen() {
 	if (loading) {
 		return (
 			<View style={styles.center}>
-				<ActivityIndicator size="large" color="#FF9900" />
+				<ActivityIndicator size="large" color={theme.tint} />
 			</View>
 		);
 	}
 
 	return (
 		<ScrollView contentContainerStyle={styles.container}>
-			<Text style={styles.sectionTitle}>Account Info</Text>
-
 			<ProfileAvatar uri={avatar} onChange={setAvatar} />
-
 			<EditableField value={name} onChangeText={setName} />
 			<EditableField value={email} onChangeText={setEmail} keyboardType="email-address" />
 			<EditableField value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
-			<View style={{ marginBottom: 32 }}>
+			<View style={styles.buttonContainer}>
 				{saving ? (
-					<ActivityIndicator size="large" color="#FF9900" />
+					<ActivityIndicator size="large" color={theme.tint} />
 				) : (
-					<Button label="Save Changes" onPress={handleSave} />
+					<Button
+						label="Save Changes"
+						onPress={handleSave}
+						variant="primary"
+					/>
 				)}
 			</View>
 
-			<Text style={styles.sectionTitle}>Account Management</Text>
+			<ThemedText type="subtitle" style={styles.sectionTitle}>Account Management</ThemedText>
 
-			<Pressable style={styles.row} onPress={() => Alert.alert('TODO', 'Handle deactivate')}>
-				<Text style={styles.rowText}>Deactivate and deletion</Text>
-				<Text style={styles.arrow}>{'›'}</Text>
-			</Pressable>
+			<ThemedView style={styles.managementSection}>
+				<Pressable
+					style={styles.row}
+					onPress={() => Alert.alert('TODO', 'Handle deactivate')}
+				>
+					<ThemedText>Deactivate and deletion</ThemedText>
+					<ThemedText style={styles.arrow}>›</ThemedText>
+				</Pressable>
 
-			<Pressable style={styles.row} onPress={() => Alert.alert('TODO', 'Handle change password')}>
-				<Text style={styles.rowText}>Change Password</Text>
-				<Text style={styles.arrow}>{'›'}</Text>
-			</Pressable>
+				<View style={styles.divider} />
 
-			<Pressable style={styles.row}
-				onPress={() => {
-					router.push('./wallet');
-				}
-				}>
-				<Text style={styles.logoutText}>Wallet(Test)</Text>
-			</Pressable>
-			<Pressable style={styles.row}
-				onPress={() => {
-					router.push('./verification');
-				}
-				}>
-				<Text style={styles.logoutText}>Verify(Test)</Text>
-			</Pressable>
+				<Pressable
+					style={styles.row}
+					onPress={() => Alert.alert('TODO', 'Handle change password')}
+				>
+					<ThemedText>Change Password</ThemedText>
+					<ThemedText style={styles.arrow}>›</ThemedText>
+				</Pressable>
+			</ThemedView>
 
-
-			<Pressable style={styles.logout}
+			<Pressable
+				style={styles.logout}
 				onPress={() => {
 					logout();
 					router.replace('/(auth)/login');
-				}
-				}>
-				<Text style={styles.logoutIcon}>⎋</Text>
-				<Text style={styles.logoutText}>Logout</Text>
+				}}
+			>
+				<ThemedText style={styles.logoutText}>⎋ Logout</ThemedText>
 			</Pressable>
 		</ScrollView>
 	);
 }
 
-const styles = StyleSheet.create({
-	container: {
-		padding: 24,
-		backgroundColor: '#000',
-	},
-	sectionTitle: {
-		color: '#fff',
-		fontSize: 18,
-		fontWeight: '600',
-		marginBottom: 16,
-		marginTop: 24,
-	},
-	row: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		paddingVertical: 12,
-		borderBottomWidth: 1,
-		borderColor: '#444',
-	},
-	rowText: {
-		color: '#fff',
-		fontSize: 16,
-	},
-	arrow: {
-		color: '#fff',
-		fontSize: 20,
-	},
-	logout: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		marginTop: 32,
-	},
-	logoutIcon: {
-		fontSize: 20,
-		marginRight: 8,
-		color: '#fff',
-	},
-	logoutText: {
-		color: '#fff',
-		fontSize: 16,
-	},
-	center: {
-		flex: 1,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-});
+function createStyles(theme, colorScheme) {
+	return StyleSheet.create({
+		container: {
+			padding: 24,
+		},
+		buttonContainer: {
+			marginBottom: 32,
+		},
+		sectionTitle: {
+			fontSize: 18,
+			fontWeight: '600',
+			marginBottom: 16,
+			marginTop: 24,
+		},
+		managementSection: {
+			borderRadius: 12,
+			backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+			borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
+			borderWidth: 1,
+			overflow: 'hidden',
+		},
+		row: {
+			flexDirection: 'row',
+			justifyContent: 'space-between',
+			alignItems: 'center',
+			padding: 16,
+		},
+		divider: {
+			height: 1,
+			backgroundColor: colorScheme === 'dark' ? '#333' : '#ccc',
+		},
+		arrow: {
+			fontSize: 20,
+		},
+		logout: {
+			marginTop: 32,
+			marginBottom: 16,
+			alignItems: 'center',
+			padding: 16,
+		},
+		logoutText: {
+			fontSize: 16,
+			color: '#FF3B30',
+		},
+		center: {
+			flex: 1,
+			justifyContent: 'center',
+			alignItems: 'center',
+			backgroundColor: theme.background,
+		},
+	});
+}
