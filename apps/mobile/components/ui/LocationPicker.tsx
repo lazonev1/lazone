@@ -60,15 +60,19 @@ export function LocationPicker({ value, onChange, error }: Props) {
       <View style={styles.countryPicker}>
         <ThemedText style={styles.label}>Country</ThemedText>
         <CountryPicker
-          withFilter
-          withFlag
-          withCountryNameButton
-          countryCode={value.country || 'BF'}
-          onSelect={(country) => 
-            onChange({ ...value, country: country.cca2 })
-          }
-          containerButtonStyle={styles.countryButton}
-          theme={colorScheme}
+            withFilter
+            withFlag
+            withCountryNameButton
+            countryCode={value.country || 'BF'}
+            onSelect={(country) => 
+                onChange({ ...value, country: country.cca2 })
+            }
+            containerButtonStyle={styles.countryButton}
+            theme={{
+                backgroundColor: theme.background,
+                onBackgroundTextColor: theme.text,
+                // filterPlaceholderTextColor: theme.text,
+            }}
         />
       </View>
 
@@ -113,7 +117,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   },
   label: {
     marginBottom: 8,
-    color: theme.textSecondary,
+    color: theme.text,
   },
   countryPicker: {
     marginBottom: 8,
