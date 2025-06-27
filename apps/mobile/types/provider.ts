@@ -4,7 +4,14 @@ export interface ProviderRegistration {
   serviceCategory: string;
   phone: string;
   description: string;
-  location: string;
+  location: {
+    country: string;
+    city: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
   languages: string[];
   remoteService: boolean;
 
@@ -39,8 +46,5 @@ export interface Certification {
 }
 
 export type RegistrationStep = 
-  | 'basic-info'
-  | 'portfolio'
-  | 'services'
-  | 'certifications'
-  | 'review';
+  | 'business-info'   // Step 1: Basic business info + location
+  | 'service-details'; // Step 2: Services + portfolio

@@ -90,7 +90,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'become-provider',
         label: 'Become a Provider',
-        route: '/become-provider',
+        route: '/provider/registration',
         icon: 'briefcase-outline',
         roleAccess: ['requester'],
     },
