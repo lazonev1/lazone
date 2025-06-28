@@ -16,43 +16,43 @@ type Props = {
 	onSetDefault: () => void
 }
 export function PaymentMethodCard({ method, onSetDefault }: Props) {
-	  const colorScheme = Appearance.getColorScheme();
-	  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-	  const styles = createStyles(theme, colorScheme);
-  return (
-    <ThemedView style={styles.card}>
-      <View style={styles.cardLeft}>
-        <Image source={method.vendorLogoSource as ImageSourcePropType} style={styles.paymentLogo} />
-        <ThemedText style={styles.paymentType}>
-          {'Mobile'}
-        </ThemedText>
-      </View>
-      
-      <View style={styles.cardMiddle}>
-        <ThemedText type="defaultSemiBold">{method.label}</ThemedText>
-        
-        <ThemedText style={styles.accountNumber}>
-          {method.mobileNumber}
-        </ThemedText>
-      </View>
-      
-        <View style={styles.cardRight}>
-			{method.isDefault ? 
-			<ThemedText style={styles.defaultLabel}>Default</ThemedText> : 
-          <Button 
-            label="Set as Default"
-            onPress={onSetDefault}
-            variant="primary"
-            size="small" 
-            style={styles.defaultButton}
-          /> 
-		}
-        </View>
-    </ThemedView>
-  );
+	const colorScheme = Appearance.getColorScheme();
+	const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+	const styles = createStyles(theme, colorScheme);
+	return (
+		<ThemedView style={styles.card}>
+			<View style={styles.cardLeft}>
+				<Image source={method.vendorLogoSource as ImageSourcePropType} style={styles.paymentLogo} />
+				<ThemedText style={styles.paymentType}>
+					{'Mobile'}
+				</ThemedText>
+			</View>
+
+			<View style={styles.cardMiddle}>
+				<ThemedText type="defaultSemiBold">{method.label}</ThemedText>
+
+				<ThemedText style={styles.accountNumber}>
+					{method.mobileNumber}
+				</ThemedText>
+			</View>
+
+			<View style={styles.cardRight}>
+				{method.isDefault ?
+					<ThemedText style={styles.defaultLabel}>Default</ThemedText> :
+					<Button
+						label="Set as Default"
+						onPress={onSetDefault}
+						variant="primary"
+						size="small"
+						style={styles.defaultButton}
+					/>
+				}
+			</View>
+		</ThemedView>
+	);
 }
 
-const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefined) => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: 'dark' | 'light' | null | undefined) => StyleSheet.create({
 	card: {
 		flexDirection: 'row',
 		borderRadius: 14,
@@ -71,7 +71,7 @@ const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefi
 		paddingHorizontal: 10
 	},
 	cardRight: {
-		alignItems:  'flex-end',
+		alignItems: 'flex-end',
 		justifyContent: 'center'
 	},
 	accountNumber: {
@@ -85,7 +85,7 @@ const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefi
 	defaultLabel: {
 		fontSize: 12,
 		opacity: 0.7,
- 		paddingHorizontal: 10,
+		paddingHorizontal: 10,
 		borderRadius: 9,
 		borderColor: '#0A76D8',
 		borderWidth: 1
@@ -96,14 +96,14 @@ const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefi
 	},
 	paymentLogo: {
 		borderRadius: 14,
-		width: 50 ,
+		width: 50,
 		height: 50,
 		marginBottom: 5,
 		resizeMode: 'contain'
 	},
 	defaultButton: {
 		backgroundColor: '#0A76D8',
- 		paddingHorizontal: 10,
+		paddingHorizontal: 10,
 		paddingVertical: 5,
 	}
 })
