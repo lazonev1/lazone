@@ -97,3 +97,26 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     ],
 
 };
+export const WALLET_SETTINGS_ITEMS: Record<string,  MenuItem[]> = {
+    settings: [
+        {
+        id: 'manage-payment',
+        label: 'Manage Payment Info',
+        route: '/manager-payment',
+        icon: 'card-outline'
+    },
+    {
+        id: 'add-payment-method',
+        label: 'Add Payment Method',
+        route: '/add-payment',
+        icon: 'add-circle-outline'
+    },
+    {
+        id: 'security',
+        label: 'Security Info',
+        route: '/security',
+        icon: 'lock-closed-outline'
+    }
+
+
+]} 

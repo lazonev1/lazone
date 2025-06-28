@@ -1,15 +1,22 @@
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { PaymentMethodCard } from '@/components/account/PaymentCard';
 import { PaymentMethod } from '@/types/user'
+import { Appearance } from 'react-native';
+import { Colors } from '@/constants/Colors';
+import { WALLET_SETTINGS_ITEMS } from '@/constants/account';
+import { MenuItem } from '@/types/user';
+import { TouchableOpacity } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { Ionicons } from '@expo/vector-icons';
+import { ArrowButton } from '@/components/ui/ArrowButton';
 
 export default function WalletScreen() {
   const navigation = useNavigation();
-  const styles = createStyles()
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme, colorScheme)
   
   useEffect(() => {
     navigation.setOptions({ title: 'Wallet' });
@@ -68,27 +75,56 @@ export default function WalletScreen() {
           onSetDefault={() => setDefaultMethod(method.id)}
           />
       ))}
-      
-      <ThemedText type="subtitle" style={styles.sectionTitle}>Settings</ThemedText>
-      
-      <ThemedView style={styles.settingItem}>
-        <Ionicons name="card-outline" size={24} color="#666" style={styles.settingIcon} />
-        <ThemedText>Manage payment info</ThemedText>
-      </ThemedView>
-      
-      <ThemedView style={styles.settingItem}>
-        <Ionicons name="add-circle-outline" size={24} color="#666" style={styles.settingIcon} />
-        <ThemedText>Add new payment method</ThemedText>
-      </ThemedView>
-      
-      <ThemedView style={styles.settingItem}>
-        <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.settingIcon} />
-        <ThemedText>Security Info</ThemedText>
-      </ThemedView>
+      <MenuSection 
+        title='Settings' 
+        items={WALLET_SETTINGS_ITEMS.settings}
+        onPress={() => {}} 
+        styles={styles}
+      /> 
     </View>
   );
 }
-
+// Abdoul's method just as-is
+function MenuSection({ title, items, onPress, styles }: { 
+  title?: string; 
+  items: MenuItem[];
+  onPress: (route: string) => void;
+  styles: any;
+}) {
+  return (
+    <View style={[
+      styles.section,
+      !title && styles.sectionWithoutTitle
+    ]}>
+      {title && (
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          {title}
+        </ThemedText>
+      )}
+      {items.map((item, index) => (
+        <View key={item.id}>
+          <TouchableOpacity 
+            onPress={() => onPress(item.route)} 
+            style={styles.menuItem}
+          >
+            <View style={styles.menuItemLeft}>
+              {item.icon && (
+                <Ionicons 
+                  name={item.icon} 
+                  size={24} 
+                  style={styles.menuIcon}
+                />
+              )}
+              <ThemedText>{item.label}</ThemedText>
+            </View>
+            <ArrowButton onPress={() => onPress(item.route)} />
+          </TouchableOpacity>
+          {index < items.length - 1 && <View style={styles.divider} />}
+        </View>
+      ))}
+    </View>
+  );
+}
 const getMethodInfo = (mobileNumber: string): { vendor: string, label: string, vendorLogoSource: any } => {
   // Example logic to determine vendor info based on mobile number
   if (mobileNumber.startsWith('+226 123')) {
@@ -106,7 +142,7 @@ const getMethodInfo = (mobileNumber: string): { vendor: string, label: string, v
   };
 };
 
-const createStyles = () => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: 'dark' | 'light' | undefined | null) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
@@ -126,4 +162,38 @@ const createStyles = () => StyleSheet.create({
   settingIcon: {
     marginRight: 15,
   },
+      section: {
+      marginBottom: 24,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+      // backgroundColor:theme.background,
+    },
+    sectionWithoutTitle: {
+      paddingTop: 0,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderRadius: 8,
+    },
+    menuItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    menuIcon: {
+      marginRight: 12,
+      color: theme.text,
+      width: 24,
+    },
+    divider: {
+      height: 0.5,
+      backgroundColor: colorScheme === 'dark' ? '#444' : '#E0E0E0',
+      marginLeft: 36, 
+      marginRight: 25,
+      marginVertical: 8, 
+    },
 });
