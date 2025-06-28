@@ -1,7 +1,8 @@
 import { ThemedView } from '@/components/ThemedView'
 import { ThemedText } from '@/components/ThemedText'
-import { Image, View, StyleSheet } from 'react-native'
+import { Image, View, StyleSheet, Appearance } from 'react-native'
 import { Button } from '@lazone/ui'
+import { Colors } from '@/constants/Colors'
 
 type PaymentMethod = {
 	id: number;
@@ -13,6 +14,9 @@ type PaymentMethod = {
 	cardNumber: string;
 }
 export function PaymentMethodCard({ method }: { method: PaymentMethod }) {
+	  const colorScheme = Appearance.getColorScheme();
+	  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+	  const styles = createStyles(theme, colorScheme);
   return (
     <ThemedView style={styles.card}>
       <View style={styles.cardLeft}>
@@ -49,13 +53,14 @@ export function PaymentMethodCard({ method }: { method: PaymentMethod }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefined) => StyleSheet.create({
 	card: {
 		flexDirection: 'row',
 		borderRadius: 14,
 		padding: 15,
 		marginBottom: 15,
-		alignItems: 'center'
+		alignItems: 'center',
+		backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background
 
 	},
 	cardLeft: {

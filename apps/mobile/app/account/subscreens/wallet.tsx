@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -18,6 +18,7 @@ type PaymentMethod = {
 
 export default function WalletScreen() {
   const navigation = useNavigation();
+  const styles = createStyles()
   
   useEffect(() => {
     navigation.setOptions({ title: 'Wallet' });
@@ -78,7 +79,7 @@ export default function WalletScreen() {
 }
 
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
@@ -86,53 +87,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     marginTop: 25,
     marginBottom: 10,
-  },
-  card: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  cardLeft: {
-    alignItems: 'center',
-    width: 70,
-  },
-  cardMiddle: {
-    flex: 1,
-    paddingHorizontal: 10,
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  paymentLogo: {
-    borderRadius: 14,
-    width: 50,
-    height: 50,
-    marginBottom: 5,
-    resizeMode: 'contain',
-  },
-  paymentType: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  defaultLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  accountLabel: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-  accountNumber: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  defaultButton: {
-    backgroundColor: '#0A76D8',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
   settingItem: {
     flexDirection: 'row',

@@ -30,7 +30,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'wallet',
         label: 'Wallet',
-        route: '/wallet',
+        route: '/account/subscreens/wallet',
         icon: 'wallet-outline',
     },
     {

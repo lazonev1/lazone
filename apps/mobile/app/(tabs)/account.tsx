@@ -134,7 +134,7 @@ export default function AccountScreen() {
   );
 }
 
-function createStyles(theme, colorScheme) {
+function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
   return StyleSheet.create({
     container: {
       flex: 1,
