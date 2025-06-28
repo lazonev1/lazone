@@ -24,7 +24,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'saved',
         label: 'Saved Providers',
-        route: '/saved-providers',
+        route: '/account/subscreens/savedproviders',
         icon: 'bookmark-outline',
     },
     {
