@@ -1,139 +1,207 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Appearance, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui';
-import EditableField from '@/components/account/EditableField';
-import { ImagePicker } from '@/components/ui/ImagePicker';
-import { useState } from 'react';
-import { ServiceItem, ProviderRegistration } from '@/types/provider';
+import { TextBox } from '@/components/ui/TextBox';
+import { PortfolioImagePicker } from '@/components/ui/ImagePicker';  // Updated import
+import { Colors } from '@/constants/Colors';
+import { ServiceItem, PortfolioItem } from '@/types/provider';
+import { CertificationUploader } from './CertificationUploader';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { generateServiceId } from '@/utils/generateId';
 
-type Props = {
-  initialData: Partial<ProviderRegistration>;
-  onSubmit: (data: Partial<ProviderRegistration>) => void;
-};
+export default function ServiceDetailsStep({ initialData, onSubmit }) {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme, colorScheme);
+  
+  const [services, setServices] = useState<ServiceItem[]>(initialData?.services || [{
+    id: generateServiceId(),
+    name: '',
+    description: '',
+    price: ''
+  }]);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>(initialData?.portfolio || []);
+  const [certificates, setCertificates] = useState(initialData?.certifications || []);
 
-export default function ServiceDetailsStep({ initialData, onSubmit }: Props) {
-  const [formData, setFormData] = useState(initialData);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [currentService, setCurrentService] = useState<Partial<ServiceItem>>({});
-
-  const handleAddService = () => {
-    if (!currentService.name || !currentService.price) {
-      setErrors({ service: 'Name and price are required' });
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      services: [...(prev.services || []), { 
-        id: Date.now().toString(),
-        ...currentService as ServiceItem 
-      }]
-    }));
-    setCurrentService({});
-    setErrors({});
+  const addServiceField = () => {
+    setServices([...services, {
+      id: generateServiceId(),
+      name: '',
+      description: '',
+      price: ''
+    }]);
   };
 
-  const handleSubmit = () => {
-    if (!formData.services?.length) {
-      setErrors({ service: 'Add at least one service' });
-      return;
+  const updateService = (id: string, field: string, value: string) => {
+    setServices(services.map(service => 
+      service.id === id ? { ...service, [field]: value } : service
+    ));
+  };
+
+  const removeService = (id: string) => {
+    if (services.length > 1) {
+      setServices(services.filter(service => service.id !== id));
     }
-    onSubmit(formData);
+  };
+
+  const renderServiceControls = (index: number, serviceId: string) => {
+    if (services.length === 1) {
+      return (
+        <TouchableOpacity
+          onPress={addServiceField}
+          style={styles.controlButton}
+        >
+          <Ionicons name="add-circle" size={24} color="#0A58A5" />
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View style={styles.controlsContainer}>
+        <TouchableOpacity
+          onPress={() => removeService(serviceId)}
+          style={styles.controlButton}
+        >
+          <Ionicons name="remove-circle" size={24} color="#FF3B30" />
+        </TouchableOpacity>
+        {index === services.length - 1 && (
+          <TouchableOpacity
+            onPress={addServiceField}
+            style={styles.controlButton}
+          >
+            <Ionicons name="add-circle" size={24} color="#0A58A5" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   return (
     <ScrollView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        Your Services & Portfolio
-      </ThemedText>
-
-      <View style={styles.form}>
-        <View style={styles.section}>
-          <ThemedText type="subtitle">Add a Service</ThemedText>
-          <EditableField
-            label="Service Name"
-            value={currentService.name || ''}
-            onChangeText={(text) => setCurrentService({ ...currentService, name: text })}
-            placeholder="e.g., Hair Cut, House Cleaning"
-          />
-          <EditableField
-            label="Price"
-            value={currentService.price || ''}
-            onChangeText={(text) => setCurrentService({ ...currentService, price: text })}
-            placeholder="e.g., 5000 CFA"
-            keyboardType="numeric"
-          />
-          <Button
-            label="Add Service"
-            onPress={handleAddService}
-            variant="secondary"
-            size="small"
-          />
-          {errors.service && (
-            <ThemedText style={styles.error}>{errors.service}</ThemedText>
-          )}
-        </View>
-
-        {formData.services?.length > 0 && (
-          <View style={styles.section}>
-            <ThemedText type="subtitle">Your Services</ThemedText>
-            {formData.services.map((service, index) => (
-              <View key={index} style={styles.serviceItem}>
-                <ThemedText>{service.name}</ThemedText>
-                <ThemedText>{service.price} CFA</ThemedText>
-              </View>
-            ))}
+      <View style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>Services Offered (Click on + to add)</ThemedText>
+        
+        {services.map((service, index) => (
+          <View key={service.id} style={styles.serviceCard}>
+            <View style={styles.serviceHeader}>
+              <ThemedText style={styles.serviceNumber}>Service {index + 1}</ThemedText>
+              {renderServiceControls(index, service.id)}
+            </View>
+            
+            <TextBox
+              label="Service Name"
+              value={service.name}
+              onChangeText={(text) => updateService(service.id, 'name', text)}
+              placeholder="e.g., Basic Electrical Installation"
+            />
+            
+            <TextBox
+              label="Description (Optional)"
+              value={service.description}
+              onChangeText={(text) => updateService(service.id, 'description', text)}
+              placeholder="Describe what's included in this service..."
+              multiline
+              numberOfLines={3}
+            />
+            <TextBox
+              label="Price (CFA)"
+              value={service.price}
+              onChangeText={(text) => updateService(service.id, 'price', text)}
+              placeholder="e.g., 25000"
+              keyboardType="numeric"
+            />
           </View>
-        )}
+        ))}
+      </View>
 
-        <View style={styles.section}>
-          <ThemedText type="subtitle">Portfolio Images</ThemedText>
-          <ImagePicker
-            images={formData.portfolio || []}
-            onChange={(images) => setFormData({ ...formData, portfolio: images })}
-            maxImages={3}
-          />
-        </View>
-
-        <Button
-          label="Complete Registration"
-          onPress={handleSubmit}
-          variant="primary"
-          style={styles.submitButton}
+      <View style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>Portfolio</ThemedText>
+        <ThemedText style={styles.sectionDescription}>
+          Add photos of your previous work to showcase your expertise
+        </ThemedText>
+        
+        <PortfolioImagePicker  // Updated component name
+          images={portfolio}
+          onChange={setPortfolio}
+          maxImages={6}
+          allowCaptions
+          captionPlaceholder="Describe this work (optional)"
         />
       </View>
+
+      <View style={styles.section}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Certifications & Recognition
+        </ThemedText>
+        <ThemedText style={styles.sectionDescription}>
+          Add any relevant certifications or professional recognition
+        </ThemedText>
+
+        <CertificationUploader
+          certificates={certificates}
+          onChange={setCertificates}
+        />
+      </View>
+
+      <Button
+        label="Complete Registration"
+        onPress={() => onSubmit({ services, portfolio, certifications: certificates })}
+        variant="primary"
+        style={styles.submitButton}
+      />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, colorScheme) => StyleSheet.create({
   container: {
     flex: 1,
   },
-  title: {
-    fontSize: 24,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  form: {
-    gap: 24,
-    padding: 16,
-  },
   section: {
-    gap: 12,
+    padding: 16,
+    marginBottom: 24,
   },
-  serviceItem: {
+  sectionTitle: {
+    fontSize: 20,
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    color: theme.text,
+    opacity: 0.7,
+    marginBottom: 16,
+  },
+  serviceCard: {
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+    borderWidth: 1,
+    borderColor: colorScheme === 'dark' ? '#333' : '#eee',
+  },
+  serviceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  error: {
-    color: '#FF3B30',
-    fontSize: 14,
+  serviceNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlButton: {
+    padding: 4,
+  },
+  addButton: {
+    marginTop: 8,
   },
   submitButton: {
-    marginTop: 32,
+    margin: 16,
+    marginBottom: 32,
   },
 });

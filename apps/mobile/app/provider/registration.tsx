@@ -1,7 +1,6 @@
 import { View, StyleSheet, Appearance } from 'react-native';
 import { useState } from 'react';
 import { Colors } from '@/constants/Colors';
-import { ThemedView } from '@/components/ThemedView';
 import BusinessInfoStep from '@/components/provider/BusinessInfoStep';
 import ServiceDetailsStep from '@/components/provider/ServiceDetailsStep';
 import { Stack, useRouter } from 'expo-router';
@@ -10,7 +9,6 @@ import type { ProviderRegistration } from '@/types/provider';
 export default function ProviderRegistrationScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const styles = createStyles(theme, colorScheme);
   const router = useRouter();
   
   const [step, setStep] = useState<'business-info' | 'service-details'>('business-info');
@@ -54,9 +52,8 @@ export default function ProviderRegistrationScreen() {
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
   },
 });

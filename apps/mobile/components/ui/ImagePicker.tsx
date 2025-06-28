@@ -1,44 +1,61 @@
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, Appearance } from 'react-native';
 import { useState } from 'react';
-import * as ExpoImagePicker from 'expo-image-picker';
+import * as ExpoImagePicker from 'expo-image-picker';  // Renamed import
 import { ThemedText } from '@/components/ThemedText';
+import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import { PortfolioItem } from '@/types/provider';
+import { TextBox } from './TextBox';
 
-type Props = {
-  images: PortfolioItem[];
-  onChange: (images: PortfolioItem[]) => void;
-  maxImages?: number;
+type ImageItem = {
+  id: string;
+  uri: string;
+  caption?: string;
 };
 
-export function ImagePicker({ images, onChange, maxImages = 3 }: Props) {
-  const [loading, setLoading] = useState(false);
+type Props = {
+  images: ImageItem[];
+  onChange: (images: ImageItem[]) => void;
+  maxImages?: number;
+  allowCaptions?: boolean;
+  captionPlaceholder?: string;
+};
+
+export function PortfolioImagePicker({  // Renamed component
+  images,
+  onChange,
+  maxImages = 6,
+  allowCaptions = false,
+  captionPlaceholder = "Add a caption..."
+}: Props) {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme, colorScheme);
 
   const pickImage = async () => {
-    if (images.length >= maxImages) {
-      return;
-    }
-
-    setLoading(true);
     try {
+      const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        alert('Permission to access camera roll is required!');
+        return;
+      }
+
       const result = await ExpoImagePicker.launchImageLibraryAsync({
-        mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,  // Fixed MediaTypeOptions
         allowsEditing: true,
-        aspect: [4, 3],
         quality: 0.8,
+        allowsMultipleSelection: false,
       });
 
-      if (!result.canceled) {
-        const newImage: PortfolioItem = {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const newImage: ImageItem = {
           id: Date.now().toString(),
-          image: result.assets[0].uri,
+          uri: result.assets[0].uri
         };
         onChange([...images, newImage]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -46,18 +63,35 @@ export function ImagePicker({ images, onChange, maxImages = 3 }: Props) {
     onChange(images.filter(img => img.id !== id));
   };
 
+  const updateCaption = (id: string, caption: string) => {
+    onChange(
+      images.map(img => 
+        img.id === id ? { ...img, caption } : img
+      )
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.imageGrid}>
         {images.map((img) => (
           <View key={img.id} style={styles.imageContainer}>
-            <Image source={{ uri: img.image }} style={styles.image} />
+            <Image source={{ uri: img.uri }} style={styles.image} />
             <TouchableOpacity
               style={styles.removeButton}
               onPress={() => removeImage(img.id)}
             >
               <Ionicons name="close-circle" size={24} color="#FF3B30" />
             </TouchableOpacity>
+            {allowCaptions && (
+              <TextBox
+                value={img.caption}
+                onChangeText={(text) => updateCaption(img.id, text)}
+                placeholder={captionPlaceholder}
+                style={styles.caption}
+                multiline
+              />
+            )}
           </View>
         ))}
         
@@ -65,24 +99,17 @@ export function ImagePicker({ images, onChange, maxImages = 3 }: Props) {
           <TouchableOpacity
             style={styles.addButton}
             onPress={pickImage}
-            disabled={loading}
           >
-            <Ionicons name="add" size={32} color="#666" />
-            <ThemedText style={styles.addText}>
-              Add Photo
-            </ThemedText>
+            <Ionicons name="add" size={32} color={theme.text} />
+            <ThemedText style={styles.addText}>Add Photo</ThemedText>
           </TouchableOpacity>
         )}
       </View>
-
-      <ThemedText style={styles.helperText}>
-        Add up to {maxImages} portfolio images
-      </ThemedText>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, colorScheme) => StyleSheet.create({
   container: {
     marginVertical: 8,
   },
@@ -92,11 +119,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   imageContainer: {
-    position: 'relative',
+    width: '48%',
+    marginBottom: 16,
   },
   image: {
-    width: 100,
-    height: 100,
+    width: '100%',
+    height: 120,
     borderRadius: 8,
   },
   removeButton: {
@@ -106,23 +134,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
   },
+  caption: {
+    marginTop: 4,
+  },
   addButton: {
-    width: 100,
-    height: 100,
+    width: '48%',
+    height: 120,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
   },
   addText: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 4,
-  },
-  helperText: {
-    fontSize: 12,
-    marginTop: 8,
-    opacity: 0.7,
   },
 });
