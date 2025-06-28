@@ -105,6 +105,7 @@ export default function BusinessInfoStep({ initialData, onNext }) {
             <Checkbox
               isChecked={formData.remoteService}
               setChecked={(checked) => setFormData({ ...formData, remoteService: checked })}
+              color={formData.remoteService ? '#0A58A5' : undefined}
             />
           </View>
         </View>

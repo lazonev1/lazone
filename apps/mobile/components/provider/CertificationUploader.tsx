@@ -1,11 +1,9 @@
-import { View, StyleSheet, TouchableOpacity, Image, Appearance } from 'react-native';
-import { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Appearance } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { ThemedText } from '@/components/ThemedText';
 import { TextBox } from '@/components/ui/TextBox';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@lazone/ui';
 
 type Certificate = {
   id: string;
@@ -25,26 +23,14 @@ export function CertificationUploader({ certificates, onChange }: Props) {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
-  const addCertificate = async () => {
-    const newCert: Certificate = {
+  const addNewCertification = () => {
+    const newCert = {
       id: Date.now().toString(),
       name: '',
       issuer: '',
       date: '',
     };
     onChange([...certificates, newCert]);
-  };
-
-  const updateCertificate = (id: string, field: keyof Certificate, value: string) => {
-    onChange(
-      certificates.map(cert => 
-        cert.id === id ? { ...cert, [field]: value } : cert
-      )
-    );
-  };
-
-  const removeCertificate = (id: string) => {
-    onChange(certificates.filter(cert => cert.id !== id));
   };
 
   const pickDocument = async (id: string) => {
@@ -54,7 +40,10 @@ export function CertificationUploader({ certificates, onChange }: Props) {
       });
 
       if (result.type === 'success') {
-        updateCertificate(id, 'document', result.uri);
+        const updatedCerts = certificates.map(cert =>
+          cert.id === id ? { ...cert, document: result.uri } : cert
+        );
+        onChange(updatedCerts);
       }
     } catch (err) {
       console.error('Error picking document:', err);
@@ -63,59 +52,108 @@ export function CertificationUploader({ certificates, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      {certificates.map((cert) => (
-        <View key={cert.id} style={styles.certCard}>
-          <View style={styles.cardHeader}>
-            <ThemedText style={styles.certTitle}>Certification</ThemedText>
-            <TouchableOpacity onPress={() => removeCertificate(cert.id)}>
-              <Ionicons name="close-circle" size={24} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-
-          <TextBox
-            label="Certificate Name"
-            value={cert.name}
-            onChangeText={(text) => updateCertificate(cert.id, 'name', text)}
-            placeholder="e.g., Advanced Electrical Engineering"
+      {certificates.length === 0 ? (
+        <TouchableOpacity 
+          style={styles.emptyState}
+          onPress={addNewCertification}
+        >
+          <Ionicons 
+            name="add-circle-outline" 
+            size={48} 
+            color={theme.text} 
           />
+          <ThemedText style={styles.emptyStateText}>
+            Add your first certification
+          </ThemedText>
+          <ThemedText style={styles.emptyStateSubtext}>
+            Include professional certificates, awards, or recognitions
+          </ThemedText>
+        </TouchableOpacity>
+      ) : (
+        <>
+          {certificates.map((cert, index) => (
+            <View key={cert.id} style={styles.certCard}>
+              <View style={styles.cardHeader}>
+                <View style={styles.certIcon}>
+                  <Ionicons 
+                    name="ribbon-outline" 
+                    size={24} 
+                    color={theme.text} 
+                  />
+                </View>
+                <TouchableOpacity 
+                  onPress={() => onChange(certificates.filter(c => c.id !== cert.id))}
+                  style={styles.removeButton}
+                >
+                  <Ionicons name="close" size={20} color={theme.text} />
+                </TouchableOpacity>
+              </View>
 
-          <TextBox
-            label="Issuing Organization"
-            value={cert.issuer}
-            onChangeText={(text) => updateCertificate(cert.id, 'issuer', text)}
-            placeholder="e.g., IEEE"
-          />
+              <TextBox
+                label="Certificate Name"
+                value={cert.name}
+                onChangeText={(text) => {
+                  const updatedCerts = [...certificates];
+                  updatedCerts[index] = { ...cert, name: text };
+                  onChange(updatedCerts);
+                }}
+                placeholder="e.g., Professional Electrician Certification"
+              />
 
-          <TextBox
-            label="Date Received"
-            value={cert.date}
-            onChangeText={(text) => updateCertificate(cert.id, 'date', text)}
-            placeholder="MM/YYYY"
-          />
+              <View style={styles.row}>
+                <View style={styles.flex1}>
+                  <TextBox
+                    label="Issuing Organization"
+                    value={cert.issuer}
+                    onChangeText={(text) => {
+                      const updatedCerts = [...certificates];
+                      updatedCerts[index] = { ...cert, issuer: text };
+                      onChange(updatedCerts);
+                    }}
+                    placeholder="e.g., IEEE"
+                  />
+                </View>
+                <View style={styles.flex1}>
+                  <TextBox
+                    label="Issue Date"
+                    value={cert.date}
+                    onChangeText={(text) => {
+                      const updatedCerts = [...certificates];
+                      updatedCerts[index] = { ...cert, date: text };
+                      onChange(updatedCerts);
+                    }}
+                    placeholder="MM/YYYY"
+                  />
+                </View>
+              </View>
 
-          <Button
-            label={cert.document ? "Change Document" : "Upload Document"}
-            onPress={() => pickDocument(cert.id)}
-            variant="secondary"
-            icon="document-outline"
-            style={styles.uploadButton}
-          />
+              <TouchableOpacity 
+                style={styles.uploadButton}
+                onPress={() => pickDocument(cert.id)}
+              >
+                <Ionicons 
+                  name={cert.document ? "document-text" : "cloud-upload-outline"} 
+                  size={24} 
+                  color={theme.text}
+                />
+                <ThemedText style={styles.uploadText}>
+                  {cert.document ? "Document Uploaded" : "Upload Certificate"}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          ))}
 
-          {cert.document && (
-            <ThemedText style={styles.documentName}>
-              Document uploaded ✓
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={addNewCertification}
+          >
+            <Ionicons name="add" size={20} color={theme.text} />
+            <ThemedText style={styles.addButtonText}>
+              Add Another Certification
             </ThemedText>
-          )}
-        </View>
-      ))}
-
-      <Button
-        label="Add Certification"
-        onPress={addCertificate}
-        variant="secondary"
-        icon="add-circle-outline"
-        style={styles.addButton}
-      />
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
@@ -123,6 +161,26 @@ export function CertificationUploader({ certificates, onChange }: Props) {
 const createStyles = (theme, colorScheme) => StyleSheet.create({
   container: {
     gap: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 32,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
+    borderRadius: 12,
+    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginTop: 8,
+    textAlign: 'center',
   },
   certCard: {
     padding: 16,
@@ -135,22 +193,52 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 16,
   },
-  certTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  certIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colorScheme === 'dark' ? '#333' : '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeButton: {
+    padding: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  flex1: {
+    flex: 1,
   },
   uploadButton: {
-    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: colorScheme === 'dark' ? '#333' : '#f5f5f5',
+    marginTop: 16,
   },
-  documentName: {
-    marginTop: 8,
+  uploadText: {
     fontSize: 14,
-    opacity: 0.7,
   },
   addButton: {
-    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+    borderWidth: 1,
+    borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

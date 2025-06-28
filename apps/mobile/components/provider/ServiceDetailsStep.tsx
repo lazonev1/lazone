@@ -46,31 +46,14 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
   };
 
   const renderServiceControls = (index: number, serviceId: string) => {
-    if (services.length === 1) {
-      return (
-        <TouchableOpacity
-          onPress={addServiceField}
-          style={styles.controlButton}
-        >
-          <Ionicons name="add-circle" size={24} color="#0A58A5" />
-        </TouchableOpacity>
-      );
-    }
-
     return (
       <View style={styles.controlsContainer}>
-        <TouchableOpacity
-          onPress={() => removeService(serviceId)}
-          style={styles.controlButton}
-        >
-          <Ionicons name="remove-circle" size={24} color="#FF3B30" />
-        </TouchableOpacity>
-        {index === services.length - 1 && (
+        {services.length > 1 && (
           <TouchableOpacity
-            onPress={addServiceField}
-            style={styles.controlButton}
+            onPress={() => removeService(serviceId)}
+            style={styles.removeButton}
           >
-            <Ionicons name="add-circle" size={24} color="#0A58A5" />
+            <Ionicons name="remove-circle" size={24} color="#FF3B30" />
           </TouchableOpacity>
         )}
       </View>
@@ -79,8 +62,8 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>Services Offered (Click on + to add)</ThemedText>
+      <View style={styles.section}>    
+        <ThemedText type="subtitle" style={styles.sectionTitle}>Services Offered</ThemedText>
         
         {services.map((service, index) => (
           <View key={service.id} style={styles.serviceCard}>
@@ -113,6 +96,14 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
             />
           </View>
         ))}
+
+          <TouchableOpacity
+            onPress={addServiceField}
+            style={styles.addServiceButton}
+          >
+            <Ionicons name="add-circle" size={20} color="#0A58A5" />
+            <ThemedText style={styles.addServiceText}>Add Service</ThemedText>
+          </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -157,6 +148,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
 const createStyles = (theme, colorScheme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.background,
   },
   section: {
     padding: 16,
@@ -194,11 +186,22 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  controlButton: {
+  removeButton: {
     padding: 4,
   },
-  addButton: {
-    marginTop: 8,
+  addServiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : 'rgba(10, 88, 165, 0.1)',
+  },
+  addServiceText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#0A58A5',
+    fontWeight: '500',
   },
   submitButton: {
     margin: 16,
