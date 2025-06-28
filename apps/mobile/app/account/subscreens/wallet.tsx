@@ -3,18 +3,9 @@ import { useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PaymentMethodCard } from '@/components/account/PaymentCard';
-
-type PaymentMethod = {
-  id: number;
-  name: string;
-  type: 'mobile' | 'card';
-  image: any;
-  isDefault?: boolean;
-  number: string;
-  cardNumber: string;
-};
+import { PaymentMethod } from '@/types/user'
 
 export default function WalletScreen() {
   const navigation = useNavigation();
@@ -23,39 +14,59 @@ export default function WalletScreen() {
   useEffect(() => {
     navigation.setOptions({ title: 'Wallet' });
   }, []);
-  
-  const paymentMethods: PaymentMethod[] = [
+  // This is a mock method simulating how we can add a mobile payment method
+  const addPaymentMethod = (mobileNumber: string, ) => {
+    const methodInfo = getMethodInfo(mobileNumber);
+    const newPaymentMethod: PaymentMethod = {
+      id: paymentMethods.length,
+      vendor: methodInfo.vendor,
+      label: methodInfo.label,
+      type: 'mobile',
+      isDefault: false,
+      vendorLogoSource: methodInfo.vendorLogoSource,
+      mobileNumber: mobileNumber
+    }
+    paymentMethods.push(newPaymentMethod)
+  }
+  const setDefaultMethod = (id: number) => {
+  setPaymentMethods(current => 
+    current.map(method => ({
+      ...method,
+      isDefault: method.id === id
+    }))
+  );
+  // savePaymentMethodsToStorage(updatedMethods);
+};
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
+    {
+      id: 0,
+      vendor: 'MTN',
+      label: 'MTN Momo',
+      type: 'mobile',
+      vendorLogoSource: require('@/assets/images/wallet-mtn.jpeg'),
+      isDefault: true,
+      mobileNumber: '+226 123 456 7890',
+      
+    },
     {
       id: 1,
-      name: 'MTN Momo',
+      vendor: 'Orange',
+      label: 'Orange Money',
       type: 'mobile',
-      image: require('@/assets/images/wallet-mtn.jpeg'),
-      isDefault: true,
-      number: '+226 123 456 7890',
-      cardNumber: '',
+      isDefault: false,
+      vendorLogoSource: require('@/assets/images/wallet-orange.png'),
+      mobileNumber: '+226 098 765 4321',
     },
-    {
-      id: 2,
-      name: 'Orange Money',
-      type: 'mobile',
-      image: require('@/assets/images/wallet-orange.png'),
-      number: '+226 123 456 7890',
-      cardNumber: '',
-    },
-    {
-      id: 3,
-      name: 'Visa',
-      type: 'card',
-      image: require('@/assets/images/wallet-card.png'),
-      number: '4789',
-      cardNumber: '•••••• 67890',
-    },
-  ];
+  ]);
   
   return (
     <View style={styles.container}>
       {paymentMethods.map(method => (
-        <PaymentMethodCard key={method.id} method={method} />
+        <PaymentMethodCard 
+          key={method.id} 
+          method={method} 
+          onSetDefault={() => setDefaultMethod(method.id)}
+          />
       ))}
       
       <ThemedText type="subtitle" style={styles.sectionTitle}>Settings</ThemedText>
@@ -72,12 +83,28 @@ export default function WalletScreen() {
       
       <ThemedView style={styles.settingItem}>
         <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.settingIcon} />
-        <ThemedText>Security</ThemedText>
+        <ThemedText>Security Info</ThemedText>
       </ThemedView>
     </View>
   );
 }
 
+const getMethodInfo = (mobileNumber: string): { vendor: string, label: string, vendorLogoSource: any } => {
+  // Example logic to determine vendor info based on mobile number
+  if (mobileNumber.startsWith('+226 123')) {
+    return {
+      vendor: 'MTN',
+      label: 'MTN Momo',
+      vendorLogoSource: require('@/assets/images/wallet-mtn.jpeg'),
+    };
+  }
+  // Default fallback
+  return {
+    vendor: 'Orange',
+    label: 'Orange Money',
+    vendorLogoSource: require('@/assets/images/wallet-orange.png'),
+  };
+};
 
 const createStyles = () => StyleSheet.create({
   container: {

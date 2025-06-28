@@ -1,54 +1,53 @@
 import { ThemedView } from '@/components/ThemedView'
 import { ThemedText } from '@/components/ThemedText'
-import { Image, View, StyleSheet, Appearance } from 'react-native'
+import { Image, View, StyleSheet, Appearance, ImageSourcePropType } from 'react-native'
 import { Button } from '@lazone/ui'
 import { Colors } from '@/constants/Colors'
 
 type PaymentMethod = {
 	id: number;
-	name: string;
-	type: 'mobile' | 'card';
-	image: any;
+	label: string;
+	vendorLogoSource: string;
 	isDefault?: Boolean;
-	number: string;
-	cardNumber: string;
+	mobileNumber: string;
 }
-export function PaymentMethodCard({ method }: { method: PaymentMethod }) {
+type Props = {
+	method: PaymentMethod,
+	onSetDefault: () => void
+}
+export function PaymentMethodCard({ method, onSetDefault }: Props) {
 	  const colorScheme = Appearance.getColorScheme();
 	  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 	  const styles = createStyles(theme, colorScheme);
   return (
     <ThemedView style={styles.card}>
       <View style={styles.cardLeft}>
-        <Image source={method.image} style={styles.paymentLogo} />
+        <Image source={method.vendorLogoSource as ImageSourcePropType} style={styles.paymentLogo} />
         <ThemedText style={styles.paymentType}>
-          {method.type === 'card' ? 'Credit / Debit' : 'Mobile'}
+          {'Mobile'}
         </ThemedText>
       </View>
       
       <View style={styles.cardMiddle}>
-        <ThemedText type="defaultSemiBold">{method.name}</ThemedText>
-        {method.isDefault && <ThemedText style={styles.defaultLabel}>Default</ThemedText>}
+        <ThemedText type="defaultSemiBold">{method.label}</ThemedText>
         
-        <ThemedText style={styles.accountLabel}>
-          {method.type === 'card' ? 'Credit' : 'Compte mobile'}
-        </ThemedText>
         <ThemedText style={styles.accountNumber}>
-          {method.cardNumber || method.number}
+          {method.mobileNumber}
         </ThemedText>
       </View>
       
-      {!method.isDefault && (
         <View style={styles.cardRight}>
+			{method.isDefault ? 
+			<ThemedText style={styles.defaultLabel}>Default</ThemedText> : 
           <Button 
             label="Set as Default"
-            onPress={() => {}}
+            onPress={onSetDefault}
             variant="primary"
             size="small" 
             style={styles.defaultButton}
-          />
+          /> 
+		}
         </View>
-      )}
     </ThemedView>
   );
 }
@@ -86,6 +85,10 @@ const createStyles = (theme : any, colorScheme: 'dark' | 'light' | null | undefi
 	defaultLabel: {
 		fontSize: 12,
 		opacity: 0.7,
+ 		paddingHorizontal: 10,
+		borderRadius: 9,
+		borderColor: '#0A76D8',
+		borderWidth: 1
 	},
 	paymentType: {
 		fontSize: 12,
