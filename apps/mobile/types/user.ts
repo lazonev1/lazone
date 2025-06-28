@@ -29,3 +29,12 @@ export interface MenuItem {
   requiresAuth?: boolean;
   roleAccess?: UserRole[];
 }
+export interface PaymentMethod {
+  id: number;
+  vendor: string
+  label: string;
+  type: 'mobile';
+  vendorLogoSource: string;
+  isDefault?: boolean;
+  mobileNumber: string;
+};
