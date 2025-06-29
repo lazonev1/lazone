@@ -32,17 +32,17 @@ export default function BusinessInfoStep({ initialData, onNext }) {
     const newErrors: Record<string, string> = {};
     
     // Required field validations
-    // if (!formData.businessName?.trim()) {
-    //   newErrors.businessName = 'Business name is required';
-    // }
-    // if (!formData.serviceCategory) {
-    //   newErrors.category = 'Please select a category';
-    // }
-    // if (!formData.location?.country) {
-    //   newErrors.location = 'Please select a country';
-    // } else if (!formData.location?.city) {
-    //   newErrors.location = 'Please enter a city';
-    // }
+    if (!formData.businessName?.trim()) {
+      newErrors.businessName = 'Business name is required';
+    }
+    if (!formData.serviceCategory) {
+      newErrors.category = 'Please select a category';
+    }
+    if (!formData.location?.country) {
+      newErrors.location = 'Please select a country';
+    } else if (!formData.location?.city) {
+      newErrors.location = 'Please enter a city';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
