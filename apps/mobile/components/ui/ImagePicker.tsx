@@ -1,6 +1,6 @@
 import { View, StyleSheet, TouchableOpacity, Image, Appearance } from 'react-native';
 import { useState } from 'react';
-import * as ExpoImagePicker from 'expo-image-picker';  // Renamed import
+import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +20,7 @@ type Props = {
   captionPlaceholder?: string;
 };
 
-export function PortfolioImagePicker({  // Renamed component
+export function PortfolioImagePicker({  
   images,
   onChange,
   maxImages = 6,
@@ -33,15 +33,15 @@ export function PortfolioImagePicker({  // Renamed component
 
   const pickImage = async () => {
     try {
-      const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
         alert('Permission to access camera roll is required!');
         return;
       }
 
-      const result = await ExpoImagePicker.launchImageLibraryAsync({
-        mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,  // Fixed MediaTypeOptions
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Fixed: use MediaTypeOptions instead of MediaType
         allowsEditing: true,
         quality: 0.8,
         allowsMultipleSelection: false,

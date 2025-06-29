@@ -167,6 +167,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderRadius: 12,
+    backgroundColor: theme.cardBackground,
     backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#eee',
@@ -195,7 +196,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     alignSelf: 'flex-end',
     padding: 8,
     borderRadius: 8,
-    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : 'rgba(10, 88, 165, 0.1)',
+    backgroundColor:'rgba(10, 88, 165, 0.1)',
   },
   addServiceText: {
     marginLeft: 4,
