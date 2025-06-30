@@ -1,5 +1,15 @@
+// Basic types for simple structures
+export type RegistrationStep = 
+  | 'business-info'   // Step 1: Basic business info + location
+  | 'service-details'; // Step 2: Services + portfolio
+
+export type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+// Interfaces for complex objects that might need extension
 export interface ProviderRegistration {
-  // Basic Info
   businessName: string;
   serviceCategory: string;
   phone: string;
@@ -7,10 +17,7 @@ export interface ProviderRegistration {
   location: {
     country: string;
     city: string;
-    coordinates?: {
-      latitude: number;
-      longitude: number;
-    };
+    coordinates?: Coordinates;
   };
   languages: string[];
   remoteService: boolean;
@@ -33,8 +40,6 @@ export interface ServiceItem {
   name: string;
   description: string;
   price: string;
-  duration?: string;
-  availability?: string;
 }
 
 export interface Certification {
@@ -43,8 +48,7 @@ export interface Certification {
   issuer: string;
   date: string;
   document?: string;
+  documentType?: string;
+  documentName?: string;
 }
 
-export type RegistrationStep = 
-  | 'business-info'   // Step 1: Basic business info + location
-  | 'service-details'; // Step 2: Services + portfolio

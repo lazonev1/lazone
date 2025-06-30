@@ -1,12 +1,13 @@
-import { View, StyleSheet, ScrollView, SafeAreaView, Appearance } from 'react-native';
+import { View, StyleSheet, ScrollView, SafeAreaView, Appearance, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui';
-import {SelectList} from '@/components/ui/SelectList';
+import { SelectList } from '@/components/ui/SelectList';
 import { TextBox } from '@/components/ui/TextBox';
 import { LocationPicker } from '@/components/ui/LocationPicker';
 import Checkbox from '@/components/ui/CheckBox';
 import { useState } from 'react';
 import { Colors } from '@/constants/Colors';
+import { validateBusinessInfo } from '@/utils/validation';
 
 const SERVICE_CATEGORIES = [
   { label: 'Beauty & Wellness', value: 'beauty' },
@@ -23,35 +24,26 @@ const SERVICE_CATEGORIES = [
 
 export default function BusinessInfoStep({ initialData, onNext }) {
   const [formData, setFormData] = useState(initialData);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    
-    // Required field validations
-    if (!formData.businessName?.trim()) {
-      newErrors.businessName = 'Business name is required';
-    }
-    if (!formData.serviceCategory) {
-      newErrors.category = 'Please select a category';
-    }
-    if (!formData.location?.country) {
-      newErrors.location = 'Please select a country';
-    } else if (!formData.location?.city) {
-      newErrors.location = 'Please enter a city';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleFieldChange = (field: string, value: any) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
   };
 
-  const handleNext = () => {
-    if (validate()) {
-      onNext(formData);
+  const handleSubmit = () => {
+    const validation = validateBusinessInfo(formData);
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      Alert.alert('Please fill in all required fields correctly.');
+      return;
     }
+
+    onNext(formData);
   };
 
   return (
@@ -66,7 +58,7 @@ export default function BusinessInfoStep({ initialData, onNext }) {
           <TextBox
             label="Business Name"
             value={formData.businessName}
-            onChangeText={(textinput) => setFormData({...formData, businessName: textinput})}
+            onChangeText={(textinput) => handleFieldChange('businessName', textinput)}
             placeholder="Enter your business name"
             error={errors.businessName}
             maxLength={50}
@@ -77,45 +69,46 @@ export default function BusinessInfoStep({ initialData, onNext }) {
             label="Service Category"
             value={formData.serviceCategory}
             options={SERVICE_CATEGORIES}
-            onChange={(selectedCategory) => setFormData({ ...formData, serviceCategory: selectedCategory })}
-            error={errors.category}
+            onChange={(selectedCategory) => handleFieldChange('serviceCategory', selectedCategory)}
+            error={errors.serviceCategory}
             style={styles.input}
           />
 
           <LocationPicker
             value={formData.location || { country: '', city: '' }}
-            onChange={(location) => setFormData({ ...formData, location })}
-            error={errors.location}
+            onChange={(location) => handleFieldChange('location', location)}
+            countryError={errors.country}
+            cityError={errors.city}
           />
 
           <TextBox
             label="Business Description"
             value={formData.description}
-            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            onChangeText={(text) => handleFieldChange('description', text)}
             placeholder="Describe your services and expertise..."
             multiline
             numberOfLines={5}
             maxLength={500}
             style={[styles.input, styles.textArea]}
             containerStyle={styles.textAreaContainer}
+            error={errors.description}
           />
 
           <View style={styles.optionsSection}>
-            <ThemedText style = {styles.label}>I offer remote services</ThemedText>
+            <ThemedText style={styles.label}>I offer remote services</ThemedText>
             <Checkbox
               isChecked={formData.remoteService}
-              setChecked={(checked) => setFormData({ ...formData, remoteService: checked })}
+              setChecked={(checked) => handleFieldChange('remoteService', checked)}
               color={formData.remoteService ? '#0A58A5' : undefined}
             />
           </View>
         </View>
-
       </ScrollView>
 
       <View style={styles.footer}>
         <Button
           label="Continue"
-          onPress={handleNext}
+          onPress={handleSubmit}
           variant="primary"
           style={styles.button}
         />
@@ -131,11 +124,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  label: {
-    marginBottom: 8,
-    fontSize: 16,
-    fontWeight: '500',
   },
   header: {
     padding: 24,
@@ -158,11 +146,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   },
   textAreaContainer: {
     height: 120,
-  },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-    paddingTop: 12,
   },
   optionsSection: {
     marginTop: 16,

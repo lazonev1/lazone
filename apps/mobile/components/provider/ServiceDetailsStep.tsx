@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Appearance, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Appearance, TouchableOpacity, Alert } from 'react-native';
 import { useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui';
@@ -9,8 +9,22 @@ import { ServiceItem, PortfolioItem } from '@/types/provider';
 import { CertificationUploader } from './CertificationUploader';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { generateServiceId } from '@/utils/generateId';
+import { validateService, validateCertification } from '@/utils/validation';
 
-export default function ServiceDetailsStep({ initialData, onSubmit }) {
+type ServiceDetailsProps = {
+  initialData?: {
+    services?: ServiceItem[];
+    portfolio?: PortfolioItem[];
+    certifications?: string[];
+  };
+  onSubmit: (data: {
+    services: ServiceItem[];
+    portfolio: PortfolioItem[];
+    certifications: string[];
+  }) => void;
+};
+
+export default function ServiceDetailsStep({ initialData, onSubmit }: ServiceDetailsProps) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -29,14 +43,19 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
       id: generateServiceId(),
       name: '',
       description: '',
-      price: ''
+      price: '',
+      errors: {}
     }]);
   };
 
   const updateService = (id: string, field: string, value: string) => {
-    setServices(services.map(service => 
-      service.id === id ? { ...service, [field]: value } : service
-    ));
+    const updatedServices = services.map(service => {
+      if (service.id === id) {
+        return { ...service, [field]: value };
+      }
+      return service;
+    });
+    setServices(updatedServices);
   };
 
   const removeService = (id: string) => {
@@ -60,6 +79,42 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
     );
   };
 
+  const validateAll = () => {
+    let isValid = true;
+    const updatedServices = services.map(service => {
+      const validation = validateService(service);
+      if (!validation.isValid) {
+        isValid = false;
+      }
+      return {
+        ...service,
+        errors: validation.errors
+      };
+    });
+
+    setServices(updatedServices);
+
+    if (certificates.length > 0) {
+      const certificatesValid = certificates.every(cert => {
+        const validation = validateCertification(cert);
+        return validation.isValid;
+      });
+
+      if (!certificatesValid) {
+        Alert.alert('Please complete all certificate information correctly.');
+        isValid = false;
+      }
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = () => {
+    if (validateAll()) {
+      onSubmit({ services, portfolio, certifications: certificates });
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>    
@@ -77,6 +132,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
               value={service.name}
               onChangeText={(text) => updateService(service.id, 'name', text)}
               placeholder="e.g., Basic Electrical Installation"
+              error={service.errors?.name}
             />
             
             <TextBox
@@ -86,6 +142,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
               placeholder="Describe what's included in this service..."
               multiline
               numberOfLines={3}
+              error={service.errors?.description}
             />
             <TextBox
               label="Price (CFA)"
@@ -93,6 +150,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
               onChangeText={(text) => updateService(service.id, 'price', text)}
               placeholder="e.g., 25000"
               keyboardType="numeric"
+              error={service.errors?.price}
             />
           </View>
         ))}
@@ -137,7 +195,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit }) {
 
       <Button
         label="Complete Registration"
-        onPress={() => onSubmit({ services, portfolio, certifications: certificates })}
+        onPress={handleSubmit}
         variant="primary"
         style={styles.submitButton}
       />
@@ -159,7 +217,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     marginBottom: 8,
   },
   sectionDescription: {
-    color: theme.text,
     opacity: 0.7,
     marginBottom: 16,
   },
@@ -167,7 +224,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderRadius: 12,
-    backgroundColor: theme.cardBackground,
     backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#eee',
@@ -177,7 +233,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-    paddingHorizontal: 4,
   },
   serviceNumber: {
     fontSize: 16,
@@ -186,9 +241,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   controlsContainer: {
     flexDirection: 'row',
     gap: 8,
-  },
-  removeButton: {
-    padding: 4,
   },
   addServiceButton: {
     flexDirection: 'row',
@@ -200,7 +252,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   },
   addServiceText: {
     marginLeft: 4,
-    fontSize: 14,
     color: '#0A58A5',
     fontWeight: '500',
   },
