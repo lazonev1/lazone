@@ -6,13 +6,12 @@ import { PaymentMethod } from '@/types/user'
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { WALLET_SETTINGS_ITEMS } from '@/constants/account';
-import { MenuItem } from '@/types/user';
-import { TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
-import { ArrowButton } from '@/components/ui/ArrowButton';
 import { BottomPopup } from '@/components/account/BottomPopup';
 import { ScrollView } from 'react-native-gesture-handler';
+import { MenuSection } from '@/components/ui/MenuSection';
+
 
 export default function WalletScreen() {
   const navigation = useNavigation();
@@ -136,47 +135,7 @@ export default function WalletScreen() {
     </SafeAreaView>
   );
 }
-// Abdoul's method just as-is
-function MenuSection({ title, items, onPress, styles }: {
-  title?: string;
-  items: MenuItem[];
-  onPress: (route: string) => void;
-  styles: any;
-}) {
-  return (
-    <View style={[
-      styles.section,
-      !title && styles.sectionWithoutTitle
-    ]}>
-      {title && (
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          {title}
-        </ThemedText>
-      )}
-      {items.map((item, index) => (
-        <View key={item.id}>
-          <TouchableOpacity
-            onPress={() => onPress(item.route)}
-            style={styles.menuItem}
-          >
-            <View style={styles.menuItemLeft}>
-              {item.icon && (
-                <Ionicons
-                  name={item.icon}
-                  size={24}
-                  style={styles.menuIcon}
-                />
-              )}
-              <ThemedText>{item.label}</ThemedText>
-            </View>
-            <ArrowButton onPress={() => onPress(item.route)} />
-          </TouchableOpacity>
-          {index < items.length - 1 && <View style={styles.divider} />}
-        </View>
-      ))}
-    </View>
-  );
-}
+
 const getMethodInfo = (mobileNumber: string): { vendor: string, label: string, vendorLogoSource: any } => {
 
   if (mobileNumber.startsWith('+226 123')) {

@@ -1,56 +1,15 @@
-import { View, StyleSheet, TouchableOpacity, SafeAreaView, Image, ScrollView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { ArrowButton } from '@/components/ui/ArrowButton';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { MOCK_USER_PROFILE, ACCOUNT_MENU_ITEMS } from '@/constants/account';
 import { MenuItem } from '@/types/user';
-import { Ionicons } from '@expo/vector-icons';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useState } from 'react';
+import { MenuSection } from '@/components/ui/MenuSection';
 
-function MenuSection({ title, items, onPress, styles }: { 
-  title?: string; 
-  items: MenuItem[];
-  onPress: (route: string) => void;
-  styles: any;
-}) {
-  return (
-    <View style={[
-      styles.section,
-      !title && styles.sectionWithoutTitle
-    ]}>
-      {title && (
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          {title}
-        </ThemedText>
-      )}
-      {items.map((item, index) => (
-        <View key={item.id}>
-          <TouchableOpacity 
-            onPress={() => onPress(item.route)} 
-            style={styles.menuItem}
-          >
-            <View style={styles.menuItemLeft}>
-              {item.icon && (
-                <Ionicons 
-                  name={item.icon} 
-                  size={24} 
-                  style={styles.menuIcon}
-                />
-              )}
-              <ThemedText>{item.label}</ThemedText>
-            </View>
-            <ArrowButton onPress={() => onPress(item.route)} />
-          </TouchableOpacity>
-          {index < items.length - 1 && <View style={styles.divider} />}
-        </View>
-      ))}
-    </View>
-  );
-}
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -79,8 +38,8 @@ export default function AccountScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContent}>
         <ThemedView style={styles.header}>
-          <Image 
-            source={MOCK_USER_PROFILE.avatar} 
+          <Image
+            source={MOCK_USER_PROFILE.avatar}
             style={styles.avatar}
           />
           <View style={styles.headerText}>
@@ -103,28 +62,28 @@ export default function AccountScreen() {
 
         {/* Show different menu sections based on role */}
         {userRole === 'requester' ? (
-          <MenuSection 
+          <MenuSection
             items={ACCOUNT_MENU_ITEMS.requester}
             onPress={navigateTo}
             styles={styles}
           />
         ) : (
-          <MenuSection 
+          <MenuSection
             items={ACCOUNT_MENU_ITEMS.provider || []}
             onPress={navigateTo}
             styles={styles}
           />
         )}
-        
-        <MenuSection 
-          title="Settings" 
+
+        <MenuSection
+          title="Settings"
           items={ACCOUNT_MENU_ITEMS.settings}
           onPress={navigateTo}
           styles={styles}
         />
-        
-        <MenuSection 
-          title="Resources" 
+
+        <MenuSection
+          title="Resources"
           items={getFilteredResources(ACCOUNT_MENU_ITEMS.resources, userRole)}
           onPress={navigateTo}
           styles={styles}
@@ -148,7 +107,7 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       padding: 16,
       marginBottom: 24,
       borderRadius: 12,
-    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
       // backgroundColor: theme.background,
       borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
       borderWidth: 1,
@@ -203,9 +162,9 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
     divider: {
       height: 0.5,
       backgroundColor: colorScheme === 'dark' ? '#444' : '#E0E0E0',
-      marginLeft: 36, 
+      marginLeft: 36,
       marginRight: 25,
-      marginVertical: 8, 
+      marginVertical: 8,
     },
   });
 }
