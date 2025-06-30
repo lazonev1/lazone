@@ -1,5 +1,5 @@
-import { View, StyleSheet, Appearance } from 'react-native';
-import { useState} from 'react';
+import { View, StyleSheet, Appearance, Alert, Linking } from 'react-native';
+import { useState } from 'react';
 import * as Location from 'expo-location';
 import { Button } from '@lazone/ui';
 import { ThemedText } from '@/components/ThemedText';
@@ -19,41 +19,77 @@ type LocationData = {
 type Props = {
   value: LocationData;
   onChange: (location: LocationData) => void;
-  error?: string;
+  countryError?: string;
+  cityError?: string;
 };
 
-export function LocationPicker({ value = { country: '', city: '' }, onChange, error }: Props) {
+export function LocationPicker({ value = { country: '', city: '' }, onChange, countryError, cityError }: Props) {
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState<string>('');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
+  const requestLocationPermission = async () => {
+    try {
+      // First check current permission status
+      const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
+
+      if (currentStatus === 'denied') {
+        // If previously denied, show dialog to open settings
+        Alert.alert(
+          'Location Permission Required',
+          'Please enable location access in your settings to use this feature.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: () => Linking.openSettings(),
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
+        );
+        return false;
+      }
+
+      // Always request permission regardless of current status
+      const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+      return newStatus === 'granted';
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      return false;
+    }
+  };
+
+  // Function to get the current location
   const getCurrentLocation = async () => {
     setLoading(true);
     setLocationError('');
 
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        
-        onChange({
-          ...value,
-          coordinates: {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          },
-        });
-      } else {
-        setLocationError('Please allow location access to continue');
+      const permissionGranted = await requestLocationPermission();
+
+      if (!permissionGranted) {
+        setLocationError('Location access is required');
+        return;
       }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      onChange({
+        ...value,
+        coordinates: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        },
+      });
     } catch (error) {
-      console.error('Location error:', error);
-      setLocationError('Unable to get location');
+      console.error('Error getting location:', error);
+      setLocationError('Unable to get location. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,13 +98,13 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, er
   return (
     <View style={styles.container}>
       <View style={styles.countryPicker}>
-        <ThemedText style={styles.label}>Location</ThemedText>
+        <ThemedText style={styles.label}>Country</ThemedText>
         <CountryPicker
           withFilter
           withFlag
           withCountryNameButton
           countryCode={value.country || 'BF'}
-          onSelect={(country) => 
+          onSelect={(country) =>
             onChange({ ...value, country: country.cca2 })
           }
           containerButtonStyle={styles.countryButton}
@@ -77,6 +113,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, er
             onBackgroundTextColor: theme.text,
           }}
         />
+        {countryError && <ThemedText style={styles.error}>{countryError}</ThemedText>}
       </View>
 
       <TextBox
@@ -85,6 +122,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, er
         onChangeText={(city) => onChange({ ...value, city })}
         placeholder="Enter your city or region"
         style={styles.cityInput}
+        error={cityError}
       />
 
       <View style={styles.locationHeader}>
@@ -107,7 +145,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, er
         </View>
       )}
 
-      {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      {locationError && <ThemedText style={styles.error}>{locationError}</ThemedText>}
     </View>
   );
 }
@@ -115,11 +153,6 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, er
 const createStyles = (theme, colorScheme) => StyleSheet.create({
   container: {
     gap: 16,
-    marginBottom: 16,
-  },
-  label: {
-    marginBottom: 8,
-    color: theme.text,
   },
   countryPicker: {
     marginBottom: 8,
@@ -133,11 +166,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   coordinatesContainer: {
     marginTop: 8,
   },
-  locationButton: {
-    marginVertical: 8,
-  },
   coordinates: {
-    marginTop: 8,
     fontSize: 14,
   },
   error: {
@@ -146,11 +175,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     marginTop: 4,
   },
   coordinatesLabel: {
-    color: theme.text,
     fontSize: 16,
-  },
-  cityInput: {
-    marginTop: 12,
   },
   locationHeader: {
     flexDirection: 'row',
