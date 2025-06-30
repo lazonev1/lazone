@@ -35,9 +35,9 @@ function createStyles(theme) {
       width: '100%',
     },
     label: {
-      color: theme.textSecondary,
+      color: theme.text,
       marginBottom: 4,
-      fontSize: 14,
+      fontSize: 16,
     },
     input: {
       borderRadius: 20,

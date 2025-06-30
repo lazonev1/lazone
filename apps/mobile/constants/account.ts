@@ -82,17 +82,17 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     ],
     resources: [
     {
+        id: 'become-provider',
+        label: 'Become a Provider',
+        route: '/provider/registration',
+        icon: 'briefcase-outline',
+        roleAccess: ['requester'],
+    },
+    {
         id: 'terms',
         label: 'Terms and Policies',
         route: '/terms',
         icon: 'document-text-outline',
-    },
-    {
-        id: 'become-provider',
-        label: 'Become a Provider',
-        route: '/become-provider',
-        icon: 'briefcase-outline',
-        roleAccess: ['requester'],
     },
     ],
 
