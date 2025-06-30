@@ -1,16 +1,19 @@
-import { View, StyleSheet, TouchableOpacity, Appearance } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Appearance, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { ThemedText } from '@/components/ThemedText';
 import { TextBox } from '@/components/ui/TextBox';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { validateCertification } from '@/utils/validation';
 
 type Certificate = {
   id: string;
   name: string;
   issuer: string;
   date: string;
-  document?: string;
+  document?: string; // Storing the URI
+  documentType?: string;
+  documentName?: string;
 };
 
 type Props = {
@@ -24,6 +27,19 @@ export function CertificationUploader({ certificates, onChange }: Props) {
   const styles = createStyles(theme, colorScheme);
 
   const addNewCertification = () => {
+    if (certificates.length > 0) {
+      const lastCert = certificates[certificates.length - 1];
+      const validation = validateCertification(lastCert);
+      
+      if (!validation.isValid) {
+        Alert.alert(
+          'Incomplete Certificate',
+          'Please complete the current certificate information before adding a new one.'
+        );
+        return;
+      }
+    }
+
     const newCert = {
       id: Date.now().toString(),
       name: '',
@@ -35,19 +51,61 @@ export function CertificationUploader({ certificates, onChange }: Props) {
 
   const pickDocument = async (id: string) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
-      });
+      const result = await DocumentPicker.getDocumentAsync();
+      console.log('Document picked:', result);
 
-      if (result.type === 'success') {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const document = result.assets[0];
+        console.log('Selected document:', document);
+
         const updatedCerts = certificates.map(cert =>
-          cert.id === id ? { ...cert, document: result.uri } : cert
+          cert.id === id
+            ? {
+                ...cert,
+                document: document.uri,
+                documentType: document.mimeType,
+                documentName: document.name,
+              }
+            : cert
         );
+
+        console.log('Updated certificates:', updatedCerts);
         onChange(updatedCerts);
+        Alert.alert('Success', `Document "${document.name}" uploaded successfully`);
       }
     } catch (err) {
       console.error('Error picking document:', err);
+      Alert.alert('Error', 'Could not upload the document. Please try again.');
     }
+  };
+
+  const updateCertificate = (index: number, field: keyof Certificate, value: string) => {
+    const updatedCerts = [...certificates];
+    updatedCerts[index] = {
+      ...updatedCerts[index],
+      [field]: value
+    };
+    onChange(updatedCerts);
+  };
+
+  const renderDocumentStatus = (cert: Certificate) => {
+    if (!cert.document) return null;
+
+    return (
+      <View style={styles.documentStatus}>
+        <Ionicons name="document-text" size={20} color="#4CAF50" />
+        <View style={styles.documentInfo}>
+          <ThemedText style={styles.documentName}>
+            Document uploaded successfully
+          </ThemedText>
+          {cert.documentName && (
+            <ThemedText style={styles.documentSubtext}>
+              {cert.documentName}
+            </ThemedText>
+          )}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -90,56 +148,52 @@ export function CertificationUploader({ certificates, onChange }: Props) {
               </View>
 
               <TextBox
-                label="Certificate Name"
+                label="Certificate Name *"
                 value={cert.name}
-                onChangeText={(text) => {
-                  const updatedCerts = [...certificates];
-                  updatedCerts[index] = { ...cert, name: text };
-                  onChange(updatedCerts);
-                }}
+                onChangeText={(text) => updateCertificate(index, 'name', text)}
                 placeholder="e.g., Professional Electrician Certification"
+                error={undefined}
               />
 
               <View style={styles.row}>
                 <View style={styles.flex1}>
                   <TextBox
-                    label="Issuing Organization"
+                    label="Issuing Organization *"
                     value={cert.issuer}
-                    onChangeText={(text) => {
-                      const updatedCerts = [...certificates];
-                      updatedCerts[index] = { ...cert, issuer: text };
-                      onChange(updatedCerts);
-                    }}
+                    onChangeText={(text) => updateCertificate(index, 'issuer', text)}
                     placeholder="e.g., IEEE"
+                    error={undefined}
                   />
                 </View>
                 <View style={styles.flex1}>
                   <TextBox
-                    label="Issue Date"
+                    label="Issue Date (MM/YYYY) *"
                     value={cert.date}
-                    onChangeText={(text) => {
-                      const updatedCerts = [...certificates];
-                      updatedCerts[index] = { ...cert, date: text };
-                      onChange(updatedCerts);
-                    }}
+                    onChangeText={(text) => updateCertificate(index, 'date', text)}
                     placeholder="MM/YYYY"
+                    error={undefined}
                   />
                 </View>
               </View>
 
               <TouchableOpacity 
-                style={styles.uploadButton}
+                style={[
+                  styles.uploadButton,
+                  cert.document ? styles.uploadButtonSuccess : null
+                ]}
                 onPress={() => pickDocument(cert.id)}
               >
                 <Ionicons 
-                  name={cert.document ? "document-text" : "cloud-upload-outline"} 
+                  name={cert.document ? "checkmark-circle" : "cloud-upload-outline"} 
                   size={24} 
-                  color={theme.text}
+                  color={cert.document ? "#4CAF50" : theme.text}
                 />
                 <ThemedText style={styles.uploadText}>
-                  {cert.document ? "Document Uploaded" : "Upload Certificate"}
+                  {cert.document ? "Replace Document" : "Upload Document"}
                 </ThemedText>
               </TouchableOpacity>
+
+              {renderDocumentStatus(cert)}
             </View>
           ))}
 
@@ -169,7 +223,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
     borderRadius: 12,
-    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
   },
   emptyStateText: {
     fontSize: 18,
@@ -185,7 +238,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   certCard: {
     padding: 16,
     borderRadius: 12,
-    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#eee',
     marginBottom: 16,
@@ -194,17 +246,6 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
-  },
-  certIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colorScheme === 'dark' ? '#333' : '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButton: {
-    padding: 8,
   },
   row: {
     flexDirection: 'row',
@@ -223,8 +264,8 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     backgroundColor: colorScheme === 'dark' ? '#333' : '#f5f5f5',
     marginTop: 16,
   },
-  uploadText: {
-    fontSize: 14,
+  uploadButtonSuccess: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
   addButton: {
     flexDirection: 'row',
@@ -233,12 +274,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
 });
