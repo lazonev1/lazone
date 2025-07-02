@@ -1,5 +1,5 @@
-import { View, StyleSheet, ScrollView, Appearance } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { View, StyleSheet, ScrollView, Appearance, Alert } from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Bookings } from '@/constants/bookings';
@@ -51,6 +51,25 @@ export default function BookingDetailsScreen() {
     }
   };
 
+  const handleEditBooking = (booking: Booking) => {
+    if (booking.status !== 'pending') {
+      Alert.alert('Cannot Edit', 'Only pending bookings can be modified.');
+      return;
+    }
+
+    router.push({
+      pathname: '/booking/edit',
+      params: {
+        bookingId: booking.id,
+        providerId: booking.providerId,
+        currentDate: booking.scheduledDate,
+        currentPrice: booking.price,
+        currentService: booking.serviceId,
+        description: booking.description || ''
+      }
+    });
+  };
+
   if (!booking) {
     return <ThemedText>Booking not found</ThemedText>;
   }
@@ -58,18 +77,18 @@ export default function BookingDetailsScreen() {
   const statusText = `Booking ${capitalize(booking.status)}`;
   const statusColor = getStatusColor(booking.status);
 
-  const renderActionButtons = (status: BookingStatus) => {
+  const renderActionButtons = (booking: Booking) => {
     return (
       <View style={styles.bottomButtons}>
-        {status === 'pending' && (
+        {booking.status === 'pending' && (
           <Button
             label="Edit Booking"
-            onPress={() => {}}
+            onPress={() => handleEditBooking(booking)}
             variant="primary"
             style={styles.editButton}
           />
         )}
-        {(status === 'accepted' || status === 'pending') && (
+        {(booking.status === 'accepted' || booking.status === 'pending') && (
           <Button
             label="Cancel Booking"
             onPress={() => {}}
@@ -206,7 +225,7 @@ export default function BookingDetailsScreen() {
       </View>
 
       {/* Action Buttons */}
-      {renderActionButtons(booking.status)}
+      {renderActionButtons(booking)}
     </ScrollView>
   );
 }

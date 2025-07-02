@@ -14,17 +14,23 @@ interface Props {
   services: ServiceItem[];
   onSubmit: (booking: BookingRequest) => void;
   onCancel: () => void;
+  initialValues?: {
+    serviceId?: string;
+    scheduledDate?: Date;
+    price?: string;
+    description?: string;
+  };
 }
 
-export function BookingRequestForm({ providerId, services, onSubmit, onCancel }: Props) {
+export function BookingRequestForm({ providerId, services, onSubmit, onCancel, initialValues }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
-  const [selectedService, setSelectedService] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
+  const [selectedService, setSelectedService] = useState(initialValues?.serviceId || '');
+  const [date, setDate] = useState(initialValues?.scheduledDate || new Date());
+  const [price, setPrice] = useState(initialValues?.price || '');
+  const [description, setDescription] = useState(initialValues?.description || '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
@@ -104,7 +110,7 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel }:
               numberOfLines={4}
               placeholder="Any specific requirements or details..."
             />
-
+            
             <View style={styles.buttons}>
               <Button
                 label="Cancel"
