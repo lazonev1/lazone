@@ -10,6 +10,10 @@ import { BottomPopup } from '@/components/account/BottomPopup';
 import { ThemedText } from '@/components/ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Contains the Notifications, Languages, and Appearance preference settings.
+// All of these three components are inside a BottomPopup and becomes visible on click. 
+// So the code is long but does similar things three times. 
+
 export default function PreferencesScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -164,15 +168,6 @@ export default function PreferencesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerTitle: "Preferences",
-          headerStyle: {
-            backgroundColor: theme.background,
-          },
-          headerTintColor: theme.text,
-        }}
-      />
       <ScrollView>
         <MenuSection
           items={preferenceItems}
@@ -512,11 +507,83 @@ function NotificationToggle({
   );
 }
 
+
+function AllNotificationsToggle({
+  state,
+  onToggle,
+  styles
+}: {
+  state: 'on' | 'off' | 'mixed',
+  onToggle: () => void,
+  styles: any
+}) {
+  const colorScheme = Appearance.getColorScheme();
+  let iconName: string;
+  let iconColor: string;
+
+  switch (state) {
+    case 'on':
+      iconName = 'notifications';
+      iconColor = "#e1a100";
+      break;
+    case 'off':
+      iconName = 'notifications-off-outline';
+      iconColor = "#666";
+      break;
+    case 'mixed':
+      iconName = 'filter';
+      iconColor = "#e1a100";
+      break;
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.allNotificationsRow}
+      onPress={onToggle}
+    >
+      <Ionicons
+        name={iconName}
+        size={24}
+        color={iconColor}
+        style={styles.notificationIcon}
+      />
+      <View style={styles.notificationText}>
+        <ThemedText type="defaultSemiBold">
+          All Notifications
+        </ThemedText>
+        <ThemedText style={styles.notificationDescription}>
+          {state === 'on' ? 'All notifications are enabled' :
+            state === 'off' ? 'All notifications are disabled' :
+              'Turn on All Notifications'}
+        </ThemedText>
+      </View>
+
+      {/* Visual indicator for the three states */}
+      <View style={styles.stateIndicator}>
+        {state === 'mixed' ? (
+          <View style={styles.mixedStateIndicator}>
+            <Ionicons name="notifications" size={24} color="#0A58A5" />
+          </View>
+        ) : (
+          <Switch
+            value={state === 'on'}
+            onValueChange={onToggle}
+            trackColor={{
+              false: colorScheme === 'dark' ? '#444' : '#d9d9d9',
+              true: '#0A58A5'
+            }}
+            thumbColor="#fff"
+          />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
 function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.background,
+      // backgroundColor: theme.background, This is setting the background to dark grey. Not pure dark.
     },
     section: {
       marginTop: 16,
@@ -695,74 +762,3 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
   });
 }
 
-function AllNotificationsToggle({
-  state,
-  onToggle,
-  styles
-}: {
-  state: 'on' | 'off' | 'mixed',
-  onToggle: () => void,
-  styles: any
-}) {
-  const colorScheme = Appearance.getColorScheme();
-  let iconName: string;
-  let iconColor: string;
-
-  switch (state) {
-    case 'on':
-      iconName = 'notifications';
-      iconColor = "#e1a100";
-      break;
-    case 'off':
-      iconName = 'notifications-off-outline';
-      iconColor = "#666";
-      break;
-    case 'mixed':
-      iconName = 'filter';
-      iconColor = "#e1a100";
-      break;
-  }
-
-  return (
-    <TouchableOpacity
-      style={styles.allNotificationsRow}
-      onPress={onToggle}
-    >
-      <Ionicons
-        name={iconName}
-        size={24}
-        color={iconColor}
-        style={styles.notificationIcon}
-      />
-      <View style={styles.notificationText}>
-        <ThemedText type="defaultSemiBold">
-          All Notifications
-        </ThemedText>
-        <ThemedText style={styles.notificationDescription}>
-          {state === 'on' ? 'All notifications are enabled' :
-            state === 'off' ? 'All notifications are disabled' :
-              'Turn on All Notifications'}
-        </ThemedText>
-      </View>
-
-      {/* Visual indicator for the three states */}
-      <View style={styles.stateIndicator}>
-        {state === 'mixed' ? (
-          <View style={styles.mixedStateIndicator}>
-            <Ionicons name="notifications" size={24} color="#0A58A5" />
-          </View>
-        ) : (
-          <Switch
-            value={state === 'on'}
-            onValueChange={onToggle}
-            trackColor={{
-              false: colorScheme === 'dark' ? '#444' : '#d9d9d9',
-              true: '#0A58A5'
-            }}
-            thumbColor="#fff"
-          />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}

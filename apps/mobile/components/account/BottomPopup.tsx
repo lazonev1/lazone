@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { ThemedView } from '../ThemedView';
 
 type Props = {
     visible: boolean;
@@ -55,7 +56,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
             animationType='slide'
             onRequestClose={onClose}
         >
-            <View style={styles.container}>
+            <ThemedView style={styles.container}>
                 <TouchableWithoutFeedback onPress={onClose}>
                     <View style={styles.overlay} />
                 </TouchableWithoutFeedback>
@@ -77,7 +78,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
                         {children}
                     </View>
                 </Animated.View>
-            </View>
+            </ThemedView>
         </Modal>
     );
 }
