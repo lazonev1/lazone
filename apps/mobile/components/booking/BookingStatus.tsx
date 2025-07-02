@@ -17,7 +17,7 @@ export function BookingStatus({ status }: Props) {
 
 export function getStatusColor(status: StatusType): string {
   const colors = {
-    confirmed: 'green',
+    accepted: 'green',
     pending: '#e1a100',
     cancelled: 'red',
   };
