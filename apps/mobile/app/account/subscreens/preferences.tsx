@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, View, Switch } from 'react-native';
+import { StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, View, Switch, Text } from 'react-native';
 import { Stack, useRouter, useNavigation } from 'expo-router';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
@@ -8,6 +8,7 @@ import { MenuSection } from '@/components/ui/MenuSection';
 import { MenuItem } from '@/types/user';
 import { BottomPopup } from '@/components/account/BottomPopup';
 import { ThemedText } from '@/components/ThemedText';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PreferencesScreen() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function PreferencesScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
-  // Preference state variables
+  // Notifications Preference state variables
   const [notificationPopupVisible, setNotificationPopupVisible] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     all: true,
@@ -27,6 +28,10 @@ export default function PreferencesScreen() {
     promotions: false,
     updates: true
   });
+  // Language setting state
+  const [languagePopupVisible, setLanguagePopupVisible] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fr'>('en');
+
   // Toggle handler for notification switches
   const toggleNotification = (key: keyof typeof notificationSettings) => {
     setNotificationSettings(prev => {
@@ -92,11 +97,28 @@ export default function PreferencesScreen() {
 
   useEffect(() => {
     navigation.setOptions({ title: 'Preferences' });
+    // The actual loading of the language
+    // should happen somewhere else, before the app even launches at all
+    // This is just to set what the user will see in preferences.
+    const loadLanguage = async () => {
+      try {
+        const storedLanguage = await AsyncStorage.getItem('userLanguage');
+        if (storedLanguage === 'en' || storedLanguage === 'fr') {
+          setSelectedLanguage(storedLanguage);
+        }
+      } catch (error) {
+        console.error('Failed to load language preference:', error);
+      }
+    };
+
+    loadLanguage();
   }, []);
 
   const navigateTo = (route: string) => {
     if (route === '/preferences/notifications') {
       setNotificationPopupVisible(true);
+    } else if (route === '/preferences/language') {
+      setLanguagePopupVisible(true);
     } else {
       router.push(route);
     }
@@ -240,6 +262,79 @@ export default function PreferencesScreen() {
           </TouchableOpacity>
         </View>
       </BottomPopup>
+
+
+      {/* Language Selection Popup */}
+      <BottomPopup
+        visible={languagePopupVisible}
+        onClose={() => setLanguagePopupVisible(false)}
+        title="Language"
+      >
+        <View style={styles.languageContainer}>
+          <ThemedText style={styles.languageDescription}>
+            Select your preferred language. The app will use this language throughout the interface.
+          </ThemedText>
+
+          <View style={styles.optionsContainer}>
+            {/* English Option */}
+            <TouchableOpacity
+              style={styles.languageOption}
+              onPress={() => setSelectedLanguage('en')}
+            >
+              <View style={styles.optionLeft}>
+                <Text style={styles.flagText}>🇺🇸</Text>
+                <View style={styles.languageInfo}>
+                  <ThemedText type="defaultSemiBold">English</ThemedText>
+                  <ThemedText style={styles.languageCode}>EN</ThemedText>
+                </View>
+              </View>
+
+              {selectedLanguage === 'en' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* French Option */}
+            <TouchableOpacity
+              style={styles.languageOption}
+              onPress={() => setSelectedLanguage('fr')}
+            >
+              <View style={styles.optionLeft}>
+                <Text style={styles.flagText}>🇫🇷</Text>
+                <View style={styles.languageInfo}>
+                  <ThemedText type="defaultSemiBold">Français</ThemedText>
+                  <ThemedText style={styles.languageCode}>FR</ThemedText>
+                </View>
+              </View>
+
+              {selectedLanguage === 'fr' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={async () => {
+              try {
+                await AsyncStorage.setItem('userLanguage', selectedLanguage);
+                // Here you would trigger language change in your app
+                setLanguagePopupVisible(false);
+              } catch (error) {
+                console.error('Failed to save language preference:', error);
+              }
+            }}
+          >
+            <ThemedText style={styles.saveButtonText}>Save</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </BottomPopup>
     </SafeAreaView>
   );
 }
@@ -338,6 +433,7 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       marginLeft: 36,
       marginRight: 25,
     },
+    // Notification styles
     notificationContainer: {
       padding: 10,
       marginBottom: 30,
@@ -391,6 +487,52 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       backgroundColor: 'rgba(10, 88, 165, 0.15)',
       borderRadius: 16,
       padding: 4,
+    },
+    // Language selection styles
+    languageContainer: {
+      padding: 10,
+      marginBottom: 30,
+    },
+    languageDescription: {
+      fontSize: 14,
+      opacity: 0.7,
+      marginBottom: 20,
+      paddingHorizontal: 10,
+    },
+    optionsContainer: {
+      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#ffffff',
+      borderRadius: 12,
+      marginBottom: 10,
+    },
+    languageOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+    },
+    optionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    flagText: {
+      fontSize: 24,
+      marginRight: 16,
+    },
+    languageInfo: {
+      flexDirection: 'column',
+    },
+    languageCode: {
+      fontSize: 12,
+      opacity: 0.6,
+      marginTop: 2,
+    },
+    unselectedCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colorScheme === 'dark' ? '#444' : '#d9d9d9',
     },
   });
 }
