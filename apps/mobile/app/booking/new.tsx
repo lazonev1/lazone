@@ -1,76 +1,70 @@
-import { StyleSheet, Appearance, ScrollView } from "react-native";
-import {Colors} from "@/constants/Colors";
-import { Stack } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ThemedText } from "@/components/ThemedText";
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useState } from "react";
-
+import { View, StyleSheet, Alert, TouchableWithoutFeedback, Keyboard, Appearance } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { BookingRequestForm } from '@/components/booking/BookingRequestForm';
+import { Providers } from '@/constants/providers';
+import { ThemedText } from '@/components/ThemedText';
+import { Colors } from '@/constants/Colors';
 
 export default function NewBookingScreen() {
-    // This screen will handle the booking creation process
-    // It will include steps for selecting services, choosing a date/time, and confirming the booking
-    const colorScheme = Appearance.getColorScheme();
-    const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-    const styles = createStyles(theme, colorScheme);
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-    const [date, setDate] = useState(new Date());
-    const [show, setShow] = useState(false);
+  // Retrieve the provider based on the providerId from params
+  const providerId = params.providerId as string;
+  const provider = Providers.find(p => p.id.toString() === providerId);
+  if (!provider) {return (<View style={styles.container}><ThemedText>Provider not found</ThemedText></View> );}
 
-    const onChange = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || date;
-        setShow(false);
-        setDate(currentDate);
-    };
-    
-    return (
-        <>
+  const handleSubmit = async (booking: BookingRequest) => {
+    try {
+      // TODO: Replace with actual API call
+      //Simulate API call to submit booking request
+      console.log('Submitting booking request:', booking);
+      // Simulate a successful API response
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+      // This is a placeholder booking ID. In a real application, this would be returned from the API.
+      const bookingId = 2; // This will come from API
+
+      // Navigate to success screen
+      router.replace({
+        pathname: '/booking/success',
+        params: {
+          bookingId,
+          providerName: provider.name
+        }
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit booking request');
+    }
+  };
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen 
-            options={{
-                title: 'New Booking',
-                headerBackTitle: 'Portfolio',
-            }}
+          options={{
+            title: `Book ${provider.name}`,
+            headerBackTitle: 'Back',
+            headerStyle: {
+              backgroundColor: theme.background,
+            },
+            headerTintColor: theme.text,
+          }} 
         />
-        <SafeAreaView style={styles.safeArea}>
-            <ScrollView style = {styles.scrollContent}>
-                <ThemedText type="subtitle">Choose a date and time for your booking</ThemedText>
-                {/* Add components for selecting services, date/time, etc. */}
-
-                <DateTimePicker
-                    testID="dateTimePicker"
-                    value={date}
-                    mode="datetime"
-                    display="default"
-                    onChange={onChange}
-                />
-                <ThemedText type = "subtitle"> Propose budget and service details</ThemedText>
-                {/* This will be a multi-step form similar to the provider registration */}
-
-            </ScrollView>
-        </SafeAreaView>
-        </>
-
-    );
+        <BookingRequestForm
+          providerId={providerId}
+          services={provider.services}
+          onSubmit={handleSubmit}
+          onCancel={() => router.back()}
+        />
+      </View>
+    </TouchableWithoutFeedback>
+  );
 }
 
-function createStyles(theme, colorScheme){
-    return StyleSheet.create({
-        safeArea: {
-            flex: 1,
-        },
-        scrollContent: {
-            flex: 1,
-            padding: 16,
-        },
-        sectionTitle: {
-            marginVertical: 8,
-        },
-        exploreTitle: {
-            marginTop: 24,
-            marginBottom: 12,
-        },
-        categories: {
-            paddingLeft: 16,
-        },
-    })
-}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  }
+});

@@ -37,7 +37,7 @@ export default function BookingDetailsScreen() {
             style={styles.editButton}
           />
         )}
-        {(status === 'confirmed' || status === 'pending') && (
+        {(status === 'accepted' || status === 'pending') && (
           <Button
             label="Cancel Appointment"
             onPress={() => {}}
