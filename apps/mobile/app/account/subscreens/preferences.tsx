@@ -31,6 +31,9 @@ export default function PreferencesScreen() {
   // Language setting state
   const [languagePopupVisible, setLanguagePopupVisible] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fr'>('en');
+  // Appearance state variables
+  const [appearancePopupVisible, setAppearancePopupVisible] = useState(false);
+  const [selectedAppearance, setSelectedAppearance] = useState<'light' | 'dark' | 'system'>('system');
 
   // Toggle handler for notification switches
   const toggleNotification = (key: keyof typeof notificationSettings) => {
@@ -112,6 +115,18 @@ export default function PreferencesScreen() {
     };
 
     loadLanguage();
+    const loadAppearance = async () => {
+      try {
+        const storedAppearance = await AsyncStorage.getItem('userAppearance');
+        if (storedAppearance === 'light' || storedAppearance === 'dark' || storedAppearance === 'system') {
+          setSelectedAppearance(storedAppearance);
+        }
+      } catch (error) {
+        console.error('Failed to load appearance preference:', error);
+      }
+    };
+
+    loadAppearance();
   }, []);
 
   const navigateTo = (route: string) => {
@@ -119,6 +134,8 @@ export default function PreferencesScreen() {
       setNotificationPopupVisible(true);
     } else if (route === '/preferences/language') {
       setLanguagePopupVisible(true);
+    } else if (route === '/preferences/appearance') {
+      setAppearancePopupVisible(true);
     } else {
       router.push(route);
     }
@@ -335,6 +352,112 @@ export default function PreferencesScreen() {
           </TouchableOpacity>
         </View>
       </BottomPopup>
+
+      {/* Appearance Selection Popup */}
+      <BottomPopup
+        visible={appearancePopupVisible}
+        onClose={() => setAppearancePopupVisible(false)}
+        title="Appearance"
+      >
+        <View style={styles.appearanceContainer}>
+          <ThemedText style={styles.appearanceDescription}>
+            Choose how LaZone looks on your device.
+          </ThemedText>
+
+          <View style={styles.optionsContainer}>
+            {/* System Default Option */}
+            <TouchableOpacity
+              style={styles.appearanceOption}
+              onPress={() => setSelectedAppearance('system')}
+            >
+              <View style={styles.optionLeft}>
+                <View style={styles.themeIconContainer}>
+                  <Ionicons name="phone-portrait-outline" size={24} color={theme.text} />
+                </View>
+                <View>
+                  <ThemedText type="defaultSemiBold">System Default</ThemedText>
+                  <ThemedText style={styles.appearanceDescription}>
+                    Match your device settings
+                  </ThemedText>
+                </View>
+              </View>
+
+              {selectedAppearance === 'system' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Light Mode Option */}
+            <TouchableOpacity
+              style={styles.appearanceOption}
+              onPress={() => setSelectedAppearance('light')}
+            >
+              <View style={styles.optionLeft}>
+                <View style={[styles.themeIconContainer, styles.lightIconContainer]}>
+                  <Ionicons name="sunny" size={24} color="#e1a100" />
+                </View>
+                <View>
+                  <ThemedText type="defaultSemiBold">Light</ThemedText>
+                  <ThemedText style={styles.appearanceDescription}>
+                    Light background with dark text
+                  </ThemedText>
+                </View>
+              </View>
+
+              {selectedAppearance === 'light' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Dark Mode Option */}
+            <TouchableOpacity
+              style={styles.appearanceOption}
+              onPress={() => setSelectedAppearance('dark')}
+            >
+              <View style={styles.optionLeft}>
+                <View style={[styles.themeIconContainer, styles.darkIconContainer]}>
+                  <Ionicons name="moon" size={22} color="#FFFFFF" />
+                </View>
+                <View>
+                  <ThemedText type="defaultSemiBold">Dark</ThemedText>
+                  <ThemedText style={styles.appearanceDescription}>
+                    Dark background with light text
+                  </ThemedText>
+                </View>
+              </View>
+
+              {selectedAppearance === 'dark' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={async () => {
+              try {
+                await AsyncStorage.setItem('userAppearance', selectedAppearance);
+                // Apply the changes here before dismissing the popup
+                setAppearancePopupVisible(false);
+              } catch (error) {
+                console.error('Failed to save appearance preference:', error);
+              }
+            }}
+          >
+            <ThemedText style={styles.saveButtonText}>Save</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </BottomPopup>
     </SafeAreaView>
   );
 }
@@ -533,6 +656,41 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       borderRadius: 12,
       borderWidth: 2,
       borderColor: colorScheme === 'dark' ? '#444' : '#d9d9d9',
+    },
+    // Appearance styles
+    appearanceContainer: {
+      padding: 10,
+      marginBottom: 30,
+    },
+    appearanceDescription: {
+      fontSize: 14,
+      opacity: 0.7,
+      marginBottom: 20,
+      paddingHorizontal: 10,
+    },
+    appearanceOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+    },
+    themeIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colorScheme === 'dark' ? '#333' : '#e0e0e0',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    lightIconContainer: {
+      backgroundColor: '#F8F8F8',
+      borderWidth: 1,
+      borderColor: '#E0E0E0',
+    },
+    darkIconContainer: {
+      backgroundColor: '#1A1A1A',
     },
   });
 }
