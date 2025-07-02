@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
 import { Button } from '@lazone/ui';
+import { push } from 'expo-router/build/global-state/routing';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -177,7 +178,7 @@ export default function ProviderProfileScreen() {
           <ThemedText>{provider.pricing}</ThemedText>
           <Button
             label="Request a Quote"
-            onPress={() => {}}
+            onPress={() => {push('/booking/new');}}
             variant="primary"
             style={styles.quoteButton}
           />
