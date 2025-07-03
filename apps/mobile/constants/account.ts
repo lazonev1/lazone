@@ -70,7 +70,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'preferences',
         label: 'Preferences',
-        route: '/preferences',
+        route: '/account/subscreens/preferences',
         icon: 'settings-outline',
     },
     {
