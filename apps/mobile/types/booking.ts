@@ -1,12 +1,30 @@
-export type BookingStatus = 'confirmed' | 'pending' | 'completed'| 'cancelled';
+export type BookingStatus = 'pending' | 'accepted' | 'completed' | 'cancelled';
 
 export interface Booking {
   id: number;
-  name: string;
-  service: string;
-  time: string;
-  status: BookingStatus;
+  // Provider info (minimal)
+  providerId: number;
+  providerName: string;
+  // Service info (essential only)
+  serviceId: number;
+  serviceName: string;
+  price: string;
+  // Scheduling
+  scheduledDate: string;  // ISO date string
+  // Optional details
   description?: string;
-  price?: string;
+  location?: string;
+  // Tracking
+  status: BookingStatus;
+  createdAt: string;    // ISO date string
+  updatedAt?: string;   // Make it optional since pending bookings might not have it
+}
+// What we need to create a booking
+export interface CreateBookingRequest {
+  providerId: number;
+  serviceId: number;
+  scheduledDate: string;
+  price: string;
+  description?: string;
   location?: string;
 }

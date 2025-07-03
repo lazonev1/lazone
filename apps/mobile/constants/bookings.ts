@@ -1,35 +1,44 @@
 export const Bookings = [
   {
     id: 1,
-    name: 'Alex Johnson',
-    service: 'Electrical Repair',
-    time: '12th Oct 2023, 10:00 AM',
-    status: 'confirmed',
-    price: '75000 CFA',
-    location: '123 Main St, Brighton',
-    description: 'Fix living room lighting and install new switches',
-    providerId: 1 // references provider from providers.ts
+    providerId: 1,
+    providerName: "Alex Johnson",
+    serviceId: 'elec-1',
+    serviceName: "Electrical Repair",
+    price: "75000 CFA",
+    scheduledDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
+    description: "Fix living room lighting and install new switches",
+    location: "123 Main St, Brighton",
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 2,
-    name: 'Brighton Electricians',
-    service: 'Wiring Installation',
-    time: '15th Oct 2023, 2:00 PM',
-    status: 'pending',
-    price: '150000 CFA',
-    location: '456 Oak Road, Brighton',
-    description: 'New wiring installation for home office',
-    providerId: 1
+    providerId: 1,
+    providerName: "Alex Johnson",
+    serviceId: 'elec-2',
+    serviceName: "Wiring Installation",
+    price: "150000 CFA",
+    scheduledDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(), // 12 days from now
+    description: "New wiring installation for home office",
+    location: "456 Oak Road, Brighton",
+    status: "accepted",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 3,
-    name: 'Sarah Doe',
-    service: 'Dress Alteration',
-    time: '20th Oct 2023, 8:00 AM',
-    status: 'cancelled',
-    price: '25000 CFA',
-    location: '789 Pine Lane, Brighton',
-    description: 'Wedding dress adjustment',
-    providerId: 2
+    providerId: 2,
+    providerName: "Sarah Doe",
+    serviceId: 'tail-1',
+    serviceName: "Dress Alteration",
+    price: "25000 CFA",
+    scheduledDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days from now
+    description: "Wedding dress adjustment",
+    location: "789 Pine Lane, Brighton",
+    status: "cancelled",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];

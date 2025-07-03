@@ -15,6 +15,28 @@ export function BookingCard({ booking, onPress }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
+  const formatDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return {
+        date: date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        time: date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }).toLowerCase()
+      };
+    } catch {
+      return { date: '', time: '' };
+    }
+  };
+
+  const { date, time } = formatDateTime(booking.scheduledDate);
+  const formattedDateTime = `${date} at ${time}`;
+
   return (
     <TouchableOpacity
       onPress={() => onPress?.(booking)}
@@ -27,9 +49,9 @@ export function BookingCard({ booking, onPress }: Props) {
       >
         <View style={styles.content}>
           <View style={styles.details}>
-            <ThemedText type="defaultSemiBold">{booking.name}</ThemedText>
-            <ThemedText>{booking.service}</ThemedText>
-            <ThemedText>{booking.time}</ThemedText>
+            <ThemedText type="defaultSemiBold">{booking.providerName}</ThemedText>
+            <ThemedText>{booking.serviceName}</ThemedText>
+            <ThemedText style={styles.datetime}>{formattedDateTime}</ThemedText>
             <BookingStatus status={booking.status} />
           </View>
           <View pointerEvents="none">
@@ -57,5 +79,9 @@ const styles = StyleSheet.create({
   },
   details: {
     flex: 1,
+  },
+  datetime: {
+    fontSize: 13,
+    opacity: 0.6,
   },
 });

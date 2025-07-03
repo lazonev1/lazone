@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -176,8 +176,10 @@ export default function ProviderProfileScreen() {
           <ThemedText type="subtitle">Pricing Estimate</ThemedText>
           <ThemedText>{provider.pricing}</ThemedText>
           <Button
-            label="Request a Quote"
-            onPress={() => {}}
+            label="Book Now"
+            onPress={() => {
+              router.push(`/booking/new?providerId=${provider.id}`);
+            }}
             variant="primary"
             style={styles.quoteButton}
           />
