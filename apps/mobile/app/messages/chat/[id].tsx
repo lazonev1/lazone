@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Animated, Appearance, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -6,33 +6,82 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import MessageBubble from '@/components/chat/MessageBubble';
 import DateDivider from '@/components/chat/DateDivider';
+import { Chats, CurrentUser, getOtherParticipant } from '@/constants/chats';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<ScrollView | null>(null);
   const [message, setMessage] = useState('');
-  
-  const [chatData, setChatData] = useState({
+  type ChatData = {
     contact: {
-      id,
-      name: "Plumbing Pro",
-      avatar: require('@/assets/images/avatar-placeholder.png')
-    },
-    messages: [
-      { id: '1', text: 'Thanks!', time: '09:12 AM', isOutgoing: false, date: 'March 10' },
-      { id: '2', text: 'Hi, I bought the new pipes and will come tomorrow at 11 AM to install them', time: '1:48 PM', isOutgoing: false, date: 'March 10' },
-      { id: '3', text: 'Alright, will be expecting you!', time: '1:53 PM', isOutgoing: true, date: 'March 10' },
-      { id: '4', text: 'Will do!', time: '1:54 PM', isOutgoing: false, date: 'March 10' },
-      { id: '5', text: 'Great! Let me know your availability.', time: '1:58 PM', isOutgoing: false, date: 'March 10' },
-    ]
-  });
+      id: string;
+      name: string;
+      avatar: any;
+      profession?: string;
+    };
+    messages: Message[];
+  };
+
+  const [chatData, setChatData] = useState<ChatData | null>(null);
+  const styles = createStyles(theme, colorScheme);
+
+  // Load the correct chat data based on ID
+  useEffect(() => {
+    const chat = Chats.find(c => c.id === id);
+    if (chat) {
+      const otherPerson = getOtherParticipant(chat);
+
+      // Format messages to match the expected format
+      const formattedMessages = chat.messages.map(msg => {
+        const messageDate = new Date(msg.timestamp);
+        return {
+          id: msg.id,
+          text: msg.text,
+          time: messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOutgoing: msg.senderId === CurrentUser.id,
+          date: messageDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+          // Add attachment info if present
+          attachment: msg.attachments && msg.attachments.length > 0 ? msg.attachments[0] : undefined
+        };
+      });
+
+      setChatData({
+        contact: {
+          id: otherPerson.id,
+          name: otherPerson.name,
+          avatar: otherPerson.avatar,
+          profession: otherPerson.profession
+        },
+        messages: formattedMessages
+      });
+    } else {
+      // Fallback to default data if chat not found
+      setChatData({
+        contact: {
+          id,
+          name: "Chat Not Found",
+          avatar: require('@/assets/images/avatar-placeholder.png')
+        },
+        messages: []
+      });
+    }
+  }, [id]);
+
+  // If chat data is still loading
+  if (!chatData) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ThemedText>Loading chat...</ThemedText>
+      </SafeAreaView>
+    );
+  }
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
-    
+
     const newMessage = {
       id: Date.now().toString(),
       text: message,
@@ -40,14 +89,17 @@ export default function ChatScreen() {
       isOutgoing: true,
       date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
     };
-    
-    setChatData(prev => ({
-      ...prev,
-      messages: [...prev.messages, newMessage]
-    }));
-    
+
+    setChatData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, newMessage]
+      };
+    });
+
     setMessage('');
-    
+
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -59,45 +111,62 @@ export default function ChatScreen() {
     time: string;
     isOutgoing: boolean;
     date: string;
+    attachment?: any;
   };
-  const groupedMessages: Record<string, Message[]> = {};
-  chatData.messages.forEach((message: Message) => {
-    if (!groupedMessages[message.date]) {
-      groupedMessages[message.date] = [];
-    }
-    groupedMessages[message.date].push(message);
-  });
 
-  const shouldShowAvatar = (messages:any, index:any) => {
+  const groupedMessages: Record<string, Message[]> = {};
+
+  if (chatData && chatData.messages) {
+    chatData.messages.forEach((message: Message) => {
+      if (!groupedMessages[message.date]) {
+        groupedMessages[message.date] = [];
+      }
+      groupedMessages[message.date].push(message);
+    });
+  }
+
+  const shouldShowAvatar = (messages: any, index: any) => {
     if (index === messages.length - 1) return true;
-    
+
     const currentMessage = messages[index];
     const nextMessage = messages[index + 1];
-    
+
     return currentMessage.isOutgoing !== nextMessage.isOutgoing;
   };
 
-  const styles = createStyles(theme, colorScheme);
 
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
           headerTitle: () => (
-            <Pressable 
-              style={styles.header} 
-              onPress={() => router.push(`/provider/${chatData.contact.id}`)}
+            <Pressable
+              style={styles.header}
+              onPress={() => {
+                // Only navigate to provider profile if it's a provider
+                if (chatData.contact.profession) {
+                  console.log(chatData.contact.id)
+                  router.push(`/provider/${chatData.contact.id}`)
+                }
+              }}
             >
-              <Image 
-                source={chatData.contact.avatar} 
-                style={styles.avatar} 
+              <Image
+                source={chatData.contact.avatar}
+                style={styles.avatar}
               />
-              <ThemedText style={styles.headerTitle}>
-                {chatData.contact.name}
-              </ThemedText>
+              <View style={styles.headerInfo}>
+                <ThemedText style={styles.headerTitle}>
+                  {chatData.contact.name}
+                </ThemedText>
+                {chatData.contact.profession && (
+                  <ThemedText style={styles.headerSubtitle}>
+                    {chatData.contact.profession}
+                  </ThemedText>
+                )}
+              </View>
             </Pressable>
           ),
-          headerStyle: { 
+          headerStyle: {
             backgroundColor: theme.background
           },
           headerTintColor: theme.tint,
@@ -109,13 +178,13 @@ export default function ChatScreen() {
           )
         }}
       />
-      
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView 
+        <ScrollView
           ref={scrollRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messageContent}
@@ -123,27 +192,28 @@ export default function ChatScreen() {
           {Object.entries(groupedMessages).map(([date, messages]) => (
             <View key={date}>
               <DateDivider date={date} />
-              
+
               {messages.map((message, index) => (
                 <MessageBubble
                   key={message.id}
                   message={message.text}
                   time={message.time}
                   isOutgoing={message.isOutgoing}
-                  senderAvatar={!message.isOutgoing && shouldShowAvatar(messages, index) 
-                    ? chatData.contact.avatar 
+                  attachment={message.attachment}
+                  senderAvatar={!message.isOutgoing && shouldShowAvatar(messages, index)
+                    ? chatData.contact.avatar
                     : undefined}
                 />
               ))}
             </View>
           ))}
         </ScrollView>
-        
+
         <View style={styles.inputContainer}>
           <TouchableOpacity style={styles.inputButton} onPress={() => Alert.alert('Coming slowly')}>
             <Ionicons name='add-outline' size={24} color={theme.icon} />
           </TouchableOpacity>
-          
+
           <TextInput
             style={styles.input}
             placeholder="Message"
@@ -152,8 +222,8 @@ export default function ChatScreen() {
             onChangeText={setMessage}
             multiline
           />
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
             disabled={!message.trim()}
             onPress={handleSendMessage}
@@ -166,7 +236,7 @@ export default function ChatScreen() {
   );
 }
 
-function createStyles(theme:any, colorScheme:any) {
+function createStyles(theme: any, colorScheme: any) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -180,10 +250,17 @@ function createStyles(theme:any, colorScheme:any) {
       alignItems: 'center',
       paddingVertical: 8,
     },
+    headerInfo: {
+      flexDirection: 'column',
+    },
     headerTitle: {
       fontSize: 18,
       fontWeight: 'bold',
       color: theme.text,
+    },
+    headerSubtitle: {
+      fontSize: 12,
+      color: theme.tabIconDefault,
     },
     avatar: {
       width: 36,
