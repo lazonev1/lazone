@@ -56,7 +56,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
             animationType='slide'
             onRequestClose={onClose}
         >
-            <ThemedView style={styles.container}>
+            <View style={styles.container}>
                 <TouchableWithoutFeedback onPress={onClose}>
                     <View style={styles.overlay} />
                 </TouchableWithoutFeedback>
@@ -78,7 +78,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
                         {children}
                     </View>
                 </Animated.View>
-            </ThemedView>
+            </View>
         </Modal>
     );
 }
