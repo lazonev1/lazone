@@ -5,26 +5,19 @@ import { Button } from '@lazone/ui';
 import { TextBox } from '@/components/ui/TextBox';
 import { PortfolioImagePicker } from '@/components/ui/ImagePicker';  // Updated import
 import { Colors } from '@/constants/Colors';
-import { ServiceItem, PortfolioItem } from '@/types/provider';
+import { ServiceItem, PortfolioItem, ProviderRegistration } from '@/types/provider';
 import { CertificationUploader } from './CertificationUploader';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { generateServiceId } from '@/utils/generateId';
 import { validateService, validateCertification } from '@/utils/validation';
 
-type ServiceDetailsProps = {
-  initialData?: {
-    services?: ServiceItem[];
-    portfolio?: PortfolioItem[];
-    certifications?: string[];
-  };
-  onSubmit: (data: {
-    services: ServiceItem[];
-    portfolio: PortfolioItem[];
-    certifications: string[];
-  }) => void;
-};
+interface Props {
+  initialData: Partial<ProviderRegistration>;
+  onSubmit: (data: Partial<ProviderRegistration>) => void;
+  onBack: () => void;  // Add back handler prop
+}
 
-export default function ServiceDetailsStep({ initialData, onSubmit }: ServiceDetailsProps) {
+export default function ServiceDetailsStep({ initialData, onSubmit, onBack }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -70,7 +63,6 @@ export default function ServiceDetailsStep({ initialData, onSubmit }: ServiceDet
         {services.length > 1 && (
           <TouchableOpacity
             onPress={() => removeService(serviceId)}
-            style={styles.removeButton}
           >
             <Ionicons name="remove-circle" size={24} color="#FF3B30" />
           </TouchableOpacity>
@@ -81,6 +73,8 @@ export default function ServiceDetailsStep({ initialData, onSubmit }: ServiceDet
 
   const validateAll = () => {
     let isValid = true;
+
+    // Validate all services
     const updatedServices = services.map(service => {
       const validation = validateService(service);
       if (!validation.isValid) {
@@ -91,18 +85,27 @@ export default function ServiceDetailsStep({ initialData, onSubmit }: ServiceDet
         errors: validation.errors
       };
     });
-
     setServices(updatedServices);
 
+    // Validate all certificates
     if (certificates.length > 0) {
-      const certificatesValid = certificates.every(cert => {
+      const updatedCerts = certificates.map(cert => {
         const validation = validateCertification(cert);
-        return validation.isValid;
+        if (!validation.isValid) {
+          isValid = false;
+        }
+        return {
+          ...cert,
+          errors: validation.errors
+        };
       });
+      setCertificates(updatedCerts);
 
-      if (!certificatesValid) {
-        Alert.alert('Please complete all certificate information correctly.');
-        isValid = false;
+      if (!isValid) {
+        Alert.alert(
+          'Incomplete Information',
+          'Please fill in all fields marked in red.'
+        );
       }
     }
 
@@ -217,6 +220,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     marginBottom: 8,
   },
   sectionDescription: {
+    color: theme.text,
     opacity: 0.7,
     marginBottom: 16,
   },
@@ -252,6 +256,7 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   },
   addServiceText: {
     marginLeft: 4,
+    fontSize: 14,
     color: '#0A58A5',
     fontWeight: '500',
   },
