@@ -1,6 +1,6 @@
 import { View, StyleSheet, Alert, Pressable, ActivityIndicator, ScrollView, Appearance } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
 import EditableField from '../../components/account/EditableField';
@@ -14,11 +14,13 @@ import { useNavigation } from '@react-navigation/native';
 const STORAGE_KEY = 'user-info';
 
 export default function AccountInfoScreen() {
-	const [name, setName] = useState('');
-	const [email, setEmail] = useState('');
-	const [phone, setPhone] = useState('');
-	const [avatar, setAvatar] = useState<string | null>(null);
-	const [loading, setLoading] = useState(false);
+	const params = useLocalSearchParams();
+	const userProfile = params.userProfile ? JSON.parse(params.userProfile as string) : null;
+
+	const [name, setName] = useState(userProfile?.firstName + ' ' + userProfile?.lastName || '');
+	const [email, setEmail] = useState(userProfile?.email || '');
+	const [phone, setPhone] = useState(userProfile?.phone || '');
+	const [avatar, setAvatar] = useState<string | null>(userProfile?.avatar || null);
 	const [saving, setSaving] = useState(false);
 	const { logout } = useAuth();
 	const router = useRouter();
@@ -28,22 +30,6 @@ export default function AccountInfoScreen() {
 	const navigation = useNavigation();
 
 	useEffect(() => {
-		(async () => {
-			setLoading(true);
-			try {
-				const data = await AsyncStorage.getItem(STORAGE_KEY);
-				if (data) {
-					const parsed = JSON.parse(data);
-					setName(parsed.name);
-					setEmail(parsed.email);
-					setPhone(parsed.phone);
-					setAvatar(parsed.avatar);
-				}
-			} catch (err) {
-				Alert.alert('Error', 'Could not load user data');
-			}
-			setLoading(false);
-		})();
 		navigation.setOptions({ title: 'Account Info' });
 	}, []);
 
@@ -62,14 +48,6 @@ export default function AccountInfoScreen() {
 
 		setSaving(false);
 	};
-
-	if (loading) {
-		return (
-			<View style={styles.center}>
-				<ActivityIndicator size="large" color={theme.tint} />
-			</View>
-		);
-	}
 
 	return (
 		<ScrollView contentContainerStyle={styles.container}>

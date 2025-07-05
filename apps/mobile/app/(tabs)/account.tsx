@@ -26,7 +26,12 @@ export default function AccountScreen() {
   };
 
   const handleProfilePress = () => {
-    router.push('/account/info');
+    router.push({
+      pathname: '/account/info',
+      params: {
+        userProfile: JSON.stringify(MOCK_USER_PROFILE)
+      }
+    });
   };
 
   // Filter resources based on current role
