@@ -38,7 +38,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
   // ToDo: Upadate with API once the backend is ready
   const toggleBookmark = async () => { // Updated function name
     try {
-      const savedProviders = await AsyncStorage.getItem(SAVED_PROVIDERS_KEY);
+      const savedProviders = await AsyncStorage.getItem(BOOKMARK_PROVIDERS_KEY);
       let providers = savedProviders ? JSON.parse(savedProviders) : [];
       
       if (isBookmarked) { // if it is Bookmarked remove it
@@ -47,7 +47,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
         providers.push(id);
       }
       
-      await AsyncStorage.setItem(SAVED_PROVIDERS_KEY, JSON.stringify(providers));
+      await AsyncStorage.setItem(BOOKMARK_PROVIDERS_KEY, JSON.stringify(providers));
       setIsBookmarked(!isBookmarked); // Toggle the bookmark state
     } catch (error) {
       console.error('Error toggling bookmark:', error);
