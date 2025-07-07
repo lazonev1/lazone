@@ -9,6 +9,12 @@ import { useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import { validateBusinessInfo } from '@/utils/validation';
 
+interface Props {
+  initialData: Partial<ProviderRegistration>;
+  onNext: (data: Partial<ProviderRegistration>) => void;
+  isEditMode?: boolean;
+}
+
 const SERVICE_CATEGORIES = [
   { label: 'Beauty & Wellness', value: 'beauty' },
   { label: 'Home Services', value: 'home' },
@@ -22,7 +28,7 @@ const SERVICE_CATEGORIES = [
   { label: 'Fitness', value: 'fitness' },
 ];
 
-export default function BusinessInfoStep({ initialData, onNext }) {
+export default function BusinessInfoStep({ initialData, onNext, isEditMode = false }: Props) {
   const [formData, setFormData] = useState({
     ...initialData,
     location: {
@@ -57,8 +63,15 @@ export default function BusinessInfoStep({ initialData, onNext }) {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>Business Information</ThemedText>
-          <ThemedText style={styles.subtitle}>Tell us about your business to get started</ThemedText>
+          <ThemedText type="title" style={styles.title}>
+            {isEditMode ? 'Edit Business Information' : 'Business Information'}
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
+            {isEditMode 
+              ? 'Update your business details below'
+              : 'Tell us about your business to get started'
+            }
+          </ThemedText>
         </View>
 
         <View style={styles.form}>
@@ -114,7 +127,7 @@ export default function BusinessInfoStep({ initialData, onNext }) {
 
       <View style={styles.footer}>
         <Button
-          label="Continue"
+          label={isEditMode ? "Continue to Services" : "Continue"}
           onPress={handleSubmit}
           variant="primary"
           style={styles.button}
