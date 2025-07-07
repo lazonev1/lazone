@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
 import { Button } from '@lazone/ui';
+import { loadUserChat } from './utls';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -91,7 +92,12 @@ export default function ProviderProfileScreen() {
         <View style={styles.actionsRow}>
           <Button
             label="Message"
-            onPress={() => {}}
+            onPress={() => {
+              let chat = loadUserChat(provider.id.toString());
+              if (!chat) {
+                // Create an empty chat object and saved it for this user
+              }
+              router.replace(`/messages/chat/${chat.id}`)}}
             variant="primary"
             size="small"
             style={styles.actionButton}
