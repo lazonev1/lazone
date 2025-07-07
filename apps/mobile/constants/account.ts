@@ -43,8 +43,8 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     provider: [
     {
         id: 'my-portfolio',
-        label: 'preview/edit portfolio',
-        route: '/provider/preview',
+        label: 'preview portfolio',
+        route: '/my-services',
         icon: 'briefcase-outline',
     },
     {
@@ -119,4 +119,4 @@ export const WALLET_SETTINGS_ITEMS: Record<string,  MenuItem[]> = {
     }
 
 
-]}
+]} 

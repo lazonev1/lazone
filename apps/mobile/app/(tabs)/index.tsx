@@ -61,8 +61,6 @@ export default function HomeScreen() {
               <ProviderListItem
                 key={item.id}
                 name={item.name}
-                id={item.id} // Pass the provider ID
-                avatar={item.avatar}
                 description={item.bio}
                 rating={item.rating}
                 onPress={() => {

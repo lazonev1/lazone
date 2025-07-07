@@ -142,13 +142,13 @@ export default function SearchResultsScreen() {
           filteredProviders.map((provider) => (
             <ProviderListItem
               key={provider.id}
-              id={provider.id.toString()}
-              name={provider.name}
+              name = {provider.name}
               description={provider.bio}
               avatar={provider.avatar}
               rating={provider.rating}
               onPress={() => router.push(`/provider/${provider.id}`)}
             />
+            
           ))
         ) : (
           <ThemedText style={styles.noResults}>

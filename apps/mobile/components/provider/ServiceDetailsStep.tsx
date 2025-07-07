@@ -15,10 +15,9 @@ interface Props {
   initialData: Partial<ProviderRegistration>;
   onSubmit: (data: Partial<ProviderRegistration>) => void;
   onBack: () => void;  // Add back handler prop
-  isEditMode?: boolean;
 }
 
-export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEditMode = false }: Props) {
+export default function ServiceDetailsStep({ initialData, onSubmit, onBack }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -198,7 +197,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
       </View>
 
       <Button
-        label={isEditMode ? "Save Changes" : "Complete Registration"}
+        label="Complete Registration"
         onPress={handleSubmit}
         variant="primary"
         style={styles.submitButton}
