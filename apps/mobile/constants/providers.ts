@@ -179,3 +179,8 @@ export const Providers = [
     pricing: '300000 - 500000 CFA',
   },
 ];
+
+export const SAVED_PROVIDERS = [
+  Providers[1],
+  Providers[4]
+]

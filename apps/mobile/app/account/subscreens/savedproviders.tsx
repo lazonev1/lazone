@@ -8,6 +8,7 @@ import { Colors } from '@/constants/Colors';
 import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { SAVED_PROVIDERS } from '@/constants/providers';
 
 type Provider = {
     id: number;
@@ -36,22 +37,15 @@ export default function SavedProvidersScreen() {
             if (savedData) {
                 setSavedProviders(JSON.parse(savedData));
             } else {
-                setSavedProviders([
-                    {
-                        id: 1,
-                        name: "John's Plumbing Services",
-                        description: "Highly rated plumbing solutions for your home.",
-                        rating: 4.8,
-                        avatar: require('@/assets/images/avatar-placeholder.png'),
-                    },
-                    {
-                        id: 2,
-                        name: "Electric Solutions Co.",
-                        description: "Experienced electricians for all installations.",
-                        rating: 4.7,
-                        avatar: require('@/assets/images/avatar-placeholder.png'),
-                    },
-                ]);
+                setSavedProviders(
+                    SAVED_PROVIDERS.map((p) => ({
+                        id: p.id,
+                        name: p.name,
+                        description: p.bio,
+                        rating: p.rating,
+                        avatar: p.avatar,
+                    }))
+                );
             }
         } catch (error) {
             console.error("Failed to load saved providers:", error);
