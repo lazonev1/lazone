@@ -47,11 +47,10 @@ export default function SearchResultsScreen() {
       
       const withinRadius = provider.distance <= filters.radius;
       const meetsRating = provider.rating >= filters.minRating;
-      const meetsPrice = 
-        provider.services.some(service => {
-          const priceRange = service.price.split(' - ').map(price => parseFloat(price.replace(/[^0-9.-]+/g, '')));
-          return priceRange[0] >= filters.minPrice && priceRange[1] <= filters.maxPrice;
-        });
+      // pricing: '50000 - 150000 CFA',
+      const meetsPrice = provider.pricing
+        ? parseInt(provider.pricing.split(' - ')[1]) <= filters.maxPrice
+        : true; // If no pricing info, consider it meets the price condition
       // Combine all conditions
       const meetRemoteCondition = provider.remoteService === filters.remoteOnly;
       if (filters.remoteOnly) { // Do not include distance check if remoteOnly is true

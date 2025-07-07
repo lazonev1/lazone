@@ -23,7 +23,14 @@ const SERVICE_CATEGORIES = [
 ];
 
 export default function BusinessInfoStep({ initialData, onNext }) {
-  const [formData, setFormData] = useState(initialData);
+  const [formData, setFormData] = useState({
+    ...initialData,
+    location: {
+      country: 'BF', // Use country code for Burkina Faso
+      city: '',
+      ...initialData?.location // Preserve any existing location data
+    }
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;

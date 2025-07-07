@@ -12,7 +12,7 @@ export const DEFAULT_FILTERS: SearchFilters = {
   radius: 20,
   remoteOnly: false,
   minPrice: 0,
-  maxPrice: 200000, // 2,000,000 CF
+  maxPrice: 2000000, // 2,000,000 CF
   minRating: 0,
 };
 

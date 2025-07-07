@@ -1,4 +1,4 @@
-import { View, StyleSheet, SafeAreaView, Image, ScrollView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,7 +9,6 @@ import { MenuItem } from '@/types/user';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
-
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -26,6 +25,15 @@ export default function AccountScreen() {
     router.push(route);
   };
 
+  const handleProfilePress = () => {
+    router.push({
+      pathname: '/account/info',
+      params: {
+        userProfile: JSON.stringify(MOCK_USER_PROFILE)
+      }
+    });
+  };
+
   // Filter resources based on current role
   const getFilteredResources = (items: MenuItem[], role: 'requester' | 'provider') => {
     return items.filter(item => {
@@ -37,19 +45,21 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContent}>
-        <ThemedView style={styles.header}>
-          <Image
-            source={MOCK_USER_PROFILE.avatar}
-            style={styles.avatar}
-          />
-          <View style={styles.headerText}>
-            <ThemedText type="defaultSemiBold" style={styles.name}>
-              {`${MOCK_USER_PROFILE.firstName} ${MOCK_USER_PROFILE.lastName}`}
-            </ThemedText>
-            <ThemedText>{MOCK_USER_PROFILE.email}</ThemedText>
-            <ThemedText>{MOCK_USER_PROFILE.phone}</ThemedText>
-          </View>
-        </ThemedView>
+        <TouchableOpacity onPress={handleProfilePress} activeOpacity={0.7}>
+          <ThemedView style={styles.header}>
+            <Image
+              source={MOCK_USER_PROFILE.avatar}
+              style={styles.avatar}
+            />
+            <View style={styles.headerText}>
+              <ThemedText type="defaultSemiBold" style={styles.name}>
+                {`${MOCK_USER_PROFILE.firstName} ${MOCK_USER_PROFILE.lastName}`}
+              </ThemedText>
+              <ThemedText>{MOCK_USER_PROFILE.email}</ThemedText>
+              <ThemedText>{MOCK_USER_PROFILE.phone}</ThemedText>
+            </View>
+          </ThemedView>
+        </TouchableOpacity>
 
         <SegmentedToggle
           options={[

@@ -5,20 +5,11 @@ import { TextBox } from '@/components/ui/TextBox';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { validateCertification } from '@/utils/validation';
-
-type Certificate = {
-  id: string;
-  name: string;
-  issuer: string;
-  date: string;
-  document?: string; // Storing the URI
-  documentType?: string;
-  documentName?: string;
-};
+import { Certification } from '@/types/provider';
 
 type Props = {
-  certificates: Certificate[];
-  onChange: (certs: Certificate[]) => void;
+  certificates: Certification[];
+  onChange: (certs: Certification[]) => void;
 };
 
 export function CertificationUploader({ certificates, onChange }: Props) {
@@ -27,26 +18,29 @@ export function CertificationUploader({ certificates, onChange }: Props) {
   const styles = createStyles(theme, colorScheme);
 
   const addNewCertification = () => {
-    if (certificates.length > 0) {
-      const lastCert = certificates[certificates.length - 1];
-      const validation = validateCertification(lastCert);
-      
-      if (!validation.isValid) {
-        Alert.alert(
-          'Incomplete Certificate',
-          'Please complete the current certificate information before adding a new one.'
-        );
-        return;
-      }
-    }
-
-    const newCert = {
+    const newCert: Certification = {
       id: Date.now().toString(),
       name: '',
       issuer: '',
       date: '',
+      errors: {}
     };
     onChange([...certificates, newCert]);
+  };
+
+  const updateCertificate = (index: number, field: keyof Certification, value: string) => {
+    const updatedCerts = [...certificates];
+    const updatedCert = {
+      ...updatedCerts[index],
+      [field]: value
+    };
+    
+    // Use the unified validation
+    const validation = validateCertification(updatedCert);
+    updatedCert.errors = validation.errors;
+    
+    updatedCerts[index] = updatedCert;
+    onChange(updatedCerts);
   };
 
   const pickDocument = async (id: string) => {
@@ -56,8 +50,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const document = result.assets[0];
-        console.log('Selected document:', document);
-
+        
         const updatedCerts = certificates.map(cert =>
           cert.id === id
             ? {
@@ -65,11 +58,14 @@ export function CertificationUploader({ certificates, onChange }: Props) {
                 document: document.uri,
                 documentType: document.mimeType,
                 documentName: document.name,
+                errors: {
+                  ...cert.errors,
+                  document: undefined // Clear document error
+                }
               }
             : cert
         );
 
-        console.log('Updated certificates:', updatedCerts);
         onChange(updatedCerts);
         Alert.alert('Success', `Document "${document.name}" uploaded successfully`);
       }
@@ -79,16 +75,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
     }
   };
 
-  const updateCertificate = (index: number, field: keyof Certificate, value: string) => {
-    const updatedCerts = [...certificates];
-    updatedCerts[index] = {
-      ...updatedCerts[index],
-      [field]: value
-    };
-    onChange(updatedCerts);
-  };
-
-  const renderDocumentStatus = (cert: Certificate) => {
+  const renderDocumentStatus = (cert: Certification) => {
     if (!cert.document) return null;
 
     return (
@@ -130,7 +117,10 @@ export function CertificationUploader({ certificates, onChange }: Props) {
       ) : (
         <>
           {certificates.map((cert, index) => (
-            <View key={cert.id} style={styles.certCard}>
+            <View key={cert.id} style={[
+              styles.certCard,
+              Object.keys(cert.errors || {}).length > 0 && styles.errorCard
+            ]}>
               <View style={styles.cardHeader}>
                 <View style={styles.certIcon}>
                   <Ionicons 
@@ -152,7 +142,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
                 value={cert.name}
                 onChangeText={(text) => updateCertificate(index, 'name', text)}
                 placeholder="e.g., Professional Electrician Certification"
-                error={undefined}
+                error={cert.errors?.name}
               />
 
               <View style={styles.row}>
@@ -162,7 +152,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
                     value={cert.issuer}
                     onChangeText={(text) => updateCertificate(index, 'issuer', text)}
                     placeholder="e.g., IEEE"
-                    error={undefined}
+                    error={cert.errors?.issuer}
                   />
                 </View>
                 <View style={styles.flex1}>
@@ -171,7 +161,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
                     value={cert.date}
                     onChangeText={(text) => updateCertificate(index, 'date', text)}
                     placeholder="MM/YYYY"
-                    error={undefined}
+                    error={cert.errors?.date}
                   />
                 </View>
               </View>
@@ -179,17 +169,21 @@ export function CertificationUploader({ certificates, onChange }: Props) {
               <TouchableOpacity 
                 style={[
                   styles.uploadButton,
-                  cert.document ? styles.uploadButtonSuccess : null
+                  cert.document ? styles.uploadButtonSuccess : null,
+                  cert.errors?.document && styles.uploadButtonError
                 ]}
                 onPress={() => pickDocument(cert.id)}
               >
                 <Ionicons 
                   name={cert.document ? "checkmark-circle" : "cloud-upload-outline"} 
                   size={24} 
-                  color={cert.document ? "#4CAF50" : theme.text}
+                  color={cert.errors?.document ? "#FF3B30" : cert.document ? "#4CAF50" : theme.text}
                 />
-                <ThemedText style={styles.uploadText}>
-                  {cert.document ? "Replace Document" : "Upload Document"}
+                <ThemedText style={[
+                  styles.uploadText,
+                  cert.errors?.document && styles.errorText
+                ]}>
+                  {cert.document ? "Replace Document" : "Upload Document *"}
                 </ThemedText>
               </TouchableOpacity>
 
@@ -242,6 +236,9 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     borderColor: colorScheme === 'dark' ? '#333' : '#eee',
     marginBottom: 16,
   },
+  errorCard: {
+    borderColor: '#FF3B30',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -267,6 +264,13 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
   uploadButtonSuccess: {
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
+  uploadButtonError: {
+    borderColor: '#FF3B30',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#FF3B30',
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,5 +280,23 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
+  },
+  documentStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  documentInfo: {
+    flex: 1,
+  },
+  documentName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  documentSubtext: {
+    fontSize: 12,
+    opacity: 0.7,
   },
 });

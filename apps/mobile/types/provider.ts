@@ -42,6 +42,13 @@ export interface ServiceItem {
   price: string;
 }
 
+export interface CertificationErrors {
+  name?: string;
+  issuer?: string;
+  date?: string;
+  document?: string;
+}
+
 export interface Certification {
   id: string;
   name: string;
@@ -50,5 +57,6 @@ export interface Certification {
   document?: string;
   documentType?: string;
   documentName?: string;
+  errors?: CertificationErrors;
 }
 

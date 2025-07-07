@@ -1,3 +1,5 @@
+import { ServiceItem, Certification, CertificationErrors } from '@/types/provider';
+
 export type ValidationError = {
   field: string;
   message: string;
@@ -60,13 +62,22 @@ export const validateService = (service: any) => {
   };
 };
 
-export const validateCertification = (cert: any) => {
-  const errors: Record<string, string> = {};
+export const validateCertification = (cert: Certification): CertificationErrors => {
+  const errors: CertificationErrors = {};
 
-  if (!cert.name) errors.name = validateRequired(cert.name);
-  if (!cert.issuer) errors.issuer = validateRequired(cert.issuer);
-  const dateError = validateDate(cert.date);
-  if (dateError) errors.date = dateError;
+  // Basic field validation
+  if (!cert.name?.trim()) errors.name = 'Required';
+  if (!cert.issuer?.trim()) errors.issuer = 'Required';
+  
+  // Date validation with format check
+  if (!cert.date?.trim()) {
+    errors.date = 'Required';
+  } else if (!/^\d{2}\/\d{4}$/.test(cert.date)) {
+    errors.date = 'Use MM/YYYY format';
+  }
+
+  // Document validation
+  if (!cert.document) errors.document = 'Required';
 
   return {
     isValid: Object.keys(errors).length === 0,
