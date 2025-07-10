@@ -7,6 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
 import { Button } from '@lazone/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { useBookmarks } from '@/hooks/useBookmarks';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -57,6 +59,9 @@ export default function ProviderProfileScreen() {
     scrollY.setValue(scrollPosition);
   };
 
+  const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
+  const providerId = id.toString();
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
@@ -82,7 +87,21 @@ export default function ProviderProfileScreen() {
         <ThemedView style={styles.profileHeader}>
           <Image source={provider.avatar} style={styles.avatarInline} />
           <View style={{ flex: 1 }}>
-            <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
+            <View style={styles.nameRow}>
+              <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
+              <TouchableOpacity 
+                onPress={() => toggleBookmark(providerId)}
+                style={styles.bookmarkButton}
+                disabled={isLoading}
+              >
+                <Ionicons 
+                  name={isBookmarked(providerId) ? "bookmark" : "bookmark-outline"} 
+                  size={24} 
+                  color={isBookmarked(providerId) ? "#0A58A5" : theme.text} 
+                  style={isLoading ? { opacity: 0.5 } : {}}
+                />
+              </TouchableOpacity>
+            </View>
             <ThemedText>{provider.profession}</ThemedText>
             <ThemedText style={styles.rating}>⭐ {provider.rating} | {provider.reviews} Reviews</ThemedText>
           </View>
@@ -269,5 +288,14 @@ function createStyles(theme, colorScheme) {
       marginTop: 16,
     },
     spacer: { height: 12 },
+    nameRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+    },
+    bookmarkButton: {
+      padding: 8,
+    },
   });
 }
