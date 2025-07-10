@@ -56,7 +56,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'reviews',
         label: 'Reviews',
-        route: '/reviews',
+        route: '/provider/reviews',
         icon: 'star-outline',
     },
     {
