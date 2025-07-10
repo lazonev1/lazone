@@ -10,6 +10,7 @@ import { Button } from '@lazone/ui';
 import { PortfolioImagePicker } from '@/components/ui/ImagePicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 
 export default function ProviderPreviewScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -147,6 +148,22 @@ export default function ProviderPreviewScreen() {
     }
   };
 
+  // Calculate review statistics for ReviewsComponent
+  const reviewItems = provider.reviewItems || [];
+  const totalRatings = reviewItems.reduce((sum, review) => sum + review.rating, 0);
+  const avgRating = totalRatings / reviewItems.length || 0;
+
+  const counts = [0, 0, 0, 0, 0];
+  reviewItems.forEach(review => {
+    counts[Math.floor(review.rating) - 1]++;
+  });
+
+  const reviewStats = {
+    averageRating: avgRating,
+    totalReviews: reviewItems.length,
+    ratingCounts: counts
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
@@ -267,18 +284,16 @@ export default function ProviderPreviewScreen() {
         </View>
 
         <View style={styles.section} ref={testimonialRef}>
-          <ThemedText type="subtitle">Client Testimonials</ThemedText>
-          {(testimonialsExpanded ? provider.testimonials : provider.testimonials.slice(0, 2)).map((t, i) => (
-            <View key={i} style={styles.testimonial}>
-              <ThemedText type="defaultSemiBold">{t.name}</ThemedText>
-              <ThemedText>"{t.quote}"</ThemedText>
-            </View>
-          ))}
-          {provider.testimonials.length > 2 && (
-            <Pressable onPress={() => setTestimonialsExpanded(!testimonialsExpanded)}>
-              <ThemedText style={styles.toggle}>{testimonialsExpanded ? 'Show Less' : 'See More'}</ThemedText>
-            </Pressable>
-          )}
+          <ThemedText type="subtitle">Client Reviews</ThemedText>
+          <ReviewsComponent
+            reviews={reviewItems}
+            stats={reviewStats}
+            showStats={false}
+            showFilters={false}
+            allowResponding={false}
+            expandedByDefault={testimonialsExpanded}
+            maxReviewsCollapsed={1}
+          />
         </View>
 
         <View style={styles.section}>

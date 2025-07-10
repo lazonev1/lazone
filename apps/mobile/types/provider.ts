@@ -8,6 +8,28 @@ export type Coordinates = {
   longitude: number;
 };
 
+// Added Review and ReviewStats types
+export type Review = {
+  id: string;
+  clientName: string;
+  clientAvatar?: any;
+  rating: number;
+  comment: string;
+  date: string;
+  serviceId?: string;
+  serviceName?: string;
+  response?: {
+    text: string;
+    date: string;
+  };
+};
+
+export type ReviewStats = {
+  averageRating: number;
+  totalReviews: number;
+  ratingCounts: number[];
+};
+
 // Interfaces for complex objects that might need extension
 export interface ProviderRegistration {
   businessName: string;
