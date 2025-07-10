@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
@@ -10,6 +10,7 @@ import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
+import { useReviews } from '@/hooks/useReviews';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -63,10 +64,11 @@ export default function ProviderProfileScreen() {
   const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
   const providerId = id.toString();
 
-  // Use reviewItems directly
-  const reviewItems = provider.reviewItems || [];
+  const { 
+    reviews: reviewItems, 
+    respondToReview: handleRespondToReview 
+  } = useReviews(providerId);
 
-  // Calculate stats directly from reviewItems
   const totalRatings = reviewItems.reduce((sum, review) => sum + review.rating, 0);
   const avgRating = totalRatings / reviewItems.length || 0;
 
@@ -79,6 +81,63 @@ export default function ProviderProfileScreen() {
     averageRating: avgRating,
     totalReviews: reviewItems.length,
     ratingCounts: counts
+  };
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [newReviewRating, setNewReviewRating] = useState(0);
+  const [newReviewComment, setNewReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const submitReview = async () => {
+    if (newReviewRating === 0) {
+      Alert.alert('Error', 'Please select a rating');
+      return;
+    }
+
+    if (!newReviewComment.trim()) {
+      Alert.alert('Error', 'Please write a comment');
+      return;
+    }
+
+    setSubmittingReview(true);
+
+    try {
+      const newReview = {
+        id: `review-${Date.now()}`,
+        clientName: 'You',
+        rating: newReviewRating,
+        comment: newReviewComment,
+        date: new Date().toISOString()
+      };
+
+      setReviewModalVisible(false);
+      setNewReviewRating(0);
+      setNewReviewComment('');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit review. Please try again.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const StarRatingSelector = ({ rating, onRatingChange }) => {
+    return (
+      <View style={styles.starRatingSelector}>
+        {[1, 2, 3, 4, 5].map(star => (
+          <TouchableOpacity
+            key={star}
+            onPress={() => onRatingChange(star)}
+            style={styles.starButton}
+          >
+            <Ionicons
+              name={star <= rating ? "star" : "star-outline"}
+              size={32}
+              color="#FFD700"
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -196,15 +255,33 @@ export default function ProviderProfileScreen() {
         </View>
 
         <View style={styles.section} ref={testimonialRef}>
-          <ThemedText type="subtitle">Client Reviews</ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Client Reviews</ThemedText>
+            <View style={styles.reviewActions}>
+              <TouchableOpacity 
+                onPress={() => setReviewModalVisible(true)}
+                style={styles.writeReviewButton}
+              >
+                <Ionicons name="create-outline" size={16} color="#0A58A5"  />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => router.push(`/provider/reviews?id=${providerId}`)}
+                style={styles.viewAllButton}
+              >
+                <ThemedText style={styles.viewAllText}>View All</ThemedText>
+                <Ionicons name="chevron-forward" size={16} color="#0A58A5" />
+              </TouchableOpacity>
+            </View>
+          </View>
           <ReviewsComponent
             reviews={reviewItems}
             stats={reviewStats}
             showStats={false}
             showFilters={false}
-            allowResponding={false}
+            allowResponding={true}
             expandedByDefault={testimonialsExpanded}
             maxReviewsCollapsed={1}
+            onRespondToReview={handleRespondToReview}
           />
         </View>
 
@@ -221,6 +298,57 @@ export default function ProviderProfileScreen() {
           />
         </View>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={reviewModalVisible}
+        onRequestClose={() => setReviewModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              {/* <ThemedText type="subtitle">Write a Review</ThemedText> */}
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <ThemedText style={styles.ratingLabel}>Your Rating</ThemedText>
+            <StarRatingSelector 
+              rating={newReviewRating} 
+              onRatingChange={setNewReviewRating} 
+            />
+            
+            <ThemedText style={styles.commentLabel}>Your Review</ThemedText>
+            <TextInput
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              placeholder="Share your experience with this provider..."
+              placeholderTextColor={theme.icon}
+              multiline
+              numberOfLines={5}
+              value={newReviewComment}
+              onChangeText={setNewReviewComment}
+            />
+            
+            <View style={styles.modalActions}>
+              <Button
+                label="Cancel"
+                onPress={() => setReviewModalVisible(false)}
+                variant="secondary"
+                style={styles.modalButton}
+              />
+              <Button
+                label={submittingReview ? "Submitting..." : "Submit Review"}
+                onPress={submitReview}
+                variant="primary"
+                style={styles.modalButton}
+                disabled={submittingReview || newReviewRating === 0 || !newReviewComment.trim()}
+              />
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -313,6 +441,82 @@ function createStyles(theme, colorScheme) {
     },
     bookmarkButton: {
       padding: 8,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    viewAllButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    viewAllText: {
+      color: '#0A58A5',
+      fontSize: 14,
+      marginRight: 4,
+    },
+    reviewActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    writeReviewButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      width: '100%',
+      borderRadius: 16,
+      padding: 20,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    ratingLabel: {
+      fontSize: 16,
+      marginBottom: 10,
+    },
+    starRatingSelector: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    starButton: {
+      padding: 5,
+    },
+    commentLabel: {
+      fontSize: 16,
+      marginBottom: 10,
+    },
+    reviewInput: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      minHeight: 120,
+      textAlignVertical: 'top',
+      marginBottom: 20,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    modalButton: {
+      flex: 1,
+      marginHorizontal: 5,
     },
   });
 }

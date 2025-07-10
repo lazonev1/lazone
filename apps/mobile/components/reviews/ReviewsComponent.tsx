@@ -45,6 +45,7 @@ export default function ReviewsComponent({
     setActiveFilter(filter);
     if (onFilterChange) {
       onFilterChange(filter);
+      //Should handle filtering logic here if needed 
     }
   };
 
@@ -395,7 +396,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#2A2A2A' : '#F5F5F5',
     minWidth: 100,
     alignItems: 'center',
   },
