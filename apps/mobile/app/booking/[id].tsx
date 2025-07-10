@@ -2,7 +2,7 @@ import { View, StyleSheet, ScrollView, Appearance, Alert } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Bookings } from '@/constants/bookings';
+import { Bookings } from '@/hooks/useBookings';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';

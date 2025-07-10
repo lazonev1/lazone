@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import MessageBubble from '@/components/chat/MessageBubble';
 import DateDivider from '@/components/chat/DateDivider';
-import { Chats, CurrentUser, getOtherParticipant } from '@/constants/chats';
+import { Chats, CurrentUser, getOtherParticipant } from '@/hooks/useChats';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

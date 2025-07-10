@@ -3,7 +3,7 @@ import { ScrollView } from "react-native-gesture-handler";
 import { ChatItem } from "@/components/messages/ChatItem";
 import { useRouter, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Chats, formatMessageTime, getOtherParticipant, CurrentUser } from '@/constants/chats';
+import { Chats, formatMessageTime, getOtherParticipant, CurrentUser } from '@/hooks/useChats';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';

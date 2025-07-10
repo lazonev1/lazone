@@ -2,10 +2,10 @@ import { ScrollView, StyleSheet, Image, View, Appearance, SafeAreaView, Touchabl
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
-import ServiceCategoryCard from '../../components/home/ServiceCategoryCard';
-import ProviderListItem from '@/components/home/ProviderListItem';
-import { Providers } from '@/constants/providers';
-import { Categories } from '@/constants/categories';
+import ServiceCategoryCard from '../../components/provider/ServiceCategoryCard';
+import ProviderListItem from '@/components/provider/ProviderListItem';
+import { Providers } from '@/hooks/useProviders';
+import { Categories } from '@/hooks/useCategories';
 import SearchBar from '@/components/ui/SearchBar';
 import { useState } from 'react';
 import AppHeader from '@/components/ui/AppHeader';

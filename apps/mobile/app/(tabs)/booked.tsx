@@ -2,7 +2,7 @@ import { SafeAreaView, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { BookingCard } from '@/components/booking/BookingCard';
-import { Bookings } from '@/constants/bookings';
+import { Bookings } from '@/hooks/useBookings';
 
 export default function BookedScreen() {
   const router = useRouter();
