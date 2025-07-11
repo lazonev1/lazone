@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
 import { Providers } from '@/constants/providers';
 import { Button } from '@lazone/ui';
-import { loadUserChat } from './utls';
+import { loadUserChat } from './utils';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
