@@ -44,7 +44,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'my-portfolio',
         label: 'preview/edit portfolio',
-        route: '/provider/preview',
+        route: `/provider/preview?id=${MOCK_USER_PROFILE.id}`, // Add providerId
         icon: 'briefcase-outline',
     },
     {
@@ -56,7 +56,7 @@ export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
     {
         id: 'reviews',
         label: 'Reviews',
-        route: '/reviews',
+        route: `/provider/reviews?id=${MOCK_USER_PROFILE.id}`, // Add providerId to reviews route
         icon: 'star-outline',
     },
     {

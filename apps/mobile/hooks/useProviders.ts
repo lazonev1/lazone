@@ -1,4 +1,5 @@
-import { ServiceItem } from '@/types/provider';
+import { useState, useEffect } from 'react';
+import { Review } from '@/components/reviews/ReviewsComponent';
 
 export const Providers = [
   {
@@ -23,18 +24,40 @@ export const Providers = [
         id: 'elec-1',
         name: 'Lighting Installation',
         description: 'Complete lighting installation service including fixtures and wiring',
-        price: '75000'
+        price: '75000',
+        availability: 'Available weekdays'
       },
       {
         id: 'elec-2',
         name: 'Electrical Repairs',
         description: 'General electrical repairs and maintenance',
-        price: '50000'
+        price: '50000',
+        availability: 'Available anytime'
       },
     ],
-    testimonials: [
-      { name: "Sarah P.", quote: "Alex's work was exceptional and timely. Highly recommend!" },
-      { name: "John D.", quote: "Professional and efficient service. Will hire again." },
+    reviewItems: [
+      { 
+        id: '1', 
+        clientName: 'Sarah P.', 
+        rating: 5, 
+        comment: "Alex's work was exceptional and timely. Highly recommend!", 
+        date: '2023-10-15T14:30:00Z',
+        serviceName: 'Lighting Installation',
+        serviceId: 'elec-1'
+      },
+      { 
+        id: '2', 
+        clientName: 'John D.',
+        rating: 4, 
+        comment: 'Professional and efficient service. Will hire again.',
+        date: '2023-09-28T09:15:00Z',
+        serviceName: 'Electrical Repairs',
+        serviceId: 'elec-2',
+        response: {
+          text: 'Thank you for your kind feedback! Looking forward to serving you again.',
+          date: '2023-09-29T10:20:00Z'
+        }
+      }
     ],
     pricing: '50000 - 150000 CFA',
   },
@@ -68,8 +91,16 @@ export const Providers = [
         price: '20000'
       },
     ],
-    testimonials: [
-      { name: "Emily R.", quote: "Sarah's tailoring skills are unmatched!" },
+    reviewItems: [
+      { 
+        id: '3', 
+        clientName: 'Emily R.', 
+        rating: 5, 
+        comment: "Sarah's tailoring skills are unmatched!", 
+        date: '2023-08-12T11:00:00Z',
+        serviceName: 'Custom Clothing',
+        serviceId: 'tail-1'
+      }
     ],
     pricing: '20000 - 100000 CFA',
   },
@@ -103,8 +134,16 @@ export const Providers = [
         price: '100000'
       },
     ],
-    testimonials: [
-      { name: "Mark T.", quote: "John fixed my plumbing issues quickly and efficiently." },
+    reviewItems: [
+      { 
+        id: '4', 
+        clientName: 'Mark T.', 
+        rating: 4, 
+        comment: 'John fixed my plumbing issues quickly and efficiently.', 
+        date: '2023-07-20T16:45:00Z',
+        serviceName: 'Leak Repairs',
+        serviceId: 'plumb-1'
+      }
     ],
     pricing: '50000 - 100000 CFA',
   },
@@ -138,8 +177,16 @@ export const Providers = [
         price: '300000'
       },
     ],
-    testimonials: [
-      { name: "Anna K.", quote: "The food was amazing, and the service was top-notch!" },
+    reviewItems: [
+      { 
+        id: '5', 
+        clientName: 'Anna K.', 
+        rating: 5, 
+        comment: 'The food was amazing, and the service was top-notch!', 
+        date: '2023-06-10T13:30:00Z',
+        serviceName: 'Event Catering',
+        serviceId: 'cater-1'
+      }
     ],
     pricing: '300000 - 500000 CFA',
   },
@@ -173,8 +220,16 @@ export const Providers = [
         price: '300000'
       },
     ],
-    testimonials: [
-      { name: "Anna K.", quote: "The design was both creative and professional." },
+    reviewItems: [
+      { 
+        id: '6', 
+        clientName: 'Anna K.', 
+        rating: 5, 
+        comment: 'The design was both creative and professional.', 
+        date: '2023-05-15T10:00:00Z',
+        serviceName: 'Logo Design',
+        serviceId: 'design-2'
+      }
     ],
     pricing: '300000 - 500000 CFA',
   },

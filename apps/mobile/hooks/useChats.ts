@@ -1,4 +1,4 @@
-import { Providers } from './providers';
+import { Providers } from '../hooks/useProviders';
 
 export type User = {
   id: string;

@@ -1,7 +1,7 @@
 import { View, StyleSheet, Alert, TouchableWithoutFeedback, Keyboard, Appearance } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { BookingRequestForm } from '@/components/booking/BookingRequestForm';
-import { Providers } from '@/constants/providers';
+import { Providers } from '@/hooks/useProviders';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 
