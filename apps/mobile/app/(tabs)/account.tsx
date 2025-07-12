@@ -9,6 +9,8 @@ import { MenuItem } from '@/types/user';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
+import { Theme } from '@/constants/theme';
+import { padding, margin, getColor, } from '@/utils/styleUtils';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -104,60 +106,57 @@ export default function AccountScreen() {
 }
 
 function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+
   return StyleSheet.create({
     container: {
       flex: 1,
     },
     scrollContent: {
-      padding: 16,
+      ...padding.all('md'),
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 16,
-      marginBottom: 24,
-      borderRadius: 12,
-      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
-      // backgroundColor: theme.background,
-      borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
+      ...padding.all('md'),
+      ...margin.bottom('lg'),
+      borderRadius: Theme.borderRadius.md,
+      backgroundColor: getColor(`${mode}.card`),
+      borderColor: getColor(`${mode}.border`),
       borderWidth: 1,
-      marginTop: 16,
-      paddingBottom: 16,
-      paddingTop: 16,
-      paddingHorizontal: 16,
+      ...margin.top('md'),
     },
     avatar: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      marginRight: 16,
+      width: Theme.spacing.xxxl,
+      height: Theme.spacing.xxxl,
+      borderRadius: Theme.spacing.xl,
+      ...margin.right('md'),
     },
     headerText: {
       flex: 1,
     },
     name: {
-      fontSize: 18,
-      marginBottom: 4,
+      fontSize: Theme.typography.size.subtitle,
+      ...margin.bottom('xs'),
     },
     section: {
-      marginBottom: 24,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
-      // backgroundColor:theme.background,
+      ...margin.bottom('lg'),
+      ...padding.vertical('md'),
+      ...padding.horizontal('md'),
+      borderRadius: Theme.borderRadius.sm,
+      backgroundColor: getColor(`${mode}.card`),
     },
     sectionWithoutTitle: {
       paddingTop: 0,
     },
     sectionTitle: {
-      marginBottom: 12,
+      ...margin.bottom('md'),
     },
     menuItem: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      borderRadius: 8,
+      borderRadius: Theme.borderRadius.sm,
     },
     menuItemLeft: {
       flexDirection: 'row',
@@ -165,16 +164,16 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       flex: 1,
     },
     menuIcon: {
-      marginRight: 12,
+      ...margin.right('md'),
       color: theme.text,
-      width: 24,
+      width: Theme.spacing.md + Theme.spacing.xs,
     },
     divider: {
       height: 0.5,
-      backgroundColor: colorScheme === 'dark' ? '#444' : '#E0E0E0',
-      marginLeft: 36,
-      marginRight: 25,
-      marginVertical: 8,
+      backgroundColor: getColor(`${mode}.divider`),
+      marginLeft: Theme.spacing.md + Theme.spacing.xl,
+      marginRight: Theme.spacing.md + Theme.spacing.sm,
+      ...margin.vertical('sm'),
     },
   });
 }
