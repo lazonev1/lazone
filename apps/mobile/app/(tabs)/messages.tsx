@@ -9,6 +9,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { Theme } from '@/constants/theme';
+import { padding, margin, getColor, shadow, typography, borderRadius } from '@/utils/styleUtils';
 
 export default function Messages() {
   const navigation = useNavigation();
@@ -16,6 +18,8 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const styles = createStyles(theme, colorScheme);
 
   useEffect(() => {
     navigation.setOptions({
@@ -41,7 +45,7 @@ export default function Messages() {
       <ThemedView style={styles.container}>
         {/* Title Section */}
         <ThemedView style={styles.titleContainer}>
-          <ThemedText style={styles.subtitle}>Chats</ThemedText>
+          <ThemedText style={styles.title}>Chats</ThemedText>
         </ThemedView>
 
         {/* Search Section */}
@@ -49,25 +53,20 @@ export default function Messages() {
           <ThemedView style={styles.searchBar}>
             <Ionicons
               name="search"
-              size={20}
-              color={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
+              size={Theme.spacing.md}
               style={styles.searchIcon}
             />
             <TextInput
-              style={[
-                styles.searchInput,
-                { color: theme.text }
-              ]}
+              style={styles.searchInput}
               placeholder="Search messages"
-              placeholderTextColor={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={getColor(`${mode}.textTertiary`)}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <Ionicons
                 name="close-circle"
-                size={20}
-                color={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
+                size={Theme.spacing.md}
                 style={styles.clearIcon}
                 onPress={() => setSearchQuery('')}
               />
@@ -110,80 +109,84 @@ export default function Messages() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    width: '100%',
-  },
-  titleContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  subtitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#1C1C1E' : '#F2F2F7',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 40,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    fontSize: 16,
-    padding: 0, // Remove padding for better alignment
-  },
-  clearIcon: {
-    marginLeft: 8,
-  },
-  scrollView: {
-    flex: 1,
-    width: '100%',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    opacity: 0.6,
-  },
-  infoButton: {
-    padding: 8
-  },
-  options: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    width: '100%',
-    paddingHorizontal: 20
-  }
-});
+function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+    },
+    container: {
+      flex: 1,
+      width: '100%',
+    },
+    titleContainer: {
+      ...padding.horizontal('md'),
+      ...padding.top('md'),
+      ...padding.bottom('xs'),
+    },
+    title: {
+      ...typography.style('heading', 'bold'),
+    },
+    searchContainer: {
+      ...padding.horizontal('md'),
+      ...padding.bottom('sm'),
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: getColor(`${mode}.card`),
+      ...borderRadius.all('sm'),
+      ...padding.horizontal('sm'),
+      height: Theme.spacing.xxl,
+      ...Platform.select({
+        ios: {
+          ...shadow('sm')
+        },
+        android: {
+          elevation: 1,
+        },
+      }),
+    },
+    searchIcon: {
+      color: getColor(`${mode}.textTertiary`),
+      ...margin.right('xs'),
+    },
+    searchInput: {
+      flex: 1,
+      height: '100%',
+      ...typography.size('bodyLarge'),
+      color: getColor(`${mode}.textPrimary`),
+      padding: 0,
+    },
+    clearIcon: {
+      color: getColor(`${mode}.textTertiary`),
+      ...margin.left('xs'),
+    },
+    scrollView: {
+      flex: 1,
+      width: '100%',
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...padding.all('xxl'),
+    },
+    emptyText: {
+      textAlign: 'center',
+      ...typography.size('bodyLarge'),
+      color: getColor(`${mode}.textSecondary`),
+      opacity: 0.6,
+    },
+    infoButton: {
+      ...padding.all('xs')
+    },
+    options: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      width: '100%',
+      ...padding.horizontal('md')
+    }
+  });
+}
