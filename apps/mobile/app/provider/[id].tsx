@@ -256,13 +256,14 @@ export default function ProviderProfileScreen() {
 
         <View style={styles.section} ref={testimonialRef}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Client Reviews</ThemedText>
+            <ThemedText type="subtitle">Reviews</ThemedText>
             <View style={styles.reviewActions}>
               <TouchableOpacity 
                 onPress={() => setReviewModalVisible(true)}
                 style={styles.writeReviewButton}
               >
-                <Ionicons name="create-outline" size={16} color="#0A58A5"  />
+                <Ionicons name="create-outline" size={16} color="#0A58A5" />
+                <ThemedText style={styles.writeReviewText}>Write a Review</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={() => router.push(`/provider/reviews?id=${providerId}`)}
@@ -308,7 +309,6 @@ export default function ProviderProfileScreen() {
         <View style={styles.modalOverlay}>
           <ThemedView style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              {/* <ThemedText type="subtitle">Write a Review</ThemedText> */}
               <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -466,7 +466,12 @@ function createStyles(theme, colorScheme) {
       alignItems: 'center',
       marginRight: 16,
     },
-
+    writeReviewText: {
+      color: '#0A58A5',
+      fontSize: 14,
+      marginLeft: 4,
+      fontWeight: '500',
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
