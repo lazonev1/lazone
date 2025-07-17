@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
 import { DEFAULT_FILTERS } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
@@ -40,7 +39,6 @@ export default function SearchLocatorScreen() {
           value={query}
           onChangeText={setQuery}
           onSubmit={handleSearch}
-          showSearchButton={true}
         />
 
         <View style={styles.sliderBlock}>

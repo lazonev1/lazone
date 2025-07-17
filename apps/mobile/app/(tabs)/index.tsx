@@ -35,7 +35,6 @@ export default function HomeScreen() {
             value={searchText}
             onChangeText={setSearchText}
             onSubmit={handleSearch}
-            showSearchButton={true}
           />
           
         <ScrollView style={styles.scrollContent}>

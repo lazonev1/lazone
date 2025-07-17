@@ -4,11 +4,11 @@ import { ChatItem } from "@/components/messages/ChatItem";
 import { useRouter, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Chats, formatMessageTime, getOtherParticipant, CurrentUser } from '@/hooks/useChats';
-import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import SearchBar from '@/components/ui/SearchBar';
 
 export default function Messages() {
   const navigation = useNavigation();
@@ -37,43 +37,18 @@ export default function Messages() {
   });
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ThemedView style={styles.container}>
+    <SafeAreaView style={[styles.safeArea]}>
+      <View style={styles.container}>
         {/* Title Section */}
-        <ThemedView style={styles.titleContainer}>
+        <View style={styles.titleContainer}>
           <ThemedText style={styles.subtitle}>Chats</ThemedText>
-        </ThemedView>
+        </View>
 
         {/* Search Section */}
-        <ThemedView style={styles.searchContainer}>
-          <ThemedView style={styles.searchBar}>
-            <Ionicons
-              name="search"
-              size={20}
-              color={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={[
-                styles.searchInput,
-                { color: theme.text }
-              ]}
-              placeholder="Search messages"
-              placeholderTextColor={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Ionicons
-                name="close-circle"
-                size={20}
-                color={colorScheme === 'dark' ? '#8E8E93' : '#8E8E93'}
-                style={styles.clearIcon}
-                onPress={() => setSearchQuery('')}
-              />
-            )}
-          </ThemedView>
-        </ThemedView>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search messages"/>
 
         {/* Chat List */}
         <ScrollView style={styles.scrollView}>
@@ -105,7 +80,7 @@ export default function Messages() {
             })
           )}
         </ScrollView>
-      </ThemedView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -126,41 +101,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 24,
     fontWeight: 'bold',
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#1C1C1E' : '#F2F2F7',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 40,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    fontSize: 16,
-    padding: 0, // Remove padding for better alignment
-  },
-  clearIcon: {
-    marginLeft: 8,
   },
   scrollView: {
     flex: 1,
