@@ -12,7 +12,6 @@ interface SearchBarProps {
   filterButtonText?: string;
   placeholder?: string;
   style?: any;
-  showSearchButton?: boolean;
 }
 
 export default function SearchBar({
@@ -24,7 +23,6 @@ export default function SearchBar({
   filterButtonText = 'Filters',
   placeholder = 'Search for services...',
   style,
-  showSearchButton = false,
 }: SearchBarProps) {
   const colorScheme = Appearance.getColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
@@ -33,6 +31,7 @@ export default function SearchBar({
   return (
     <View style={[styles.container, style]}>
       <View style={[styles.inputContainer]}>
+        <Ionicons name="search" size={20} color={theme.icon} style={{ marginRight: 8 }} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -42,11 +41,12 @@ export default function SearchBar({
           returnKeyType="search"
           onSubmitEditing={onSubmit}
         />
-        {showSearchButton && (
-          <Pressable onPress={onSubmit} style={styles.searchButton}>
-            <Ionicons name="search" size={20} color={theme.text} />
-          </Pressable>
-        )}
+        {value.length > 0 && (<Ionicons
+          name="close-circle"
+          size={20}
+          color={theme.icon}
+          onPress={() => onChangeText?.('')}
+          style={{ marginLeft: 8 }}/>)}
       </View>
       {showFilterButton && (
         <Pressable onPress={onFilterPress} style={styles.filterButton}>
@@ -69,6 +69,8 @@ function createStyles(theme) {
             flexDirection: 'row',
             alignItems: 'center',
             borderRadius: 12,
+            paddingHorizontal: 12,
+            backgroundColor: theme.background,
           },
           input: {
             flex: 1,
@@ -76,7 +78,6 @@ function createStyles(theme) {
             borderRadius: 12,
             fontSize: 16,
             color : theme.text,
-            backgroundColor: theme.background,
           },
           
           searchButton: {
