@@ -8,6 +8,7 @@ import { Button } from '@lazone/ui';
 import { DEFAULT_FILTERS } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
 import CheckBox from '@/components/ui/CheckBox';
+import FirebaseTest from '@/components/FirebaseTest';
 
 export default function SearchLocatorScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -35,6 +36,7 @@ export default function SearchLocatorScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
+       <FirebaseTest/>
         <SearchBar
           value={query}
           onChangeText={setQuery}

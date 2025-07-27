@@ -1,1 +1,18 @@
 node_modules
+# Firebase configuration files
+**/GoogleService-Info.plist
+**/google-services.json
+
+# EAS build metadata
+.expo/
+dist/
+
+# Dev client builds
+*.apk
+*.aab
+*.ipa
+*.tar.gz
+
+# Environment variables
+.env
+.env.*
