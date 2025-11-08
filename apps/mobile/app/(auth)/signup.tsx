@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, View, SafeAreaView, Alert } from 'react-native';
+import { Image, StyleSheet, View, SafeAreaView, Alert, Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui/';
@@ -9,8 +9,13 @@ import EditableField from '@/components/account/EditableField';
 import { ThemedText } from '@/components/ThemedText';
 import CheckBox from '@/components/ui/CheckBox';
 import { ButtonIcon } from '@/components/ui/ButtonIcon';
+import { Colors } from '@/constants/Colors';
 
 export default function SignupScreen() {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme);
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -45,12 +50,13 @@ export default function SignupScreen() {
     <SafeAreaView style={styles.safeArea}>
       <AppHeader />
       <View style={styles.contentContainer}>
-        <ButtonIcon
-          style={{paddingBottom: 20}}
-          icon="arrow.uturn.forward.square"
-          label={strings.auth.signup.asProvider}
-          onPress={() => Alert.alert('You are now a provider')}
-        />
+        <View style={{paddingBottom: 20}}>
+          <ButtonIcon
+            icon="arrow.uturn.forward.square"
+            label={strings.auth.signup.asProvider}
+            onPress={() => Alert.alert('You are now a provider')}
+          />
+        </View>
         <View style={{width:'75%'}}>
           <EditableField
           placeholder={strings.auth.signup.fullName}
@@ -107,38 +113,40 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#171617',
-  },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  providerText: {
-    color: '#fcbd02',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginVertical: 20,
-    textAlign: 'center',
-  },
-  accountRow: {
-    alignItems: 'center',
-    width: '80%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-    gap: 8,
-  },
-  termsRow: {
-    alignItems: 'center',
-    width: '75%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-});
+function createStyles(theme: typeof Colors.light) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    contentContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      paddingHorizontal: 20,
+      paddingTop: 20,
+    },
+    providerText: {
+      color: '#fcbd02',
+      fontSize: 14,
+      fontWeight: 'bold',
+      marginVertical: 20,
+      textAlign: 'center',
+    },
+    accountRow: {
+      alignItems: 'center',
+      width: '80%',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 20,
+      gap: 8,
+    },
+    termsRow: {
+      alignItems: 'center',
+      width: '75%',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 20,
+    },
+  });
+}

@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Image, Text, StyleSheet, View, SafeAreaView, Pressable, Alert } from 'react-native';
+import { Image, StyleSheet, View, SafeAreaView, Alert, Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
-import { Button, TextInput } from '@lazone/ui/';
-import { ThemedView } from '@/components/ThemedView';
+import { Button } from '@lazone/ui/';
 import AppHeader from '@/components/ui/AppHeader';
 import strings from '@/strings';
 import EditableField from '@/components/account/EditableField';
 import { ThemedText } from '@/components/ThemedText';
 import CheckBox from '@/components/ui/CheckBox';
 import { ButtonIcon } from '@/components/ui/ButtonIcon';
+import { Colors } from '@/constants/Colors';
 
 export default function LoginScreen() {
+  const colorScheme = Appearance.getColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const styles = createStyles(theme);
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
@@ -72,61 +76,67 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#171617',
-  },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },  
-  subtitle: {
-    fontSize: 16,
-    fontWeight: 'light',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    width: '100%',
-    maxWidth: 350,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginBottom: 15,
-    paddingHorizontal: 10,
-  },
-  bglogin: {
-    height: '20%',
-    width: '100%',
-    resizeMode: 'contain',
-    marginBottom: 20,
-    borderRadius: 20,
-  },
-  rememberme: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'flex-start'
-  },
-  rememberPasswordRow: {
-    alignItems: 'center',
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  noAccount: {
-    alignItems: 'center',
-    width: '80%',
-    flexDirection: 'row',
-    justifyContent: 'space-evenly'
-  },
-});
+function createStyles(theme: typeof Colors.light) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    contentContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      paddingHorizontal: 20,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: 20,
+      textAlign: 'center',
+      color: theme.text,
+    },
+    subtitle: {
+      fontSize: 16,
+      fontWeight: '300',
+      marginBottom: 20,
+      textAlign: 'center',
+      color: theme.text,
+    },
+    input: {
+      height: 50,
+      width: '100%',
+      maxWidth: 350,
+      borderWidth: 1,
+      borderColor: theme.icon,
+      borderRadius: 5,
+      marginBottom: 15,
+      paddingHorizontal: 10,
+      color: theme.text,
+      backgroundColor: theme.background,
+    },
+    bglogin: {
+      height: '20%',
+      width: '100%',
+      resizeMode: 'contain',
+      marginBottom: 20,
+      borderRadius: 20,
+    },
+    rememberme: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'flex-start'
+    },
+    rememberPasswordRow: {
+      alignItems: 'center',
+      width: '100%',
+      flexDirection: 'row',
+      justifyContent: 'space-between'
+    },
+    noAccount: {
+      alignItems: 'center',
+      width: '80%',
+      flexDirection: 'row',
+      justifyContent: 'space-evenly'
+    },
+  });
+}
