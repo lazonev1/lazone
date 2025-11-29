@@ -1,8 +1,11 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const { resolveSymlinksForMetro } = require('@rnx-kit/metro-resolver-symlinks');
 
 const config = getDefaultConfig(__dirname);
-config.resolver.resolveRequest = resolveSymlinksForMetro;
+
+// Firebase uses .cjs files
+config.resolver.sourceExts.push("cjs");
+
+// Disable strict mode for Firebase compatibility
+config.resolver.unstable_enablePackageExports = false;
 
 module.exports = config;
-//then runn pnpm add -D @rnx-kit/metro-resolver-symlinks --filter ./apps/mobile

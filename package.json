@@ -4,7 +4,14 @@
   "private": true,
   "description": "Monorepo for LaZone project",
   "scripts": {
-    "dev:mobile": "pnpm --filter ./apps/mobile start"
+    "dev:mobile": "pnpm --filter ./apps/mobile start",
+    "eas:login": "pnpm --filter ./apps/mobile exec eas login",
+    "prebuild:mobile": "pnpm --filter ./apps/mobile exec expo prebuild --clean",
+    "build:simulator": "pnpm --filter ./apps/mobile exec eas build --profile simulator --platform all --non-interactive",
+    "build:android": "pnpm --filter ./apps/mobile exec eas build --profile development --platform android",
+    "build:ios": "pnpm --filter ./apps/mobile exec eas build --profile development --platform ios",
+    "build:mobile:dev": "pnpm --filter ./apps/mobile exec eas build --profile development --platform all",
+    "build:mobile:prod": "pnpm --filter ./apps/mobile exec eas build --profile production --platform all"
   },
   "keywords": [],
   "author": "",
