@@ -1,25 +1,48 @@
-import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { MOCK_USER_PROFILE, ACCOUNT_MENU_ITEMS } from '@/constants/account';
+import { ACCOUNT_MENU_ITEMS } from '@/constants/account';
 import { MenuItem } from '@/types/user';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
+import { useAuth } from '@/contexts/auth';
+import { Button } from '@lazone/ui';
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { user, userProfile, logout, refreshUserProfile, loading } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+  
   const [userRole, setUserRole] = useState<'requester' | 'provider'>(
-    MOCK_USER_PROFILE.role === 'requester' || MOCK_USER_PROFILE.role === 'provider'
-      ? MOCK_USER_PROFILE.role
-      : 'requester'
+    userProfile?.role === 'provider' ? 'provider' : 'requester'
   );
+
+  // Show a loading indicator while the initial auth check is happening.
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  // If auth check is done, but there's no profile, show a specific message.
+  // This is the state you were seeing.
+  if (!userProfile) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ThemedText style={{textAlign: 'center', marginBottom: 20}}>Could not load profile. This can happen if the database entry is missing for this user.</ThemedText>
+        <Button label="Try to Refresh Profile" onPress={refreshUserProfile} />
+        <Button label="Logout" onPress={logout} style={{marginTop: 20}}/>
+      </SafeAreaView>
+    );
+  }
 
   const navigateTo = (route: string) => {
     router.push(route);
@@ -29,9 +52,18 @@ export default function AccountScreen() {
     router.push({
       pathname: '/account/info',
       params: {
-        userProfile: JSON.stringify(MOCK_USER_PROFILE)
+        userProfile: JSON.stringify(userProfile)
       }
     });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // The root layout will handle redirection automatically.
+    } catch (error) {
+      Alert.alert("Logout Failed", "An error occurred while logging out.");
+    }
   };
 
   // Filter resources based on current role
@@ -48,15 +80,15 @@ export default function AccountScreen() {
         <TouchableOpacity onPress={handleProfilePress} activeOpacity={0.7}>
           <ThemedView style={styles.header}>
             <Image
-              source={MOCK_USER_PROFILE.avatar}
+              source={userProfile.avatar ? { uri: userProfile.avatar } : require('../../assets/images/icon.png')}
               style={styles.avatar}
             />
             <View style={styles.headerText}>
               <ThemedText type="defaultSemiBold" style={styles.name}>
-                {`${MOCK_USER_PROFILE.firstName} ${MOCK_USER_PROFILE.lastName}`}
+                {`${userProfile.firstName} ${userProfile.lastName}`}
               </ThemedText>
-              <ThemedText>{MOCK_USER_PROFILE.email}</ThemedText>
-              <ThemedText>{MOCK_USER_PROFILE.phone}</ThemedText>
+              <ThemedText>{user?.email}</ThemedText>
+              <ThemedText>{userProfile.phoneNumber}</ThemedText>
             </View>
           </ThemedView>
         </TouchableOpacity>
@@ -98,6 +130,8 @@ export default function AccountScreen() {
           onPress={navigateTo}
           styles={styles}
         />
+
+        <Button label="Logout" onPress={handleLogout} style={{marginTop: 20}}/>
       </ScrollView>
     </SafeAreaView>
   );
@@ -107,6 +141,12 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
   return StyleSheet.create({
     container: {
       flex: 1,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
     },
     scrollContent: {
       padding: 16,

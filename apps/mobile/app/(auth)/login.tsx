@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Image, Text, StyleSheet, View, SafeAreaView, Pressable, Alert } from 'react-native';
+import { Image, StyleSheet, View, SafeAreaView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
-import { Button, TextInput } from '@lazone/ui/';
-import { ThemedView } from '@/components/ThemedView';
+import { Button } from '@lazone/ui/';
 import AppHeader from '@/components/ui/AppHeader';
 import strings from '@/strings';
 import EditableField from '@/components/account/EditableField';
@@ -12,15 +11,25 @@ import CheckBox from '@/components/ui/CheckBox';
 import { ButtonIcon } from '@/components/ui/ButtonIcon';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
   const { login } = useAuth();
-  // const { signup }  = null
-  const [remembermeChecked, setRemembermeChecked] = useState(false)
-  const handleLogin = () => {
-    login();
-    router.replace('/(tabs)');
+  const [remembermeChecked, setRemembermeChecked] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password.');
+      return;
+    }
+    try {
+      // 1. Await the login process to complete.
+      await login(email, password);
+      // 2. Do NOT navigate here. The root layout will handle it automatically
+      //    once the `isAuthenticated` state changes.
+    } catch (error: any) {
+      Alert.alert('Login Failed', error.message || 'Please check your credentials and try again.');
+    }
   };
 
   return (
@@ -37,14 +46,15 @@ export default function LoginScreen() {
         <ThemedText style={styles.subtitle}>{strings.auth.login.subtitle}</ThemedText>
         <EditableField
           placeholder={strings.auth.login.emailPhone}
-          value={username}
-          onChangeText={setUsername}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
         <EditableField
           placeholder={strings.auth.login.password}
           secureTextEntry
           value={password}
-          
           onChangeText={setPassword}
         />
         <Button label={strings.auth.login.loginButton} onPress={handleLogin}/>

@@ -1,16 +1,18 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
-// Firebase configuration from environment variables
+// Your web app's Firebase configuration from firebaseConfig.js
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
+  apiKey: "AIzaSyAN1QiM1LLgHC4DjNL6ds3QCIfafmfnBJY",
+  authDomain: "lazonev1-5da5a.firebaseapp.com",
+  projectId: "lazonev1-5da5a",
+  storageBucket: "lazonev1-5da5a.appspot.com", // Corrected from your file to standard format
+  messagingSenderId: "732284471327",
+  appId: "1:732284471327:web:7d36a6cc3a773089552d2a",
+  measurementId: "G-4WZZ86MGC9"
 };
 
 // Initialize Firebase
@@ -19,17 +21,11 @@ const app = initializeApp(firebaseConfig);
 // Initialize services
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const auth = getAuth(app);
 
-// Connect to emulator in development
-if (process.env.NODE_ENV === 'development') {
-  try {
-    // Ensure you have the correct host and port for your emulator
-    connectFirestoreEmulator(db, 'localhost', 8080);
-  } catch (error) {
-    console.log('Firestore emulator might already be connected or is unavailable.');
-  }
-}
+// Initialize Auth with persistence
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+});
 
 // Collection names for type-safe queries
 export const COLLECTIONS = {

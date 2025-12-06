@@ -24,22 +24,20 @@ export default function SignupScreen() {
       Alert.alert('Agreement Required', 'Please agree to the Terms and Privacy Policy');
       return;
     }
+    if (!fullName || !email || !password) {
+      Alert.alert('Missing Information', 'Please fill out all required fields.');
+      return;
+    }
     
-        try {
-        const userData = {
-        fullName,
-        email,
-        phoneNumber: phone,
-        password
-      };
-
-    // Call signup from auth context
-    // await signup(userData);
-    router.replace('/(tabs)');
-  }catch (error: any) {
-    Alert.alert('Signup Failed', error.message || 'Please try again later');
-  }
-}
+    try {
+      // Call the signup function from our auth context with the correct arguments
+      await signup(fullName, email, password, phone);
+      // Redirection is now handled automatically by the root layout when the auth state changes.
+      // No need for router.replace() here.
+    } catch (error: any) {
+      Alert.alert('Signup Failed', error.message || 'Please try again later');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
