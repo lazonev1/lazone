@@ -3,35 +3,39 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/auth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 
 function RootLayoutNav() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const [isNavigationReady, setIsNavigationReady] = useState(false);
-  // const publicRoutes = ['login', 'signup']
-
-  // Set navigation as ready after initial render
-  useEffect(() => {
-    setIsNavigationReady(true);
-  }, []);
 
   useEffect(() => {
-    // Redirect to login if not authenticated and trying to access a protected route
-    // This assumes that the first segment is the main route, e.g., 'login' or '(tabs)'
-    if (isNavigationReady && !isAuthenticated && segments[0] !== '(auth)') {
+    if (loading) {
+      return;
+    }
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (isAuthenticated && inAuthGroup) {
+      router.replace('/(tabs)');
+    } else if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, segments, isNavigationReady, router]);
+  }, [isAuthenticated, segments, loading, router]);
+
+  if (loading) {
+    return null; 
+  }
 
   return (
     <Stack>
       <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false, title: ''}} />
       <Stack.Screen name="+not-found" />
     </Stack>
@@ -45,7 +49,6 @@ export default function RootLayout() {
   });
 
   if (!loaded) {
-    // Async font loading only occurs in development.
     return null;
   }
 
