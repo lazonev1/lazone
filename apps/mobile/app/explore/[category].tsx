@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Categories } from '@/hooks/useCategories';
-import { Providers } from '@/hooks/useProviders';
+import { Providers } from '@/hooks/useProvidersMock';
 import ProviderListItem from '@/components/provider/ProviderListItem';
 import { useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native';

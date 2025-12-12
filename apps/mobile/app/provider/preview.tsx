@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
-import { Providers } from '@/hooks/useProviders';
+import { Providers } from '@/hooks/useProvidersMock';
 import { Button } from '@lazone/ui';
 import { PortfolioImagePicker } from '@/components/ui/ImagePicker';
 import { Ionicons } from '@expo/vector-icons';

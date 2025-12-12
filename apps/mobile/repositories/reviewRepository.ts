@@ -1,5 +1,5 @@
 import { Review } from '@/types/provider';
-import { Providers } from '@/hooks/useProviders';
+import { Providers } from '@/hooks/useProvidersMock';
 
 /**
  * Review Repository

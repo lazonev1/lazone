@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import ProviderListItem from '@/components/provider/ProviderListItem';
-import { Providers } from '@/hooks/useProviders';
+import { Providers } from '@/hooks/useProvidersMock';
 import Slider from '@react-native-community/slider';
 import { SearchFilters, DEFAULT_FILTERS, FILTER_RANGES } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';

@@ -1,7 +1,7 @@
 // Basic types for simple structures
-export type RegistrationStep = 
-  | 'business-info'   // Step 1: Basic business info + location
-  | 'service-details'; // Step 2: Services + portfolio
+export type RegistrationStep =
+  | "business-info" // Step 1: Basic business info + location
+  | "service-details"; // Step 2: Services + portfolio
 
 export type Coordinates = {
   latitude: number;
@@ -62,6 +62,7 @@ export interface ServiceItem {
   name: string;
   description: string;
   price: string;
+  availability?: string; // Optional: when the service is available
 }
 
 export interface CertificationErrors {
@@ -82,3 +83,28 @@ export interface Certification {
   errors?: CertificationErrors;
 }
 
+/**
+ * ViewModel for a Provider with all data populated/expanded
+ * This is what you get after fetching a Provider from Firestore and populating all references
+ */
+export interface ProviderViewModel {
+  id: number | string;
+  name: string;
+  profession: string;
+  categoryName: string;
+  remoteService: boolean;
+  rating: number; // averageRating from Provider model
+  reviews: number; // reviewCount from Provider model
+  bio: string;
+  avatar: any; // Image source (require or URL)
+  cover: any; // coverImage source
+  location: Coordinates;
+  distance?: number; // Calculated distance from user
+  portfolio: PortfolioItem[];
+  services: ServiceItem[];
+  reviewItems: Review[];
+  pricing: string;
+}
+
+// Alias for backward compatibility (can be removed later)
+export type ProviderWithDetails = ProviderViewModel;
