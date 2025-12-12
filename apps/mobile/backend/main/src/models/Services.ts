@@ -7,6 +7,7 @@ export interface Service {
   description: string;
   price: number; // In smallest currency unit (e.g., cents)
   category: string;
+  availability?: string; // Optional: when the service is available (e.g., "Weekdays", "Available anytime")
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
