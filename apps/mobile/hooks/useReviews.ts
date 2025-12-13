@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Review } from '@/types/provider';
-import { reviewRepository } from '@/repositories/reviewRepository';
+import * as reviewRepository from '@/repositories/reviewRepository';
 
 export function useReviews(providerId?: string) {
   const [reviews, setReviews] = useState<Review[]>([]);

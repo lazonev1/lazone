@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { DocumentSnapshot } from "firebase/firestore";
-import { messageRepository } from "@/repositories/messageRepository";
+import * as messageRepository from "@/repositories/messageRepository";
 import {
   MessageViewModel,
   ConversationViewModel,
