@@ -1,27 +1,64 @@
-import { View, StyleSheet, Appearance, Pressable, Alert } from 'react-native';
-import { useState, useCallback } from 'react';
+import { View, StyleSheet, Appearance, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { useState, useCallback, useEffect } from 'react';
 import { Colors } from '@/constants/Colors';
 import BusinessInfoStep from '@/components/provider/BusinessInfoStep';
 import ServiceDetailsStep from '@/components/provider/ServiceDetailsStep';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import type { ProviderRegistration } from '@/types/provider';
+import type { ProviderRegistration, ProviderViewModel } from '@/types/provider';
 import { Ionicons } from '@expo/vector-icons';
+import { useProvider } from '@/hooks/useProvider';
+import { useAuth } from '@/contexts/auth';
+import { ThemedText } from '@/components/ThemedText';
+
+/**
+ * Helper function to transform ProviderViewModel to ProviderRegistration format
+ * Used when editing an existing provider profile
+ */
+function transformProviderViewModelToRegistration(
+  provider: ProviderViewModel
+): Partial<ProviderRegistration> {
+  return {
+    businessName: provider.name, // Note: This might need adjustment if businessName is stored separately
+    serviceCategory: provider.categoryName,
+    phone: '', // TODO: Get from user profile
+    description: provider.bio,
+    location: {
+      country: '', // TODO: Extract from provider location data
+      city: '', // TODO: Extract from provider location data
+      coordinates: provider.location,
+    },
+    languages: [], // TODO: Get from provider data if available
+    remoteService: provider.remoteService,
+    portfolio: provider.portfolio || [],
+    services: provider.services || [],
+    certifications: [], // TODO: Get from provider data if available
+  };
+}
 
 export default function ProviderRegistrationScreen() {
-  const { editMode, providerId, prefilledData } = useLocalSearchParams();
+  const { editMode, providerId } = useLocalSearchParams();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  
-  // Parse prefilled data if in edit mode
-  const initialData = editMode === 'true' && prefilledData 
-    ? JSON.parse(prefilledData as string)
-    : {};
-  
+  const { userProfile } = useAuth();
+
+  // Use the provider hook to fetch existing provider data and save functionality
+  const { provider, isLoading, saveProviderProfile } = useProvider(
+    editMode === 'true' && providerId ? String(providerId) : undefined
+  );
+
   const [step, setStep] = useState<'business-info' | 'service-details'>('business-info');
-  const [formData, setFormData] = useState<Partial<ProviderRegistration>>(initialData);
+  const [formData, setFormData] = useState<Partial<ProviderRegistration>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const isEditMode = editMode === 'true';
+
+  // Populate form data when provider data is loaded
+  useEffect(() => {
+    if (isEditMode && provider) {
+      setFormData(transformProviderViewModelToRegistration(provider));
+    }
+  }, [provider, isEditMode]);
 
   const handleNext = (data: Partial<ProviderRegistration>) => {
     setFormData(prev => ({ ...prev, ...data }));
@@ -29,26 +66,45 @@ export default function ProviderRegistrationScreen() {
   };
 
   const handleSubmit = async (finalData: Partial<ProviderRegistration>) => {
-    const completeData = { ...formData, ...finalData };
+    const completeData = { ...formData, ...finalData } as ProviderRegistration;
+    
+    // Validate user is authenticated
+    if (!userProfile) {
+      Alert.alert('Error', 'You must be logged in to create or update a provider profile.');
+      return;
+    }
+
+    setIsSaving(true);
     
     try {
+      // Call the save function from the hook
+      const resultProviderId = await saveProviderProfile(
+        userProfile._id,
+        isEditMode && providerId ? String(providerId) : null,
+        completeData
+      );
+
       if (isEditMode) {
-        // Handle update for existing provider
-        // TODO: Replace with API call
-        console.log('Updating provider:', providerId, completeData);
         Alert.alert(
           'Profile Updated',
           'Your provider profile has been updated successfully.',
-          [{ text: 'OK', onPress: () => router.push('/provider/preview?id=' + providerId) }]
+          [{ text: 'OK', onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
         );
       } else {
-        // Handle creation of new provider
-        // TODO: Replace with API call
-        console.log('Creating new provider:', completeData);
-        router.push('/(tabs)');
+        Alert.alert(
+          'Profile Created',
+          'Your provider profile has been created successfully!',
+          [{ text: 'OK', onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
+        );
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to save provider information');
+      console.error('Error saving provider profile:', error);
+      Alert.alert(
+        'Error',
+        `Failed to ${isEditMode ? 'update' : 'create'} provider profile. Please try again.`
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -59,6 +115,44 @@ export default function ProviderRegistrationScreen() {
     }
     return false; // Allows default back to account screen
   }, [step]);
+
+  // Show loading indicator while fetching provider data in edit mode
+  if (isEditMode && isLoading) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: 'Edit Provider Profile',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <View style={[styles.container, styles.centerContent]}>
+          <ActivityIndicator size="large" color={theme.tint} />
+          <ThemedText style={{ marginTop: 16 }}>Loading provider data...</ThemedText>
+        </View>
+      </>
+    );
+  }
+
+  // Show saving indicator
+  if (isSaving) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: isEditMode ? 'Updating Profile' : 'Creating Profile',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <View style={[styles.container, styles.centerContent]}>
+          <ActivityIndicator size="large" color={theme.tint} />
+          <ThemedText style={{ marginTop: 16 }}>
+            {isEditMode ? 'Updating your provider profile...' : 'Creating your provider profile...'}
+          </ThemedText>
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
@@ -99,5 +193,9 @@ export default function ProviderRegistrationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

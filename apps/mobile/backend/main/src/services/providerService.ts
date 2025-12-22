@@ -1,42 +1,29 @@
-import {collection, doc, DocumentReference, getDoc, getDocs, query, where,} from "firebase/firestore";
-import {db} from "@/firebaseConfig"; // Your Firebase config
-import {Provider} from "@/backend/main/src/models/Provider";
-import {Review} from "@/backend/main/src/models/Review";
-import {Portfolio} from "@/backend/main/src/models/Portfolio";
-import {Service} from "@/backend/main/src/models/Services";
-import {PortfolioItem, ProviderViewModel, Review as ReviewViewModel, ServiceItem,} from "@/types/provider";
+import {collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,} from "firebase/firestore";
+import {db} from "../config/firebase";
+import {Provider} from "../models/Provider";
+import {Review} from "../models/Review";
+import {Portfolio} from "../models/Portfolio";
+import {Service} from "../models/Services";
+import {User} from "../models/User";
 
 /**
- * Fetches a single provider with all details populated
+ * Backend Service Layer - Direct Firestore Operations
+ * Returns database models with DocumentReference fields
+ * Does NOT transform data for UI consumption
  */
-export async function getProviderViewModel(providerId: string): Promise<ProviderViewModel> {
+
+/**
+ * Fetches a single provider document by ID
+ */
+export async function getProviderById(providerId: string): Promise<Provider | null> {
   try {
-    // 1. Fetch the provider document
     const providerDoc = await getDoc(doc(db, "providers", providerId));
 
     if (!providerDoc.exists()) {
-      throw new Error(`Provider ${providerId} not found`);
+      return null;
     }
 
-    const provider = providerDoc.data() as Provider;
-
-    // 2. Fetch and populate reviews
-    const reviewItems = await populateReviews(provider.reviews);
-
-    // 3. Fetch and populate portfolio
-    const portfolioItems = provider.portfolio
-      ? await populatePortfolio(provider.portfolio)
-      : [];
-
-    // 4. Fetch services for this provider
-    const services = await fetchProviderServices(provider._id);
-
-    // 5. Transform to UI model
-    return transformToUIModel(providerId, provider, {
-      reviewItems,
-      portfolioItems,
-      services,
-    });
+    return { _id: providerDoc.id, ...providerDoc.data() } as Provider;
   } catch (error) {
     console.error("Error fetching provider:", error);
     throw error;
@@ -44,25 +31,26 @@ export async function getProviderViewModel(providerId: string): Promise<Provider
 }
 
 /**
- * Fetches all providers with details
+ * Fetches all provider documents
  */
-export async function getAllProvidersWithDetails(): Promise<ProviderViewModel[]> {
+export async function getAllProviders(): Promise<Provider[]> {
   try {
     const providersSnapshot = await getDocs(collection(db, "providers"));
 
-    return await Promise.all(
-        providersSnapshot.docs.map((doc) => getProviderViewModel(doc.id))
-    );
+    return providersSnapshot.docs.map(doc => ({
+      _id: doc.id,
+      ...doc.data()
+    } as Provider));
   } catch (error) {
-    console.error("Error fetching providers:", error);
+    console.error("Error fetching all providers:", error);
     throw error;
   }
 }
 
 /**
- * Search providers by category
+ * Fetches providers by category
  */
-export async function getProvidersByCategory(category: string): Promise<ProviderViewModel[]> {
+export async function getProvidersByCategory(category: string): Promise<Provider[]> {
   try {
     const q = query(
       collection(db, "providers"),
@@ -71,87 +59,56 @@ export async function getProvidersByCategory(category: string): Promise<Provider
 
     const snapshot = await getDocs(q);
 
-    return await Promise.all(
-        snapshot.docs.map((doc) => getProviderViewModel(doc.id))
-    );
+    return snapshot.docs.map(doc => ({
+      _id: doc.id,
+      ...doc.data()
+    } as Provider));
   } catch (error) {
-    console.error("Error searching providers:", error);
+    console.error("Error fetching providers by category:", error);
     throw error;
   }
 }
 
-// ========== HELPER FUNCTIONS ==========
-
 /**
- * Populates review references into UI review objects
+ * Fetches a review document by ID
  */
-async function populateReviews(
-  reviewRefs: DocumentReference[]
-): Promise<ReviewViewModel[]> {
-  if (!reviewRefs || reviewRefs.length === 0) return [];
-
+export async function getReviewById(reviewId: string): Promise<Review | null> {
   try {
-    const reviewDocs = await Promise.all(
-      reviewRefs.map((ref) => getDoc(ref))
-    );
+    const reviewDoc = await getDoc(doc(db, "reviews", reviewId));
 
-    return reviewDocs
-      .filter((doc) => doc.exists())
-      .map((doc) => {
-        const data = doc.data() as Review;
-        return {
-          id: doc.id,
-          clientName: "Anonymous", // Would fetch from requesterRef
-          rating: data.rating,
-          comment: data.comment,
-          date: data.createdAt.toDate().toISOString(),
-          serviceName: "", // Would fetch from serviceRef
-          serviceId: "", // Would get from serviceRef.id
-          response:
-            data.responses.length > 0
-              ? {
-                  text: data.responses[0].text,
-                  date: data.responses[0].date.toDate().toISOString(),
-                }
-              : undefined,
-        };
-      });
-  } catch (error) {
-    console.error("Error populating reviews:", error);
-    return [];
-  }
-}
-
-/**
- * Populates portfolio reference into portfolio items
- */
-async function populatePortfolio(
-  portfolioRef: DocumentReference
-): Promise<PortfolioItem[]> {
-  try {
-    const portfolioDoc = await getDoc(portfolioRef);
-
-    if (!portfolioDoc.exists()) {
-      return [];
+    if (!reviewDoc.exists()) {
+      return null;
     }
 
-    const portfolio = portfolioDoc.data() as Portfolio;
-
-    return portfolio.portfolioImages.map((img) => ({
-      id: img.id,
-      image: img.image,
-      caption: img.caption,
-    }));
+    return { _id: reviewDoc.id, ...reviewDoc.data() } as Review;
   } catch (error) {
-    console.error("Error populating portfolio:", error);
-    return [];
+    console.error("Error fetching review:", error);
+    throw error;
   }
 }
 
 /**
- * Fetches services for a provider
+ * Fetches a portfolio document by ID
  */
-async function fetchProviderServices(userId: string): Promise<ServiceItem[]> {
+export async function getPortfolioById(portfolioId: string): Promise<Portfolio | null> {
+  try {
+    const portfolioDoc = await getDoc(doc(db, "portfolios", portfolioId));
+
+    if (!portfolioDoc.exists()) {
+      return null;
+    }
+
+    return { id: portfolioDoc.id, ...portfolioDoc.data() } as Portfolio;
+  } catch (error) {
+    console.error("Error fetching portfolio:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches services by user ID
+ */
+export async function getServicesByUserId(userId: string): Promise<Service[]> {
   try {
     const q = query(
       collection(db, "services"),
@@ -160,51 +117,121 @@ async function fetchProviderServices(userId: string): Promise<ServiceItem[]> {
 
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => {
-      const data = doc.data() as Service;
-      return {
-        id: doc.id,
-        name: data.name,
-        description: data.description,
-        price: (data.price / 100).toString(), // Convert cents to display
-        availability: data.availability, // From Service model
-      };
-    });
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Service));
   } catch (error) {
     console.error("Error fetching services:", error);
-    return [];
+    throw error;
   }
 }
 
 /**
- * Transforms Firestore Provider model to UI ProviderViewModel model
+ * Fetches a user document by ID
  */
-function transformToUIModel(
-  id: string,
-  provider: Provider,
-  populated: {
-    reviewItems: ReviewViewModel[];
-    portfolioItems: PortfolioItem[];
-    services: ServiceItem[];
+export async function getUserById(userId: string): Promise<User | null> {
+  try {
+    const userDoc = await getDoc(doc(db, "users", userId));
+
+    if (!userDoc.exists()) {
+      return null;
+    }
+
+    return { _id: userDoc.id, ...userDoc.data() } as User;
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    throw error;
   }
-): ProviderViewModel {
-  return {
-    id,
-    name: `${provider.firstName} ${provider.lastName}`,
-    profession: provider.profession,
-    categoryName: provider.categoryName,
-    remoteService: provider.remoteService,
-    rating: provider.averageRating,
-    reviews: provider.reviewCount,
-    bio: provider.bio,
-    avatar:
-      provider.avatar || require("@/assets/images/avatar-placeholder.png"),
-    cover: provider.coverImage || require("@/assets/images/favicon.png"),
-    location: provider.location?.coordinates || { latitude: 0, longitude: 0 },
-    distance: undefined, // Calculate based on user location
-    portfolio: populated.portfolioItems,
-    services: populated.services,
-    reviewItems: populated.reviewItems,
-    pricing: provider.pricing || "Contact for pricing",
-  };
 }
+
+/**
+ * Creates a new provider document
+ * Uses the userId as the document ID for better security rule matching
+ * @param userId - The user ID to use as the provider document ID
+ * @param providerData - Provider data to create
+ */
+export async function createProvider(
+  userId: string,
+  providerData: Omit<Provider, "_id">
+): Promise<string> {
+  try {
+    await setDoc(doc(db, "providers", userId), {
+      ...providerData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    return userId;
+  } catch (error) {
+    console.error("Error creating provider:", error);
+    throw error;
+  }
+}
+
+/**
+ * Updates an existing provider document
+ */
+export async function updateProvider(
+  providerId: string,
+  updates: Partial<Provider>
+): Promise<void> {
+  try {
+    await updateDoc(doc(db, "providers", providerId), {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error updating provider:", error);
+    throw error;
+  }
+}
+
+/**
+ * Creates or updates a provider profile
+ * If providerId is provided, updates existing provider; otherwise creates new one
+ * @param userId - The user ID (used as provider document ID for new providers)
+ * @param providerId - Optional ID for update operation
+ * @param providerData - Provider data to create or update
+ * @returns The provider ID (existing or newly created)
+ */
+export async function createOrUpdateProvider(
+  userId: string,
+  providerId: string | null,
+  providerData: Partial<Provider>
+): Promise<string> {
+  try {
+    if (providerId) {
+      // Update existing provider
+      await updateProvider(providerId, providerData);
+      return providerId;
+    } else {
+      // Create new provider with userId as document ID
+      return await createProvider(userId, providerData as Omit<Provider, "_id">);
+    }
+  } catch (error) {
+    console.error("Error creating or updating provider:", error);
+    throw error;
+  }
+}
+
+/**
+ * Updates a user's role in the users collection
+ * @param userId - The user ID to update
+ * @param role - The new role to set
+ */
+export async function updateUserRole(
+  userId: string,
+  role: "requester" | "provider" | "both"
+): Promise<void> {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      role,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    throw error;
+  }
+}
+

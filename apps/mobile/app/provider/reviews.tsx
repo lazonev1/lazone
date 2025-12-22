@@ -1,11 +1,10 @@
-import { SafeAreaView } from 'react-native';
+import { SafeAreaView, ScrollView, Appearance } from 'react-native';
 import { useState } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
-import { Appearance } from 'react-native';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
-import { useReviews } from '@/hooks/useReviews';
-import { ScrollView } from 'react-native-gesture-handler';
+import { useProvider } from '@/hooks/useProvider';
+import { ReviewStats } from '@/types/provider';
 
 export default function ProviderReviewsScreen() {
   const { id } = useLocalSearchParams();
@@ -14,35 +13,37 @@ export default function ProviderReviewsScreen() {
   
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'highest' | 'lowest'>('all');
   
-  // Convert the id param to a string and pass it to useReviews
+  // Convert the id param to a string and use the provider hook
   const providerId = id?.toString();
   
-  // Use the useReviews hook with the provider ID
-  const { 
-    reviews, 
-    isLoading, 
-    respondToReview 
-  } = useReviews(providerId);
+  // Use the useProvider hook to fetch provider data with reviews
+  const { provider, isLoading } = useProvider(providerId);
 
-  // Calculate stats from the reviews provided by the hook
-  const totalRatings = reviews.reduce((sum, review) => sum + review.rating, 0);
-  const avgRating = totalRatings / reviews.length || 0;
-  
-  const counts = [0, 0, 0, 0, 0];
-  reviews.forEach(review => {
-    counts[review.rating - 1]++;
-  });
-  
-  const stats = {
-    averageRating: avgRating,
-    totalReviews: reviews.length,
-    ratingCounts: counts
+  // Extract reviews from provider data
+  const reviews = provider?.reviewItems || [];
+
+  // Calculate stats from the provider data
+  const stats: ReviewStats = {
+    averageRating: provider?.rating || 0,
+    totalReviews: provider?.reviews || 0,
+    ratingCounts: reviews.reduce((acc, review) => {
+      if (review.rating >= 1 && review.rating <= 5) {
+        acc[review.rating - 1]++;
+      }
+      return acc;
+    }, [0, 0, 0, 0, 0]),
   };
 
   // Handle filter changes
   const handleFilterChange = (filter: 'all' | 'recent' | 'highest' | 'lowest') => {
     setActiveFilter(filter);
-    // In a real app, you would update the hook or API call to filter
+    // Filtering logic can be implemented here
+  };
+
+  // Handle responding to reviews
+  const handleRespondToReview = (reviewId: string, response: string) => {
+    console.log(`Responding to review ${reviewId} with: ${response}`);
+    // TODO: Implement review response functionality
   };
 
   return (
@@ -62,7 +63,7 @@ export default function ProviderReviewsScreen() {
           showStats={true}
           showFilters={true}
           onFilterChange={handleFilterChange}
-          onRespondToReview={respondToReview}
+          onRespondToReview={handleRespondToReview}
         />
       </ScrollView>
     </SafeAreaView>
