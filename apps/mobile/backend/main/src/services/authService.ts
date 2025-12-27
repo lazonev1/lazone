@@ -1,24 +1,47 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { auth, db, COLLECTIONS } from '../config/firebase';
-import { User } from '../models/User';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  User as FirebaseUser,
+} from "firebase/auth";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  getDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { auth, db, COLLECTIONS } from "../config/firebase";
+import { User } from "../models/User";
 
-export const signupUser = async (fullName: string, email: string, password: string, phoneNumber: string) => {
+/**
+ * Creates a new user account
+ */
+export async function signupUser(
+  fullName: string,
+  email: string,
+  password: string,
+  phoneNumber: string
+) {
   // 1. Create user in Firebase Auth
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
   const firebaseUser = userCredential.user;
 
   // 2. Prepare user data for Firestore
-  const [firstName, ...lastNameParts] = fullName.split(' ');
-  const lastName = lastNameParts.join(' ');
+  const [firstName, ...lastNameParts] = fullName.split(" ");
+  const lastName = lastNameParts.join(" ");
 
-  const newUser: Omit<User, 'userId' | 'dob' | 'createdAt' | 'updatedAt'> = {
-    firstName: firstName || '',
-    lastName: lastName || '',
-    phoneNumber: phoneNumber || '',
-    role: 'requester',
+  const newUser: Omit<User, "_id" | "dob" | "createdAt" | "updatedAt"> = {
+    firstName: firstName || "",
+    lastName: lastName || "",
+    phoneNumber: phoneNumber || "",
+    role: "requester",
     verified: false,
-    subscriptionType: 'free',
+    subscriptionType: "free",
     bookmarked: [],
   };
 
@@ -31,25 +54,47 @@ export const signupUser = async (fullName: string, email: string, password: stri
     updatedAt: serverTimestamp(),
   });
 
-  // 4. Return both the auth user and the newly created profile data
-  return { firebaseUser, profile: { userId: firebaseUser.uid, ...newUser } as User };
-};
+  // 4. Fetch the created user profile
+  const profile = await getUserProfile(firebaseUser.uid);
 
-export const loginUser = async (email: string, password: string) => {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  // 5. Return both the auth user and the profile data
+  return { firebaseUser, profile };
+}
+
+/**
+ * Logs in an existing user
+ */
+export async function loginUser(email: string, password: string): Promise<FirebaseUser> {
+  const userCredential = await signInWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
   return userCredential.user;
-};
+}
 
-export const logoutUser = async () => {
+/**
+ * Logs out the current user
+ */
+export async function logoutUser(): Promise<void> {
   await signOut(auth);
-};
+}
 
-// New function to get user profile from Firestore
-export const getUserProfile = async (userId: string): Promise<User | null> => {
+/**
+ * Gets user profile from Firestore
+ */
+export async function getUserProfile(userId: string): Promise<User | null> {
   const userDocRef = doc(db, COLLECTIONS.USERS, userId);
   const userDoc = await getDoc(userDocRef);
   if (userDoc.exists()) {
-    return { userId: userDoc.id, ...userDoc.data() } as User;
+    const data = userDoc.data();
+    return {
+      _id: userDoc.id,
+      ...data,
+      dob: data.dob as Timestamp,
+      createdAt: data.createdAt as Timestamp,
+      updatedAt: data.updatedAt as Timestamp,
+    } as User;
   }
   return null;
-};
+}

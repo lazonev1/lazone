@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Review } from '@/types/provider';
-import { reviewsApi } from '@/services/api/reviews';
+import * as reviewRepository from '@/repositories/reviewRepository';
 
 export function useReviews(providerId?: string) {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -15,7 +15,7 @@ export function useReviews(providerId?: string) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await reviewsApi.getProviderReviews(providerId);
+        const data = await reviewRepository.getProviderReviews(providerId);
         setReviews(data);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch reviews'));
@@ -45,7 +45,7 @@ export function useReviews(providerId?: string) {
     
     try {
       // Make API call
-      await reviewsApi.respondToReview(reviewId, responseText);
+      await reviewRepository.respondToReview(reviewId, responseText);
     } catch (err) {
       // Revert to previous state if API call fails
       setReviews(previousReviews);

@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import ServiceCategoryCard from '../../components/provider/ServiceCategoryCard';
 import ProviderListItem from '@/components/provider/ProviderListItem';
-import { Providers } from '@/hooks/useProviders';
+import { Providers } from '@/hooks/useProvidersMock';
 import { Categories } from '@/hooks/useCategories';
 import SearchBar from '@/components/ui/SearchBar';
 import { useState } from 'react';
