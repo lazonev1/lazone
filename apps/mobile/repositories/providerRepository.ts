@@ -235,7 +235,7 @@ function transformToViewModel(
     reviews: provider.reviewCount || 0,
     bio: provider.bio || "",
     avatar: provider.avatar || require("@/assets/images/avatar-placeholder.png"),
-    cover: provider.coverImage || require("@/assets/images/favicon.png"),
+    cover: provider.coverImage || require("@/assets/images/loginbg.png"),
     location: provider.location?.coordinates || { latitude: 0, longitude: 0 },
     distance: undefined, // Calculate based on user location if needed
     portfolio: populated.portfolioItems,

@@ -1,11 +1,11 @@
-import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable, Modal, TextInput, Alert } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
-import { Providers } from '@/hooks/useProvidersMock';
+import { useProvider } from '@/hooks/useProvider';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookmarks } from '@/hooks/useBookmarks';
@@ -17,21 +17,23 @@ export default function ProviderProfileScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
 
-  const scrollRef = useRef(null);
-  const aboutRef = useRef(null);
-  const portfolioRef = useRef(null);
-  const testimonialRef = useRef(null);
+  // Fetch real provider data from Firebase
+  const { provider, isLoading: providerLoading, error: providerError } = useProvider(id as string);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const aboutRef = useRef<View>(null);
+  const portfolioRef = useRef<View>(null);
+  const testimonialRef = useRef<View>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const scrollTo = (ref) => {
+  const scrollTo = (ref: React.RefObject<View | null>) => {
     if (ref.current && scrollRef.current) {
-      ref.current.measure((x, y, width, height, pageX, pageY) => {
-        scrollRef.current.scrollTo({ y: pageY - 100, animated: true });
+      ref.current.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+        scrollRef.current?.scrollTo({ y: pageY - 100, animated: true });
       });
     }
   };
 
-  const provider = Providers.find((p) => p.id === parseInt(id, 10)) || Providers[0];
 
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
@@ -44,19 +46,21 @@ export default function ProviderProfileScreen() {
     extrapolate: 'clamp'
   });
 
-  const onMainTabsLayout = (event) => {
+  const onMainTabsLayout = (event: any) => {
     const layout = event.nativeEvent.layout;
     setMainTabsPosition(layout.y);
   };
 
   const navigation = useNavigation();
   useEffect(() => {
-    navigation.setOptions({ title: provider.name });
-  }, [provider.name]);
+    if (provider?.name) {
+      navigation.setOptions({ title: provider.name });
+    }
+  }, [provider?.name, navigation]);
 
   const styles = createStyles(theme, colorScheme);
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.y;
     scrollY.setValue(scrollPosition);
   };
@@ -120,7 +124,7 @@ export default function ProviderProfileScreen() {
     }
   };
 
-  const StarRatingSelector = ({ rating, onRatingChange }) => {
+  const StarRatingSelector = ({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) => {
     return (
       <View style={styles.starRatingSelector}>
         {[1, 2, 3, 4, 5].map(star => (
@@ -139,6 +143,35 @@ export default function ProviderProfileScreen() {
       </View>
     );
   };
+
+  // Loading state
+  if (providerLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.tint} />
+        <ThemedText style={styles.loadingText}>Loading provider details...</ThemedText>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (providerError || !provider) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Ionicons name="alert-circle-outline" size={64} color={theme.icon} />
+        <ThemedText style={styles.errorText}>
+          {providerError ? 'Failed to load provider' : 'Provider not found'}
+        </ThemedText>
+        <Button
+          label="Go Back"
+          onPress={() => router.back()}
+          variant="primary"
+          size="small"
+          style={{ marginTop: 16 }}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -160,10 +193,16 @@ export default function ProviderProfileScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        <Image source={provider.cover} style={styles.cover} />
+        <Image
+          source={typeof provider.cover === 'string' ? { uri: provider.cover } : provider.cover}
+          style={styles.cover}
+        />
 
         <ThemedView style={styles.profileHeader}>
-          <Image source={provider.avatar} style={styles.avatarInline} />
+          <Image
+            source={typeof provider.avatar === 'string' ? { uri: provider.avatar } : provider.avatar}
+            style={styles.avatarInline}
+          />
           <View style={{ flex: 1 }}>
             <View style={styles.nameRow}>
               <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
@@ -223,34 +262,49 @@ export default function ProviderProfileScreen() {
 
         <View style={styles.section} ref={portfolioRef}>
           <ThemedText type="subtitle">Portfolio</ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-            {(portfolioExpanded ? provider.portfolio : provider.portfolio.slice(0, 1)).map((item, i) => (
-              <View key={i} style={styles.card}>
-                <Image source={item.image} style={styles.image} />
-                {item.caption && <ThemedText style={styles.caption}>{item.caption}</ThemedText>}
-              </View>
-            ))}
-          </ScrollView>
-          {provider.portfolio.length > 1 && (
-            <Pressable onPress={() => setPortfolioExpanded(!portfolioExpanded)}>
-              <ThemedText style={styles.toggle}>{portfolioExpanded ? 'Show Less' : 'See More'}</ThemedText>
-            </Pressable>
+          {provider.portfolio && provider.portfolio.length > 0 ? (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+                {(portfolioExpanded ? provider.portfolio : provider.portfolio.slice(0, 1)).map((item, i) => (
+                  <View key={item.id || i} style={styles.card}>
+                    <Image
+                      source={{ uri: item.image }}
+                      style={styles.image}
+                    />
+                    {item.caption && <ThemedText style={styles.caption}>{item.caption}</ThemedText>}
+                  </View>
+                ))}
+              </ScrollView>
+              {provider.portfolio.length > 1 && (
+                <Pressable onPress={() => setPortfolioExpanded(!portfolioExpanded)}>
+                  <ThemedText style={styles.toggle}>{portfolioExpanded ? 'Show Less' : 'See More'}</ThemedText>
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>No portfolio items yet</ThemedText>
           )}
         </View>
 
         <View style={styles.section}>
           <ThemedText type="subtitle">Service Showcase</ThemedText>
-          {(servicesExpanded ? provider.services : provider.services.slice(0, 1)).map((service, i) => (
-            <View key={i} style={styles.serviceCard}>
-              <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
-              <ThemedText style={{ color: '#FF9900' }}>{service.price}</ThemedText>
-              <ThemedText style={{ fontSize: 12 }}>{service.availability}</ThemedText>
-            </View>
-          ))}
-          {provider.services.length > 1 && (
-            <Pressable onPress={() => setServicesExpanded(!servicesExpanded)}>
-              <ThemedText style={styles.toggle}>{servicesExpanded ? 'Show Less' : 'See More'}</ThemedText>
-            </Pressable>
+          {provider.services && provider.services.length > 0 ? (
+            <>
+              {(servicesExpanded ? provider.services : provider.services.slice(0, 1)).map((service, i) => (
+                <View key={service.id || i} style={styles.serviceCard}>
+                  <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
+                  <ThemedText style={{ color: '#FF9900' }}>{service.price} CFA</ThemedText>
+                  <ThemedText style={{ fontSize: 12 }}>{service.availability}</ThemedText>
+                </View>
+              ))}
+              {provider.services.length > 1 && (
+                <Pressable onPress={() => setServicesExpanded(!servicesExpanded)}>
+                  <ThemedText style={styles.toggle}>{servicesExpanded ? 'Show Less' : 'See More'}</ThemedText>
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>No services listed yet</ThemedText>
           )}
         </View>
 
@@ -322,7 +376,7 @@ export default function ProviderProfileScreen() {
             
             <ThemedText style={styles.commentLabel}>Your Review</ThemedText>
             <TextInput
-              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.icon }]}
               placeholder="Share your experience with this provider..."
               placeholderTextColor={theme.icon}
               multiline
@@ -353,7 +407,7 @@ export default function ProviderProfileScreen() {
   );
 }
 
-function createStyles(theme, colorScheme) {
+function createStyles(theme: any, colorScheme: any) {
   return StyleSheet.create({
     container: { flex: 1, 
       backgroundColor: theme.background,
@@ -522,6 +576,23 @@ function createStyles(theme, colorScheme) {
     modalButton: {
       flex: 1,
       marginHorizontal: 5,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      opacity: 0.7,
+    },
+    errorText: {
+      marginTop: 16,
+      fontSize: 16,
+      opacity: 0.7,
+      textAlign: 'center',
     },
   });
 }
