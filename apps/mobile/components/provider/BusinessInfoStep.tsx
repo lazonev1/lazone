@@ -7,7 +7,9 @@ import { LocationPicker } from '@/components/ui/LocationPicker';
 import Checkbox from '@/components/ui/CheckBox';
 import { useState } from 'react';
 import { Colors } from '@/constants/Colors';
+import { getCategoryOptions } from '@/constants/categories';
 import { validateBusinessInfo } from '@/utils/validation';
+import { ProviderRegistration } from '@/types/provider';
 
 interface Props {
   initialData: Partial<ProviderRegistration>;
@@ -15,18 +17,8 @@ interface Props {
   isEditMode?: boolean;
 }
 
-const SERVICE_CATEGORIES = [
-  { label: 'Beauty & Wellness', value: 'beauty' },
-  { label: 'Home Services', value: 'home' },
-  { label: 'Technology', value: 'tech' },
-  { label: 'Healthcare', value: 'health' },
-  { label: 'Education', value: 'education' },
-  { label: 'Events', value: 'events' },
-  { label: 'Automotive', value: 'automotive' },
-  { label: 'Legal Services', value: 'legal' },
-  { label: 'Creative & Design', value: 'creative' },
-  { label: 'Fitness', value: 'fitness' },
-];
+// Use centralized categories
+const SERVICE_CATEGORIES = getCategoryOptions();
 
 export default function BusinessInfoStep({ initialData, onNext, isEditMode = false }: Props) {
   const [formData, setFormData] = useState({
@@ -109,16 +101,16 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
             multiline
             numberOfLines={5}
             maxLength={500}
-            style={[styles.input, styles.textArea]}
+            style={styles.input}
             containerStyle={styles.textAreaContainer}
             error={errors.description}
           />
 
           <View style={styles.optionsSection}>
-            <ThemedText style={styles.label}>I offer remote services</ThemedText>
+            <ThemedText style={styles.optionLabel}>I offer remote services</ThemedText>
             <Checkbox
-              isChecked={formData.remoteService}
-              setChecked={(checked) => handleFieldChange('remoteService', checked)}
+              isChecked={formData.remoteService ?? false}
+              setChecked={() => handleFieldChange('remoteService', !formData.remoteService)}
               color={formData.remoteService ? '#0A58A5' : undefined}
             />
           </View>
@@ -137,7 +129,7 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: string | null | undefined) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
@@ -171,6 +163,9 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  optionLabel: {
+    marginRight: 12,
   },
   footer: {
     padding: 16,
