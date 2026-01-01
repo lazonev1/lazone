@@ -20,12 +20,20 @@ function RootLayoutNav() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
+    // Protected routes that require authentication
+    const protectedRoutes = ['booking', 'messages', 'account'];
+    const inProtectedRoute = protectedRoutes.includes(segments[0] as string) ||
+                             (segments[0] === '(tabs)' && protectedRoutes.includes(segments[1] as string));
 
+    // If authenticated and in auth group, redirect to home
     if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
-    } else if (!isAuthenticated && !inAuthGroup) {
+    }
+    // If not authenticated and trying to access protected route, redirect to login
+    else if (!isAuthenticated && inProtectedRoute) {
       router.replace('/(auth)/login');
     }
+    // Otherwise, allow browsing (home, explore, provider details) without auth
   }, [isAuthenticated, segments, loading, router]);
 
   if (loading) {
