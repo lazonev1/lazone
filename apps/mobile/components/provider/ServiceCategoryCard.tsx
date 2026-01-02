@@ -5,11 +5,13 @@ import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 
 type Props = {
-  name: string;
-  image?: any;
+  id: string;           // Category ID for URL routing
+  name: string;         // Display name
+  icon?: string;        // Emoji icon
+  image?: any;          // Optional image
 };
 
-export default function ServiceCategoryCard({ name, image }: Props) {
+export default function ServiceCategoryCard({ id, name, icon, image }: Props) {
   const router = useRouter();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -18,23 +20,23 @@ export default function ServiceCategoryCard({ name, image }: Props) {
   return (
     <Pressable
       style={styles.card}
-      onPress={() => router.push(`/explore/${name.toLowerCase()}`)}
+      onPress={() => router.push(`/explore/${id}`)}
     >
       {image ? (
         <Image source={image} style={styles.image} />
       ) : (
         <View style={styles.imagePlaceholder}>
-          <ThemedText type="defaultSemiBold" style={styles.imageText}>🛠</ThemedText>
+          <ThemedText type="defaultSemiBold" style={styles.imageText}>{icon || '🛠'}</ThemedText>
         </View>
       )}
-      <ThemedText type="defaultSemiBold" style={styles.label}>
+      <ThemedText type="defaultSemiBold" style={styles.label} numberOfLines={2}>
         {name}
       </ThemedText>
     </Pressable>
   );
 }
 
-function createStyles(theme, colorScheme) {
+function createStyles(theme: { text: any; background: any; tint?: string; icon: any; tabIconDefault?: string; tabIconSelected?: string; }, colorScheme: string | null | undefined) {
   return StyleSheet.create({
     card: {
       width: 100,
