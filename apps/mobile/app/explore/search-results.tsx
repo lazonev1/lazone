@@ -1,10 +1,12 @@
-import { View, StyleSheet, ScrollView, ActivityIndicator, Appearance, SafeAreaView } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { View, StyleSheet, Appearance } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import ProviderListItem from '@/components/provider/ProviderListItem';
-import { Providers } from '@/hooks/useProvidersMock';
+import { ProviderList } from '@/components/provider/ProviderList';
+import { useProvider } from '@/hooks/useProvider';
+import { useLocation } from '@/hooks/useLocation';
 import Slider from '@react-native-community/slider';
 import { SearchFilters, DEFAULT_FILTERS, FILTER_RANGES } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
@@ -14,58 +16,62 @@ export default function SearchResultsScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme);
-  const router = useRouter();
   const params = useLocalSearchParams();
 
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({ title: 'Search' });
-  }, ['Search']);
+  }, [navigation]);
+
+  // Get user's current location for distance calculation
+  const { location: userLocation } = useLocation();
+
+  // Fetch real providers using search
+  const { providers, isLoading: providersLoading, error, searchProviders } = useProvider();
+  const [displayedCount, setDisplayedCount] = useState(10);
 
   // Use the SearchFilters type and DEFAULT_FILTERS
   const [filters, setFilters] = useState<SearchFilters>({
     ...DEFAULT_FILTERS,
-    query: String(params.query) ?? '',
-    radius: Number(params.radius) || DEFAULT_FILTERS.radius,
-    remoteOnly: params.remoteOnly === 'true' || DEFAULT_FILTERS.remoteOnly,
+    query: params.query ? String(params.query) : '',
+    radius: params.radius ? Number(params.radius) : DEFAULT_FILTERS.radius,
+    remoteOnly: params.remoteOnly === 'true',
   });
 
-  const [loading, setLoading] = useState(false);
-  const [filteredProviders, setFilteredProviders] = useState<typeof Providers>([]);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    console.log('Current filters:', filters);
-    setLoading(true);
-    
-    const results = Providers.filter((provider) => {
-      //searching with query, radius,rating and price
-      const searchTerm = filters.query.toLowerCase().trim();
-      const matchesSearch = !searchTerm || 
-        provider.name.toLowerCase().includes(searchTerm) ||
-        provider.profession.toLowerCase().includes(searchTerm);
-      
-      const withinRadius = provider.distance <= filters.radius;
-      const meetsRating = provider.rating >= filters.minRating;
-      // pricing: '50000 - 150000 CFA',
-      const meetsPrice = provider.pricing
-        ? parseInt(provider.pricing.split(' - ')[1]) <= filters.maxPrice
-        : true; // If no pricing info, consider it meets the price condition
-      // Combine all conditions
-      const meetRemoteCondition = provider.remoteService === filters.remoteOnly;
-      if (filters.remoteOnly) { // Do not include distance check if remoteOnly is true
-        return matchesSearch && meetsRating && meetsPrice && meetRemoteCondition;
-      }
-      // If remoteOnly is false, we don't filter by remoteService
-      return matchesSearch && withinRadius && meetsRating && meetsPrice;
+  // Execute search when filters or location change
+  const executeSearch = useCallback(() => {
+    searchProviders({
+      query: filters.query || undefined,
+      remoteOnly: filters.remoteOnly || undefined,
+      minRating: filters.minRating > 0 ? filters.minRating : undefined,
+      maxPrice: filters.maxPrice < DEFAULT_FILTERS.maxPrice ? filters.maxPrice : undefined,
+      maxDistance: filters.radius < FILTER_RANGES.radius.maximumValue ? filters.radius : undefined,
+      userLocation: userLocation,
     });
+  }, [filters, userLocation, searchProviders]);
 
-    setFilteredProviders(results);
-    setLoading(false);
-  }, [filters]);
+  // Initial search and when filters/location change
+  useEffect(() => {
+    executeSearch();
+  }, [executeSearch]);
+
+  // Paginated providers (already sorted by rating from backend)
+  const displayedProviders = useMemo(
+    () => providers.slice(0, displayedCount),
+    [providers, displayedCount]
+  );
+
+  const handleLoadMore = () => {
+    if (displayedCount < providers.length) {
+      setDisplayedCount(prev => prev + 10);
+    }
+  };
 
   const updateFilter = (key: keyof SearchFilters, value: number | string | boolean) => {
     setFilters((prev: SearchFilters) => ({ ...prev, [key]: value }));
+    setDisplayedCount(10); // Reset pagination when filters change
   };
 
   return (
@@ -130,65 +136,49 @@ export default function SearchResultsScreen() {
         </View>
       )}
 
-      {/* Results List */}
-      <ScrollView style={styles.resultsContainer}>
-        <ThemedText type="subtitle" style={styles.resultsHeader}>
-          {loading ? 'Searching...' : `Found ${filteredProviders.length} results`}
+      {/* Results Header */}
+      <View style={styles.resultsHeader}>
+        <ThemedText type="subtitle">
+          {providersLoading ? 'Searching...' : `Found ${providers.length} results`}
         </ThemedText>
+      </View>
 
-        {loading ? (
-          <ActivityIndicator color={theme.tint} style={{ marginTop: 20 }} />
-        ) : filteredProviders.length > 0 ? (
-          filteredProviders.map((provider) => (
-            <ProviderListItem
-              key={provider.id}
-              id={provider.id.toString()}
-              name={provider.name}
-              description={provider.bio}
-              avatar={provider.avatar}
-              rating={provider.rating}
-              onPress={() => router.push(`/provider/${provider.id}`)}
-            />
-          ))
-        ) : (
-          <ThemedText style={styles.noResults}>
-            No providers found within {filters.radius}km
-            {filters.query ? ` matching "${filters.query}"` : ''}
-          </ThemedText>
-        )}
-      </ScrollView>
+      {/* Results List */}
+      <ProviderList
+        providers={displayedProviders}
+        isLoading={providersLoading}
+        error={error}
+        onEndReached={handleLoadMore}
+        hasMore={displayedCount < providers.length}
+        emptyMessage={
+          filters.query
+            ? `No providers found matching "${filters.query}"`
+            : `No providers found within ${filters.radius}km`
+        }
+      />
     </SafeAreaView>
   );
 }
 
-function createStyles(theme) {
+function createStyles(theme: any) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      padding: 16,
     },
     filtersContainer: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
       borderBottomColor: theme.border,
     },
     filterItem: {
       marginBottom: 5,
       borderRadius: 8,
-      color : theme.text,
+      color: theme.text,
       backgroundColor: theme.background,
     },
-    resultsContainer: {
-      flex: 1,
-      padding: 16,
-    },
     resultsHeader: {
-      padding: 16,
-      marginBottom: 8,
-      borderBottomColor: theme.border,
-    },
-    noResults: {
-      textAlign: 'center',
-      padding: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
     },
   });
 }

@@ -235,3 +235,68 @@ export async function updateUserRole(
   }
 }
 
+/**
+ * Search interface for provider queries
+ */
+export interface ProviderSearchParams {
+  query?: string;
+  category?: string;
+  remoteOnly?: boolean;
+  minRating?: number;
+}
+
+/**
+ * Searches providers with optional filters
+ * Note: Firebase doesn't support full-text search, so we fetch and filter client-side
+ * For production scale, consider Algolia or Elasticsearch
+ */
+export async function searchProviders(params: ProviderSearchParams): Promise<Provider[]> {
+  try {
+    let providers: Provider[];
+
+    // If category is specified, use indexed query
+    if (params.category) {
+      providers = await getProvidersByCategory(params.category);
+    } else {
+      providers = await getAllProviders();
+    }
+
+    // Apply client-side filters
+    return providers.filter((provider) => {
+      // Text search filter
+      if (params.query) {
+        const searchTerm = params.query.toLowerCase().trim();
+        const searchableText = [
+          provider.firstName,
+          provider.lastName,
+          provider.businessName,
+          provider.profession,
+          provider.categoryName,
+          provider.bio,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchableText.includes(searchTerm)) {
+          return false;
+        }
+      }
+
+      // Remote service filter
+      if (params.remoteOnly && !provider.remoteService) {
+        return false;
+      }
+
+      // Minimum rating filter
+      if (params.minRating && (provider.averageRating || 0) < params.minRating) {
+        return false;
+      }
+
+      return true;
+    });
+  } catch (error) {
+    console.error("Error searching providers:", error);
+    throw error;
+  }
+}

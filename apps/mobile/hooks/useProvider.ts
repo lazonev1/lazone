@@ -4,8 +4,11 @@ import {
   getAllProvidersWithDetails,
   getProvidersByCategory,
   createOrUpdateProviderProfile,
+  searchProviders as repoSearchProviders,
+  SearchProvidersParams,
 } from "@/repositories/providerRepository";
 import { ProviderViewModel, ProviderRegistration } from "@/types/provider";
+import { Coordinates } from "@/backend/main/src/utils/geo";
 
 /**
  * Hook Layer - State Management Wrapper for React Components
@@ -18,9 +21,10 @@ export interface UseProviderResult {
   providers: ProviderViewModel[];
   isLoading: boolean;
   error: Error | null;
-  fetchAllProviders: () => Promise<void>;
-  fetchProvidersByCategory: (category: string) => Promise<void>;
-  refetch: () => Promise<void>;
+  fetchAllProviders: (userLocation?: Coordinates | null) => Promise<void>;
+  fetchProvidersByCategory: (category: string, userLocation?: Coordinates | null) => Promise<void>;
+  searchProviders: (params: SearchProvidersParams) => Promise<void>;
+  refetch: (userLocation?: Coordinates | null) => Promise<void>;
   saveProviderProfile: (
     userId: string,
     providerId: string | null,
@@ -60,13 +64,14 @@ export const useProvider = (providerId?: string): UseProviderResult => {
 
   /**
    * Fetches all providers with details
+   * @param userLocation - Optional user location for distance calculation
    */
-  const fetchAllProviders = useCallback(async () => {
+  const fetchAllProviders = useCallback(async (userLocation?: Coordinates | null) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await getAllProvidersWithDetails();
+      const data = await getAllProvidersWithDetails(userLocation);
       setProviders(data);
     } catch (err: any) {
       setError(err);
@@ -77,13 +82,33 @@ export const useProvider = (providerId?: string): UseProviderResult => {
 
   /**
    * Fetches providers by category
+   * @param category - The category to filter by
+   * @param userLocation - Optional user location for distance calculation
    */
-  const fetchProvidersByCategory = useCallback(async (category: string) => {
+  const fetchProvidersByCategory = useCallback(async (category: string, userLocation?: Coordinates | null) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await getProvidersByCategory(category);
+      const data = await getProvidersByCategory(category, userLocation);
+      setProviders(data);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Searches providers with filters
+   * @param params - Search parameters including query, filters, and user location
+   */
+  const searchProviders = useCallback(async (params: SearchProvidersParams) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await repoSearchProviders(params);
       setProviders(data);
     } catch (err: any) {
       setError(err);
@@ -94,15 +119,16 @@ export const useProvider = (providerId?: string): UseProviderResult => {
 
   /**
    * Refetches the current provider data
+   * @param userLocation - Optional user location for distance calculation
    */
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (userLocation?: Coordinates | null) => {
     if (!providerId) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await getProviderViewModel(providerId);
+      const data = await getProviderViewModel(providerId, userLocation);
       setProvider(data);
     } catch (err: any) {
       setError(err);
@@ -158,6 +184,7 @@ export const useProvider = (providerId?: string): UseProviderResult => {
     error,
     fetchAllProviders,
     fetchProvidersByCategory,
+    searchProviders,
     refetch,
     saveProviderProfile,
   };
