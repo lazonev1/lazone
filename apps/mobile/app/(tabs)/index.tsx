@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, View, Appearance, SafeAreaView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { ScrollView, StyleSheet, View, Appearance, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
@@ -9,6 +10,7 @@ import SearchBar from '@/components/ui/SearchBar';
 import { useState, useEffect, useMemo } from 'react';
 import AppHeader from '@/components/ui/AppHeader';
 import { useProvider } from '@/hooks/useProvider';
+import { useLocation } from '@/hooks/useLocation';
 
 export default function HomeScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -18,13 +20,14 @@ export default function HomeScreen() {
   const [displayedCount, setDisplayedCount] = useState(10);
 
   const { providers, isLoading, error, fetchAllProviders } = useProvider();
+  const { location: userLocation } = useLocation();
 
   const styles = createStyles(theme, colorScheme);
 
-  // Fetch providers on mount - no auth required for browsing
+  // Fetch providers when component mounts or user location updates
   useEffect(() => {
-    fetchAllProviders();
-  }, [fetchAllProviders]);
+    fetchAllProviders(userLocation);
+  }, [fetchAllProviders, userLocation]);
 
   // Sort providers by rating (highest first)
   const sortedProviders = useMemo(

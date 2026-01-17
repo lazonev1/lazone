@@ -76,7 +76,7 @@ export default function SearchLocatorScreen() {
   );
 }
 
-function createStyles(theme) {
+function createStyles(theme: { text: string; background: string; tint: string; icon: string; tabIconDefault: string; tabIconSelected: string; }) {
   return StyleSheet.create({
     container: {
       flex: 1,

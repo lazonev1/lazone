@@ -7,6 +7,7 @@ import {
   Review as ReviewViewModel,
   ServiceItem,
 } from "@/types/provider";
+import { calculateDistance, isValidCoordinates, Coordinates } from "@/backend/main/src/utils/geo";
 
 /**
  * Repository Layer - Transforms Database Models to UI ViewModels
@@ -16,9 +17,12 @@ import {
 
 /**
  * Fetches a single provider with all details populated for UI display
+ * @param providerId - The provider's document ID
+ * @param userLocation - Optional user's current location for distance calculation
  */
 export async function getProviderViewModel(
-  providerId: string
+  providerId: string,
+  userLocation?: Coordinates | null
 ): Promise<ProviderViewModel | null> {
   try {
     // 1. Fetch provider from backend service
@@ -39,12 +43,12 @@ export async function getProviderViewModel(
     // 4. Fetch services for this provider
     const services = await fetchProviderServices(provider._id);
 
-    // 5. Transform to UI ViewModel
+    // 5. Transform to UI ViewModel with distance calculation
     return transformToViewModel(provider, {
       reviewItems,
       portfolioItems,
       services,
-    });
+    }, userLocation);
   } catch (error) {
     console.error("Error fetching provider view model:", error);
     throw error;
@@ -53,8 +57,11 @@ export async function getProviderViewModel(
 
 /**
  * Fetches all providers with details populated
+ * @param userLocation - Optional user's current location for distance calculation
  */
-export async function getAllProvidersWithDetails(): Promise<ProviderViewModel[]> {
+export async function getAllProvidersWithDetails(
+  userLocation?: Coordinates | null
+): Promise<ProviderViewModel[]> {
   try {
     const providers = await ProviderService.getAllProviders();
 
@@ -70,7 +77,7 @@ export async function getAllProvidersWithDetails(): Promise<ProviderViewModel[]>
           reviewItems,
           portfolioItems,
           services,
-        });
+        }, userLocation);
       })
     );
   } catch (error) {
@@ -81,9 +88,12 @@ export async function getAllProvidersWithDetails(): Promise<ProviderViewModel[]>
 
 /**
  * Searches providers by category with details populated
+ * @param category - Category to filter by
+ * @param userLocation - Optional user's current location for distance calculation
  */
 export async function getProvidersByCategory(
-  category: string
+  category: string,
+  userLocation?: Coordinates | null
 ): Promise<ProviderViewModel[]> {
   try {
     const providers = await ProviderService.getProvidersByCategory(category);
@@ -100,11 +110,88 @@ export async function getProvidersByCategory(
           reviewItems,
           portfolioItems,
           services,
-        });
+        }, userLocation);
       })
     );
   } catch (error) {
     console.error("Error fetching providers by category:", error);
+    throw error;
+  }
+}
+
+/**
+ * Search parameters for provider search
+ */
+export interface SearchProvidersParams {
+  query?: string;
+  category?: string;
+  remoteOnly?: boolean;
+  minRating?: number;
+  maxPrice?: number;
+  maxDistance?: number;
+  userLocation?: Coordinates | null;
+}
+
+/**
+ * Searches providers with filters and distance calculation
+ * This is the main search function that handles all filtering logic
+ */
+export async function searchProviders(
+  params: SearchProvidersParams
+): Promise<ProviderViewModel[]> {
+  try {
+    // Use backend search for basic filtering
+    const providers = await ProviderService.searchProviders({
+      query: params.query,
+      category: params.category,
+      remoteOnly: params.remoteOnly,
+      minRating: params.minRating,
+    });
+
+    // Transform to ViewModels with distance calculation
+    const viewModels = await Promise.all(
+      providers.map(async (provider) => {
+        const reviewItems = await populateReviews(provider.reviews || []);
+        const portfolioItems = provider.portfolio
+          ? await populatePortfolio(provider.portfolio)
+          : [];
+        const services = await fetchProviderServices(provider._id);
+
+        return transformToViewModel(provider, {
+          reviewItems,
+          portfolioItems,
+          services,
+        }, params.userLocation);
+      })
+    );
+
+    // Apply additional client-side filters that need ViewModel data
+    let results = viewModels;
+
+    // Filter by max distance if specified and user location is available
+    if (params.maxDistance !== undefined && params.userLocation) {
+      results = results.filter(
+        (p) => p.distance === undefined || p.distance <= params.maxDistance!
+      );
+    }
+
+    // Filter by max price if specified
+    if (params.maxPrice !== undefined) {
+      results = results.filter((p) => {
+        if (!p.pricing || p.pricing === "Contact for pricing") return true;
+        const priceMatch = p.pricing.match(/(\d+)/g);
+        if (priceMatch && priceMatch.length > 0) {
+          const maxProviderPrice = parseInt(priceMatch[priceMatch.length - 1]);
+          return !isNaN(maxProviderPrice) && maxProviderPrice <= params.maxPrice!;
+        }
+        return true;
+      });
+    }
+
+    // Sort by rating (highest first)
+    return results.sort((a, b) => b.rating - a.rating);
+  } catch (error) {
+    console.error("Error searching providers:", error);
     throw error;
   }
 }
@@ -216,6 +303,9 @@ async function fetchProviderServices(userId: string): Promise<ServiceItem[]> {
 
 /**
  * Transforms Provider database model to ProviderViewModel for UI
+ * @param provider - The provider data from Firestore
+ * @param populated - Populated references (reviews, portfolio, services)
+ * @param userLocation - Optional user's current location for distance calculation
  */
 function transformToViewModel(
   provider: any,
@@ -223,8 +313,17 @@ function transformToViewModel(
     reviewItems: ReviewViewModel[];
     portfolioItems: PortfolioItem[];
     services: ServiceItem[];
-  }
+  },
+  userLocation?: Coordinates | null
 ): ProviderViewModel {
+  // Calculate distance if both user and provider locations are available
+  let distance: number | undefined = undefined;
+  const providerCoords = provider.location?.coordinates;
+
+  if (userLocation && isValidCoordinates(userLocation) && isValidCoordinates(providerCoords)) {
+    distance = Math.round(calculateDistance(userLocation, providerCoords) * 10) / 10; // Round to 1 decimal
+  }
+
   return {
     id: provider._id,
     name: `${provider.firstName} ${provider.lastName}`,
@@ -237,7 +336,7 @@ function transformToViewModel(
     avatar: provider.avatar || require("@/assets/images/avatar-placeholder.png"),
     cover: provider.coverImage || require("@/assets/images/loginbg.png"),
     location: provider.location?.coordinates || { latitude: 0, longitude: 0 },
-    distance: undefined, // Calculate based on user location if needed
+    distance,
     portfolio: populated.portfolioItems,
     services: populated.services,
     reviewItems: populated.reviewItems,
