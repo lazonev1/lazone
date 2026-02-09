@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAN1QiM1LLgHC4DjNL6ds3QCIfafmfnBJY",
   authDomain: "lazonev1-5da5a.firebaseapp.com",
   projectId: "lazonev1-5da5a",
-  storageBucket: "lazonev1-5da5a.appspot.com", // Corrected from your file to standard format
+  storageBucket: "lazonev1-5da5a.firebasestorage.app",
   messagingSenderId: "732284471327",
   appId: "1:732284471327:web:7d36a6cc3a773089552d2a",
   measurementId: "G-4WZZ86MGC9"

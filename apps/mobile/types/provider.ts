@@ -18,6 +18,8 @@ export type Review = {
   date: string;
   serviceId?: string;
   serviceName?: string;
+  images?: string[]; // URLs of attached images
+  isHelpful?: number; // Count of helpful votes
   response?: {
     text: string;
     date: string;

@@ -1,10 +1,9 @@
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Image, Appearance } from 'react-native';
 import { useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
-import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { Review, ReviewStats } from '@/types/provider';
 
@@ -17,6 +16,7 @@ type ReviewsComponentProps = {
   showFilters?: boolean; // Whether to show filter options
   onFilterChange?: (filter: 'all' | 'recent' | 'highest' | 'lowest') => void;
   onRespondToReview?: (reviewId: string, responseText: string) => Promise<void>;
+  onMarkHelpful?: (reviewId: string) => Promise<void>; // Mark review as helpful
   expandedByDefault?: boolean; // Whether to show all reviews by default
   maxReviewsCollapsed?: number; // How many reviews to show when collapsed
 };
@@ -30,6 +30,7 @@ export default function ReviewsComponent({
   showFilters = true,
   onFilterChange,
   onRespondToReview,
+  onMarkHelpful,
   expandedByDefault = false,
   maxReviewsCollapsed = 2
 }: ReviewsComponentProps) {
@@ -188,7 +189,7 @@ export default function ReviewsComponent({
             <Ionicons name="star-outline" size={48} color={theme.icon} />
             <ThemedText style={styles.emptyStateTitle}>No Reviews Yet</ThemedText>
             <ThemedText style={styles.emptyStateText}>
-              When clients leave reviews for your services, they'll appear here.
+              When clients leave reviews for your services, they will appear here.
             </ThemedText>
           </View>
         ) : (
@@ -215,6 +216,24 @@ export default function ReviewsComponent({
                 )}
                 <ThemedText style={styles.reviewComment}>{review.comment}</ThemedText>
                 
+                {/* Review Images */}
+                {review.images && review.images.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.imagesContainer}
+                  >
+                    {review.images.map((imageUrl, index) => (
+                      <Image
+                        key={index}
+                        source={{ uri: imageUrl }}
+                        style={styles.reviewImage}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+
                 {/* Provider Response */}
                 {review.response && (
                   <View style={styles.responseContainer}>
@@ -233,7 +252,7 @@ export default function ReviewsComponent({
                 {allowResponding && respondingTo === review.id ? (
                   <View style={styles.responseInputContainer}>
                     <TextInput
-                      style={[styles.responseInput, { color: theme.text, borderColor: theme.border }]}
+                      style={[styles.responseInput, { color: theme.text, borderColor: theme.icon }]}
                       placeholder="Write your response..."
                       placeholderTextColor={theme.icon}
                       value={responseText}
@@ -269,6 +288,20 @@ export default function ReviewsComponent({
                     <ThemedText style={styles.respondButtonText}>Respond to review</ThemedText>
                   </TouchableOpacity>
                 )}
+
+                {/* Helpful Button */}
+                <View style={styles.helpfulContainer}>
+                  <TouchableOpacity
+                    style={styles.helpfulButton}
+                    onPress={() => onMarkHelpful && onMarkHelpful(review.id)}
+                  >
+                    <Ionicons name="thumbs-up-outline" size={16} color={theme.icon} />
+                    <ThemedText style={styles.helpfulText}>Helpful</ThemedText>
+                    {(review.isHelpful ?? 0) > 0 && (
+                      <ThemedText style={styles.helpfulCount}>({review.isHelpful})</ThemedText>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </ThemedView>
             ))}
 
@@ -529,5 +562,40 @@ const styles = StyleSheet.create({
   toggleButtonText: {
     marginTop: 10, 
     color: '#FF9900'
+  },
+  helpfulContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  helpfulButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(128, 128, 128, 0.1)',
+  },
+  helpfulText: {
+    fontSize: 14,
+    marginLeft: 6,
+    opacity: 0.8,
+  },
+  helpfulCount: {
+    fontSize: 14,
+    marginLeft: 4,
+    opacity: 0.6,
+  },
+  imagesContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  reviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginRight: 8,
   },
 });

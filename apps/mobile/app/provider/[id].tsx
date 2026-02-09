@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import { useReviews } from '@/hooks/useReviews';
+import { useAuth } from '@/contexts/auth';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -68,23 +69,30 @@ export default function ProviderProfileScreen() {
   const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
   const providerId = id.toString();
 
-  const { 
-    reviews: reviewItems, 
-    respondToReview: handleRespondToReview 
-  } = useReviews(providerId);
+  // Get current user for review submission
+  const { user } = useAuth();
+  const currentUserId = user?.uid;
 
-  const totalRatings = reviewItems.reduce((sum, review) => sum + review.rating, 0);
-  const avgRating = totalRatings / reviewItems.length || 0;
+  // Use enhanced reviews hook with user context
+  const {
+    reviews: reviewItems,
+    stats: reviewStats,
+    isLoading: reviewsLoading,
+    canReview,
+    canReviewReason,
+    submitReview,
+    respondToReview,
+    refreshReviews,
+    markHelpful,
+  } = useReviews(providerId, currentUserId);
 
-  const counts = [0, 0, 0, 0, 0];
-  reviewItems.forEach(review => {
-    counts[Math.floor(review.rating) - 1]++;
-  });
-
-  const reviewStats = {
-    averageRating: avgRating,
-    totalReviews: reviewItems.length,
-    ratingCounts: counts
+  // Handler for provider responding to reviews
+  const handleRespondToReview = async (reviewId: string, responseText: string) => {
+    try {
+      await respondToReview(reviewId, responseText);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit response. Please try again.');
+    }
   };
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -92,7 +100,7 @@ export default function ProviderProfileScreen() {
   const [newReviewComment, setNewReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const submitReview = async () => {
+  const handleSubmitReview = async () => {
     if (newReviewRating === 0) {
       Alert.alert('Error', 'Please select a rating');
       return;
@@ -103,22 +111,26 @@ export default function ProviderProfileScreen() {
       return;
     }
 
+    if (!currentUserId) {
+      Alert.alert('Error', 'Please log in to submit a review');
+      return;
+    }
+
     setSubmittingReview(true);
 
     try {
-      const newReview = {
-        id: `review-${Date.now()}`,
-        clientName: 'You',
+      await submitReview({
         rating: newReviewRating,
         comment: newReviewComment,
-        date: new Date().toISOString()
-      };
+      });
 
+      Alert.alert('Success', 'Your review has been submitted!');
       setReviewModalVisible(false);
       setNewReviewRating(0);
       setNewReviewComment('');
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit review. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit review. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setSubmittingReview(false);
     }
@@ -312,14 +324,30 @@ export default function ProviderProfileScreen() {
           <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Reviews</ThemedText>
             <View style={styles.reviewActions}>
-              <TouchableOpacity 
-                onPress={() => setReviewModalVisible(true)}
+              <TouchableOpacity
+                onPress={() => {
+                  if (!currentUserId) {
+                    Alert.alert('Sign In Required', 'Please sign in to leave a review');
+                    return;
+                  }
+
+                  // TODO: Toggle this to enable/disable review eligibility check
+                  // Set to `true` to enforce booking requirement, `false` to skip for testing
+                  const ENFORCE_BOOKING_CHECK = false;
+
+                  if (ENFORCE_BOOKING_CHECK && !canReview && canReviewReason) {
+                    Alert.alert('Cannot Review', canReviewReason);
+                    return;
+                  }
+
+                  setReviewModalVisible(true);
+                }}
                 style={styles.writeReviewButton}
               >
                 <Ionicons name="create-outline" size={16} color="#0A58A5" />
                 <ThemedText style={styles.writeReviewText}>Write a Review</ThemedText>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => router.push(`/provider/reviews?id=${providerId}`)}
                 style={styles.viewAllButton}
               >
@@ -331,12 +359,24 @@ export default function ProviderProfileScreen() {
           <ReviewsComponent
             reviews={reviewItems}
             stats={reviewStats}
+            isLoading={reviewsLoading}
             showStats={false}
             showFilters={false}
             allowResponding={true}
             expandedByDefault={testimonialsExpanded}
             maxReviewsCollapsed={1}
             onRespondToReview={handleRespondToReview}
+            onMarkHelpful={async (reviewId) => {
+              if (!currentUserId) {
+                Alert.alert('Sign In Required', 'Please sign in to vote');
+                return;
+              }
+              try {
+                await markHelpful(reviewId);
+              } catch {
+                Alert.alert('Error', 'Failed to update vote');
+              }
+            }}
           />
         </View>
 
@@ -362,42 +402,105 @@ export default function ProviderProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <ThemedView style={styles.modalContent}>
+            {/* Header */}
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+              <View>
+                <ThemedText style={{ fontSize: 20, fontWeight: '700' }}>Write a Review</ThemedText>
+                <ThemedText style={{ fontSize: 14, opacity: 0.6, marginTop: 4 }}>Share your experience</ThemedText>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setReviewModalVisible(false);
+                  setNewReviewRating(0);
+                  setNewReviewComment('');
+                }}
+                style={{
+                  padding: 8,
+                  borderRadius: 20,
+                  backgroundColor: 'rgba(128, 128, 128, 0.1)',
+                }}
+              >
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
-            
-            <ThemedText style={styles.ratingLabel}>Your Rating</ThemedText>
-            <StarRatingSelector 
-              rating={newReviewRating} 
-              onRatingChange={setNewReviewRating} 
-            />
-            
-            <ThemedText style={styles.commentLabel}>Your Review</ThemedText>
-            <TextInput
-              style={[styles.reviewInput, { color: theme.text, borderColor: theme.icon }]}
-              placeholder="Share your experience with this provider..."
-              placeholderTextColor={theme.icon}
-              multiline
-              numberOfLines={5}
-              value={newReviewComment}
-              onChangeText={setNewReviewComment}
-            />
-            
-            <View style={styles.modalActions}>
-              <Button
-                label="Cancel"
-                onPress={() => setReviewModalVisible(false)}
-                variant="secondary"
-                style={styles.modalButton}
-              />
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Rating Section */}
+              <View style={{ marginBottom: 24 }}>
+                <ThemedText style={{ fontSize: 16, fontWeight: '600', marginBottom: 12 }}>
+                  How would you rate your experience?
+                </ThemedText>
+                <StarRatingSelector
+                  rating={newReviewRating}
+                  onRatingChange={setNewReviewRating}
+                />
+                {newReviewRating > 0 && (
+                  <ThemedText style={{ textAlign: 'center', opacity: 0.7, marginTop: 8 }}>
+                    {newReviewRating === 5 ? 'Excellent!' :
+                     newReviewRating === 4 ? 'Very Good' :
+                     newReviewRating === 3 ? 'Good' :
+                     newReviewRating === 2 ? 'Fair' : 'Poor'}
+                  </ThemedText>
+                )}
+              </View>
+
+              {/* Comment Section */}
+              <View style={{ marginBottom: 24 }}>
+                <ThemedText style={{ fontSize: 16, fontWeight: '600', marginBottom: 12 }}>
+                  Tell us more about your experience
+                </ThemedText>
+                <TextInput
+                  style={[styles.reviewInput, { color: theme.text, borderColor: theme.icon }]}
+                  placeholder="What did you like? What could be improved?"
+                  placeholderTextColor={theme.icon}
+                  multiline
+                  numberOfLines={5}
+                  value={newReviewComment}
+                  onChangeText={setNewReviewComment}
+                />
+                <ThemedText style={{ fontSize: 12, opacity: 0.5, marginTop: 8, textAlign: 'right' }}>
+                  {newReviewComment.length}/500 characters
+                </ThemedText>
+              </View>
+
+              {/* Image Attachment Section - Coming Soon */}
+              <View style={{
+                marginBottom: 24,
+                padding: 16,
+                backgroundColor: 'rgba(128, 128, 128, 0.1)',
+                borderRadius: 12,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="camera-outline" size={20} color={theme.icon} />
+                  <ThemedText style={{ fontSize: 16, fontWeight: '600', marginLeft: 8 }}>
+                    Add Photos
+                  </ThemedText>
+                  <View style={{
+                    backgroundColor: theme.tint,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 8,
+                    marginLeft: 8,
+                  }}>
+                    <ThemedText style={{ fontSize: 10, color: 'white', fontWeight: '600' }}>
+                      COMING SOON
+                    </ThemedText>
+                  </View>
+                </View>
+                <ThemedText style={{ fontSize: 14, opacity: 0.6 }}>
+                  Photo attachments will be available in a future update
+                </ThemedText>
+              </View>
+            </ScrollView>
+
+            {/* Submit Button */}
+            <View style={{ marginTop: 16 }}>
               <Button
                 label={submittingReview ? "Submitting..." : "Submit Review"}
-                onPress={submitReview}
+                onPress={handleSubmitReview}
                 variant="primary"
-                style={styles.modalButton}
                 disabled={submittingReview || newReviewRating === 0 || !newReviewComment.trim()}
+                style={{ paddingVertical: 16, borderRadius: 12 }}
               />
             </View>
           </ThemedView>
@@ -528,22 +631,24 @@ function createStyles(theme: any, colorScheme: any) {
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 20,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'flex-end',
     },
     modalContent: {
-      width: '100%',
-      borderRadius: 16,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
       padding: 20,
-      maxHeight: '80%',
+      paddingBottom: 40,
+      maxHeight: '90%',
     },
     modalHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 20,
+      marginBottom: 24,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(128, 128, 128, 0.2)',
     },
     ratingLabel: {
       fontSize: 16,
@@ -563,11 +668,12 @@ function createStyles(theme: any, colorScheme: any) {
     },
     reviewInput: {
       borderWidth: 1,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: 12,
+      padding: 16,
       minHeight: 120,
       textAlignVertical: 'top',
-      marginBottom: 20,
+      fontSize: 16,
+      lineHeight: 24,
     },
     modalActions: {
       flexDirection: 'row',
