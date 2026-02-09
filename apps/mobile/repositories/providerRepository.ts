@@ -440,8 +440,8 @@ export async function createOrUpdateProviderProfile(
       // Create the provider document
       const newProviderId = await ProviderService.createOrUpdateProvider(userId, null, providerData);
 
-      // Update the user's role to "provider" in the users collection
-      await ProviderService.updateUserRole(userId, "provider");
+      // Update the user's role to "both" since they already have a requester profile
+      await ProviderService.updateUserRole(userId, "both");
 
       return newProviderId;
     }

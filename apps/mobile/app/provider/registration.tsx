@@ -40,7 +40,7 @@ export default function ProviderRegistrationScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { userProfile, refreshUserProfile } = useAuth();
 
   // Use the provider hook to fetch existing provider data and save functionality
   const { provider, isLoading, saveProviderProfile } = useProvider(
@@ -83,6 +83,9 @@ export default function ProviderRegistrationScreen() {
         isEditMode && providerId ? String(providerId) : null,
         completeData
       );
+
+      // Refresh the auth profile so the updated role ("both") is reflected immediately
+      await refreshUserProfile();
 
       if (isEditMode) {
         Alert.alert(

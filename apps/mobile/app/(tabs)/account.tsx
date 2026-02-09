@@ -6,8 +6,7 @@ import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { ACCOUNT_MENU_ITEMS } from '@/constants/account';
 import { MenuItem } from '@/types/user';
-import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
@@ -18,10 +17,23 @@ export default function AccountScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
-  
-  const [userRole, setUserRole] = useState<'requester' | 'provider'>(
-    userProfile?.role === 'provider' ? 'provider' : 'requester'
-  );
+
+  // Determine the effective role for display:
+  // - 'requester' or 'provider' => single role, no switching
+  // - 'both' => defaults to 'provider', can switch to 'requester'
+  const isDualRole = userProfile?.role === 'both';
+  console.log('User Profile Role:', userProfile?.role, 'Effective Role:', isDualRole ? 'provider (default)' : userProfile?.role);
+  const effectiveRole: 'requester' | 'provider' = isDualRole
+    ? 'provider'
+    : (userProfile?.role === 'provider' ? 'provider' : 'requester');
+
+  const [userRole, setUserRole] = useState<'requester' | 'provider'>(effectiveRole);
+
+  // Sync userRole state when userProfile loads or changes
+  useEffect(() => {
+    console.log
+    setUserRole(effectiveRole);
+  }, [effectiveRole]);
 
   // Show a loading indicator while the initial auth check is happening.
   if (loading) {
@@ -33,7 +45,7 @@ export default function AccountScreen() {
   }
 
   // If auth check is done, but there's no profile, show a specific message.
-  // This is the state you were seeing.
+  
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -66,6 +78,21 @@ export default function AccountScreen() {
     }
   };
 
+  /**
+   * Switches the active role for dual-profile users.
+   * This requires a full app reload so the entire app state
+   * reflects the new role. Reload logic is stubbed for now.
+   */
+  const handleSwitchRole = (newRole: 'requester' | 'provider') => {
+    setUserRole(newRole);
+    // TODO: Implement full app reload to propagate the new role across all screens.
+    // e.g. Updates.reloadAsync() or a custom restart mechanism.
+    Alert.alert(
+      'Profile Switched',
+      `Switched to ${newRole} profile. A full app reload is needed to apply this across the app.`
+    );
+  };
+
   // Filter resources based on current role
   const getFilteredResources = (items: MenuItem[], role: 'requester' | 'provider') => {
     return items.filter(item => {
@@ -93,16 +120,7 @@ export default function AccountScreen() {
           </ThemedView>
         </TouchableOpacity>
 
-        <SegmentedToggle
-          options={[
-            { label: 'Requester', value: 'requester' },
-            { label: 'Provider', value: 'provider' },
-          ]}
-          value={userRole}
-          onChange={(role) => setUserRole(role as 'requester' | 'provider')}
-        />
-
-        {/* Show different menu sections based on role */}
+        {/* Role-specific menu section */}
         {userRole === 'requester' ? (
           <MenuSection
             items={ACCOUNT_MENU_ITEMS.requester}
@@ -114,6 +132,15 @@ export default function AccountScreen() {
             items={ACCOUNT_MENU_ITEMS.provider || []}
             onPress={navigateTo}
             styles={styles}
+          />
+        )}
+
+        {/* Dual-role users can switch profiles (requires full app reload) */}
+        {isDualRole && (
+          <Button
+            label={userRole === 'provider' ? 'Switch to Requester Profile' : 'Switch to Provider Profile'}
+            onPress={() => handleSwitchRole(userRole === 'provider' ? 'requester' : 'provider')}
+            style={styles.switchRoleButton}
           />
         )}
 
@@ -215,6 +242,9 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       marginLeft: 36,
       marginRight: 25,
       marginVertical: 8,
+    },
+    switchRoleButton: {
+      marginBottom: 16,
     },
   });
 }
