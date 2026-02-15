@@ -14,4 +14,5 @@
 
 export * as messageRepository from './messageRepository';
 export * as reviewRepository from './reviewRepository';
+export * as earningRepository from './earningRepository';
 
