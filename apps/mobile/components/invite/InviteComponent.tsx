@@ -1,3 +1,4 @@
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,7 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Share,
-  Alert,
+  Animated,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ThemedText } from '@/components/ThemedText';
@@ -75,14 +76,31 @@ export default function InviteComponent({
     }
   };
 
-  const handleCopyCode = async () => {
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopyCode = useCallback(async () => {
     try {
       await Clipboard.setStringAsync(referralCode);
-      Alert.alert('Copied!', 'Referral code copied to clipboard.');
+      if (toastTimeout.current) clearTimeout(toastTimeout.current);
+      setShowCopiedToast(true);
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      toastTimeout.current = setTimeout(() => {
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => setShowCopiedToast(false));
+      }, 1200);
     } catch {
-      Alert.alert('Error', 'Could not copy code.');
+      // silently ignore copy failures
     }
-  };
+  }, [referralCode, toastOpacity]);
 
   const handleShare = async () => {
     try {
@@ -95,15 +113,15 @@ export default function InviteComponent({
   };
 
   if (isLoading) {
-    return (
+    return (<>
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.tint} />
         <ThemedText style={styles.loadingText}>Loading...</ThemedText>
       </View>
-    );
+    </>);
   }
 
-  return (
+  return (<>
     <ScrollView
       style={styles.container}
       refreshControl={
@@ -310,7 +328,15 @@ export default function InviteComponent({
         )}
       </View>
     </ScrollView>
-  );
+
+      {/* ── Copied Toast ── */}
+      {showCopiedToast && (
+        <Animated.View style={[styles.copiedToast, { opacity: toastOpacity }]}>
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          <ThemedText style={styles.copiedToastText}>Copied!</ThemedText>
+        </Animated.View>
+      )}
+  </>);
 }
 
 // ── Styles ──
@@ -627,5 +653,24 @@ const styles = StyleSheet.create({
   emptyStateText: {
     textAlign: 'center',
     opacity: 0.7,
+  },
+
+  // ── Copied Toast ──
+  copiedToast: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  copiedToastText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
