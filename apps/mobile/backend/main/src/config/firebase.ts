@@ -61,4 +61,5 @@ export const COLLECTIONS = {
   MESSAGES: 'messages',
   CONVERSATIONS: 'conversations',
   EARNINGS: 'earnings',
+  REFERRALS: 'referrals',
 } as const;
