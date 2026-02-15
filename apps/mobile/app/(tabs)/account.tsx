@@ -73,6 +73,40 @@ export default function AccountScreen() {
       return item.roleAccess.includes(role);
     });
   };
+  /**
+ * Returns provider-specific menu items with the real authenticated user's ID.
+ * This replaces the old static `provider` array that used MOCK_USER_PROFILE.id.
+ */
+  const getProviderMenuItems = (userId: string): MenuItem[] => {
+    console.log('Generating provider menu items for user ID:', userId);
+    return [
+        
+        {
+            id: 'my-portfolio',
+            label: 'View or Edit Portfolio',
+            route: `/provider/${userId}`,
+            icon: 'briefcase-outline',
+        },
+        {
+            id: 'earnings',
+            label: 'Earnings',
+            route: '/earnings',
+            icon: 'cash-outline',
+        },
+        {
+            id: 'reviews',
+            label: 'Reviews',
+            route: `/provider/reviews?id=${userId}`,
+            icon: 'star-outline',
+        },
+        {
+            id: 'invite',
+            label: 'Invite friends',
+            route: '/invite',
+            icon: 'share-social-outline',
+        },
+    ];
+}
 
   return (
     <SafeAreaView style={styles.container}>
@@ -111,7 +145,7 @@ export default function AccountScreen() {
           />
         ) : (
           <MenuSection
-            items={ACCOUNT_MENU_ITEMS.provider || []}
+            items={user?.uid ? getProviderMenuItems(user.uid) : []}
             onPress={navigateTo}
             styles={styles}
           />
