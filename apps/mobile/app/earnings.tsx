@@ -1,4 +1,4 @@
-import { SafeAreaView, StyleSheet, Alert, Appearance } from 'react-native';
+import { SafeAreaView, StyleSheet, Appearance } from 'react-native';
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';

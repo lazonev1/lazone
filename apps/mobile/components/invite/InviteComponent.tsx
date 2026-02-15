@@ -38,8 +38,8 @@ type InviteComponentProps = {
 
 const STATUS_CONFIG: Record<ReferralStatus, { color: string; icon: string; label: string }> = {
   signed_up: { color: '#2196F3', icon: 'person-add-outline', label: 'Signed Up' },
-  completed: { color: '#4CAF50', icon: 'checkmark-circle-outline', label: 'Completed' },
-  rewarded: { color: '#0A58A5', icon: 'gift-outline', label: 'Rewarded' },
+  completed: { color: '#0A58A5', icon: 'checkmark-circle-outline', label: 'Completed' },
+  rewarded: { color: '#4CAF50', icon: 'gift-outline', label: 'Rewarded' },
 };
 
 // ── Component ──
@@ -177,16 +177,16 @@ export default function InviteComponent({
             <ThemedText style={styles.statLabel}>Invited</ThemedText>
           </ThemedView>
           <ThemedView style={styles.statCard}>
-            <ThemedText style={[styles.statValue, { color: '#2196F3' }]}>
-              {summary.totalSignedUp}
-            </ThemedText>
-            <ThemedText style={styles.statLabel}>Signed Up</ThemedText>
-          </ThemedView>
-          <ThemedView style={styles.statCard}>
-            <ThemedText style={[styles.statValue, { color: '#4CAF50' }]}>
+            <ThemedText style={[styles.statValue, { color: '#0A58A5' }]}>
               {summary.totalCompleted}
             </ThemedText>
             <ThemedText style={styles.statLabel}>Completed</ThemedText>
+          </ThemedView>
+          <ThemedView style={styles.statCard}>
+            <ThemedText style={[styles.statValue, { color: '#4CAF50' }]}>
+              {summary.totalRewarded}
+            </ThemedText>
+            <ThemedText style={styles.statLabel}>Rewarded</ThemedText>
           </ThemedView>
         </View>
       )}

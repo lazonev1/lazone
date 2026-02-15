@@ -14,7 +14,7 @@ import {
   Timestamp,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { db, COLLECTIONS } from '../config/firebase';
+import { db } from '../config/firebase';
 import { Earning, EarningStatus } from '../models/Earning';
 
 const EARNINGS_COLLECTION = 'earnings';
@@ -167,8 +167,8 @@ export async function updateEarningStatus(
       updatedAt: serverTimestamp(),
     };
 
-    // Set paidAt when marking as completed
-    if (status === 'completed') {
+    // Set paidAt when marking as paid (provider received payout)
+    if (status === 'paid') {
       updateData.paidAt = serverTimestamp();
     }
 

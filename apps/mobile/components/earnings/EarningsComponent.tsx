@@ -27,16 +27,9 @@ type EarningsComponentProps = {
 
 const STATUS_CONFIG: Record<EarningStatus, { color: string; icon: string; label: string }> = {
   pending: { color: '#FFC107', icon: 'time-outline', label: 'Pending' },
-  completed: { color: '#4CAF50', icon: 'checkmark-circle-outline', label: 'Completed' },
-  paid: { color: '#0A58A5', icon: 'wallet-outline', label: 'Paid' },
+  completed: { color: '#0A58A5', icon: 'checkmark-circle-outline', label: 'Completed' },
+  paid: { color: '#4CAF50', icon: 'wallet-outline', label: 'Paid' },
   failed: { color: '#F44336', icon: 'close-circle-outline', label: 'Failed' },
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  service_payment: 'Service',
-  tip: 'Tip',
-  bonus: 'Bonus',
-  refund: 'Refund',
 };
 
 export default function EarningsComponent({
@@ -144,7 +137,7 @@ export default function EarningsComponent({
               </View>
             </View>
             <View style={styles.summaryItem}>
-              <View style={[styles.summaryDot, { backgroundColor: '#0A58A5' }]} />
+              <View style={[styles.summaryDot, { backgroundColor: '#4CAF50' }]} />
               <View>
                       <ThemedText style={styles.summaryItemLabel}>Paid</ThemedText>
                       <ThemedText style={styles.summaryItemAmount}>
@@ -153,7 +146,7 @@ export default function EarningsComponent({
               </View>
             </View>
             <View style={styles.summaryItem}>
-              <View style={[styles.summaryDot, { backgroundColor: '#4CAF50' }]} />
+              <View style={[styles.summaryDot, { backgroundColor: '#0A58A5' }]} />
               <View>
                 <ThemedText style={styles.summaryItemLabel}>Transactions</ThemedText>
                 <ThemedText style={styles.summaryItemAmount}>
@@ -272,6 +265,7 @@ export default function EarningsComponent({
                       style={[
                         styles.transactionAmount,
                         earning.type === 'refund' && { color: '#F44336' },
+                        earning.status === 'failed' && { color: '#F44336' },
                       ]}
                     >
                       {earning.type === 'refund' ? '−' : '+'}
@@ -557,19 +551,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     fontStyle: 'italic',
   },
-  withdrawButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 10,
-  },
-  withdrawButtonText: {
-    color: '#0A58A5',
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
   // ── Empty State ──
   emptyState: {
     alignItems: 'center',

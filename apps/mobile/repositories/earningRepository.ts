@@ -42,11 +42,13 @@ function computeSummary(
   let paidEarnings = 0;
 
   for (const e of earnings) {
-    if (e.status === 'completed') {
+    if (e.status === 'completed' || e.status === 'paid') {
       totalEarnings += e.netAmount;
-    } else if (e.status === 'pending') {
+    }
+    if (e.status === 'pending') {
       pendingEarnings += e.netAmount;
-    } else if (e.status === 'paid') {
+    }
+    if (e.status === 'paid') {
       paidEarnings += e.netAmount;
     }
   }

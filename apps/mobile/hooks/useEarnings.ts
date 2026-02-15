@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   EarningViewModel,
   EarningsSummary,
@@ -24,12 +24,15 @@ export interface UseEarningsResult {
 
 /**
  * Custom hook for managing earnings data in React components.
- * Follows the same pattern as useProvider and useReviews.
+ *
+ * Period changes trigger a re-fetch (different Firestore date range).
+ * Status filtering is derived via useMemo — instant, no network call,
+ * scroll position preserved.
  *
  * @param providerId - The authenticated provider's UID
  */
 export function useEarnings(providerId?: string): UseEarningsResult {
-  const [earnings, setEarnings] = useState<EarningViewModel[]>([]);
+  const [allEarnings, setAllEarnings] = useState<EarningViewModel[]>([]);
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<EarningsBreakdown[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +41,7 @@ export function useEarnings(providerId?: string): UseEarningsResult {
   const [period, setPeriod] = useState<EarningPeriod>('month');
   const [statusFilter, setStatusFilter] = useState<EarningStatus | 'all'>('all');
 
+  // Fetch data — depends on providerId and period only, never on statusFilter
   const fetchData = useCallback(
     async (showRefreshing = false) => {
       if (!providerId) return;
@@ -54,13 +58,7 @@ export function useEarnings(providerId?: string): UseEarningsResult {
         const { summary: summaryData, earnings: periodEarnings } =
           await earningRepository.getEarningsSummary(providerId, period);
 
-        // Apply client-side status filter if needed
-        const filtered =
-          statusFilter === 'all'
-            ? periodEarnings
-            : periodEarnings.filter((e) => e.status === statusFilter);
-
-        setEarnings(filtered);
+        setAllEarnings(periodEarnings);
         setSummary(summaryData);
 
         // Fetch monthly breakdown in parallel
@@ -73,13 +71,22 @@ export function useEarnings(providerId?: string): UseEarningsResult {
         setIsRefreshing(false);
       }
     },
-    [providerId, period, statusFilter]
+    [providerId, period]
   );
 
-  // Re-fetch when providerId, period, or statusFilter changes
+  // Re-fetch when providerId or period changes
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Derive filtered list — runs synchronously, no re-fetch
+  const earnings = useMemo(
+    () =>
+      statusFilter === 'all'
+        ? allEarnings
+        : allEarnings.filter((e) => e.status === statusFilter),
+    [allEarnings, statusFilter]
+  );
 
   const refresh = useCallback(async () => {
     await fetchData(true);
