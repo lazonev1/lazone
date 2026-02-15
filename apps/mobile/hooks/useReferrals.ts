@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ReferralViewModel,
   ReferralSummary,
@@ -21,12 +21,16 @@ export interface UseReferralsResult {
 
 /**
  * Custom hook for managing referral data in React components.
- * Follows the same pattern as useEarnings.
+ *
+ * All referrals are fetched once on mount (and on pull-to-refresh).
+ * Filtering is derived via useMemo — changing the status filter never
+ * triggers a network request, so the switch is instant and scroll
+ * position is preserved.
  *
  * @param userId - The authenticated user's UID (works for both requester and provider)
  */
 export function useReferrals(userId?: string): UseReferralsResult {
-  const [referrals, setReferrals] = useState<ReferralViewModel[]>([]);
+  const [allReferrals, setAllReferrals] = useState<ReferralViewModel[]>([]);
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -37,6 +41,7 @@ export function useReferrals(userId?: string): UseReferralsResult {
     ? referralRepository.generateReferralCode(userId)
     : '';
 
+  // Fetch all referrals — only depends on userId, never on statusFilter
   const fetchData = useCallback(
     async (showRefreshing = false) => {
       if (!userId) return;
@@ -49,16 +54,10 @@ export function useReferrals(userId?: string): UseReferralsResult {
       setError(null);
 
       try {
-        const { summary: summaryData, referrals: allReferrals } =
+        const { summary: summaryData, referrals: fetched } =
           await referralRepository.getReferralsSummary(userId);
 
-        // Apply client-side status filter
-        const filtered =
-          statusFilter === 'all'
-            ? allReferrals
-            : allReferrals.filter((r) => r.status === statusFilter);
-
-        setReferrals(filtered);
+        setAllReferrals(fetched);
         setSummary(summaryData);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch referrals'));
@@ -67,12 +66,21 @@ export function useReferrals(userId?: string): UseReferralsResult {
         setIsRefreshing(false);
       }
     },
-    [userId, statusFilter]
+    [userId]
   );
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Derive filtered list — runs synchronously, no re-fetch
+  const referrals = useMemo(
+    () =>
+      statusFilter === 'all'
+        ? allReferrals
+        : allReferrals.filter((r) => r.status === statusFilter),
+    [allReferrals, statusFilter]
+  );
 
   const refresh = useCallback(async () => {
     await fetchData(true);

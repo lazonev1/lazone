@@ -17,9 +17,9 @@ export interface ReferralViewModel {
 }
 
 export interface ReferralSummary {
-  totalInvited: number;
-  totalSignedUp: number;
+  totalInvited: number;          // All referrals (everyone starts at signed_up)
   totalCompleted: number;
+  totalRewarded: number;
   totalRewardsEarned: number;    // Sum of rewardAmount for status = 'rewarded'
   currency: string;
   referralCode: string;          // The user's own referral code

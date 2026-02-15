@@ -33,26 +33,24 @@ function computeSummary(
   referralCode: string,
   currency: string
 ): ReferralSummary {
-  let totalSignedUp = 0;
   let totalCompleted = 0;
+  let totalRewarded = 0;
   let totalRewardsEarned = 0;
 
   for (const r of referrals) {
-    if (r.status === 'signed_up' || r.status === 'completed' || r.status === 'rewarded') {
-      totalSignedUp++;
-    }
     if (r.status === 'completed' || r.status === 'rewarded') {
       totalCompleted++;
     }
     if (r.status === 'rewarded') {
+      totalRewarded++;
       totalRewardsEarned += r.rewardAmount;
     }
   }
 
   return {
     totalInvited: referrals.length,
-    totalSignedUp,
     totalCompleted,
+    totalRewarded,
     totalRewardsEarned,
     currency,
     referralCode,
