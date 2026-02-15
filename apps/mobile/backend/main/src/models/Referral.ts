@@ -2,12 +2,11 @@ import { Timestamp } from 'firebase/firestore';
 
 /**
  * Referral status lifecycle:
- *   pending   → User was invited but hasn't signed up yet
- *   signed_up → Invitee created an account
+ *   signed_up → Invitee created an account using the referral code
  *   completed → Invitee completed their first booking/service
  *   rewarded  → Reward was credited to the referrer
  */
-export type ReferralStatus = 'pending' | 'signed_up' | 'completed' | 'rewarded';
+export type ReferralStatus = 'signed_up' | 'completed' | 'rewarded';
 
 export interface Referral {
   _id: string;                    // Firestore document ID

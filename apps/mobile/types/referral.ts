@@ -1,7 +1,7 @@
 // ── Referral types for UI consumption ──
 // No Firestore types — plain strings, numbers, and serializable objects.
 
-export type ReferralStatus = 'pending' | 'signed_up' | 'completed' | 'rewarded';
+export type ReferralStatus = 'signed_up' | 'completed' | 'rewarded';
 
 export interface ReferralViewModel {
   id: string;
