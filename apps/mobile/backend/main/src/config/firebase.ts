@@ -36,5 +36,7 @@ export const COLLECTIONS = {
   BOOKINGS: 'bookings',
   REVIEWS: 'reviews',
   MESSAGES: 'messages',
-  CONVERSATIONS: 'conversations'
+  CONVERSATIONS: 'conversations',
+  EARNINGS: 'earnings',
+  REFERRALS: 'referrals',
 } as const;
