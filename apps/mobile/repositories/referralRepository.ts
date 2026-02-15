@@ -116,7 +116,7 @@ export async function createReferral(
       referrerId: userId,
       referralCode,
       refereeContact,
-      status: 'pending',
+      status: 'signed_up',
       rewardAmount: 0,
       currency,
     });

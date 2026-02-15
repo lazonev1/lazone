@@ -37,7 +37,6 @@ type InviteComponentProps = {
 // ── Status config ──
 
 const STATUS_CONFIG: Record<ReferralStatus, { color: string; icon: string; label: string }> = {
-  pending: { color: '#FFC107', icon: 'time-outline', label: 'Pending' },
   signed_up: { color: '#2196F3', icon: 'person-add-outline', label: 'Signed Up' },
   completed: { color: '#4CAF50', icon: 'checkmark-circle-outline', label: 'Completed' },
   rewarded: { color: '#0A58A5', icon: 'gift-outline', label: 'Rewarded' },
@@ -235,7 +234,6 @@ export default function InviteComponent({
           {(
             [
               { id: 'all', label: 'All' },
-              { id: 'pending', label: 'Pending' },
               { id: 'signed_up', label: 'Signed Up' },
               { id: 'completed', label: 'Completed' },
               { id: 'rewarded', label: 'Rewarded' },

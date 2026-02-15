@@ -66,14 +66,7 @@ async function run() {
       rewardAmount: 0,
       currency: 'XOF',
     },
-    {
-      referrerId: userId,
-      referralCode,
-      refereeContact: '+226 70990011',
-      status: 'pending',
-      rewardAmount: 0,
-      currency: 'XOF',
-    },
+
     {
       referrerId: userId,
       referralCode,
