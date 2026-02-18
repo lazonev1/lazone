@@ -1,3 +1,5 @@
+//No longer needed. Can use the code for reference if we want to for home search feature.
+//Changed extension to prevent expo from loading it without being asked.
 import { View, StyleSheet, Appearance, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';

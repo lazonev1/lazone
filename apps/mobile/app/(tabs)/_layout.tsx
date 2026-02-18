@@ -7,9 +7,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/contexts/auth';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { userProfile } = useAuth();
+  const isProvider = userProfile?.role === 'provider' || userProfile?.role === 'both';
 
   return (
     <Tabs
@@ -30,35 +33,38 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Search',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
-        }}
-      />
+
       <Tabs.Screen
         name="booked"
         options={{
           title: 'Booked',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: 'Messages',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="message" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="business"
+        options={{
+          title: 'Business',
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="briefcase" color={color} />,
+          // When href undefined, Expo will use the default href and tab is shown. Otherwise, tab is hidden.
+          href: isProvider ? undefined : null, 
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: 'Account',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
     </Tabs>
