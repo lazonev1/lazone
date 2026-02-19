@@ -246,18 +246,27 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
       const result = await markReviewHelpful(reviewId, userId);
       console.log(`[useReviews] Helpful ${result.added ? 'added' : 'removed'}, new count: ${result.newCount}`);
 
-      // Update local state
-      setReviews(prev => prev.map(review =>
-        review.id === reviewId
-          ? { ...review, isHelpful: result.newCount }
-          : review
-      ));
+      // Update local state with both count and helpfulBy array
+      setReviews(prev => prev.map(review => {
+        if (review.id !== reviewId) return review;
+
+        const currentHelpfulBy = review.helpfulBy || [];
+        const newHelpfulBy = result.added
+          ? [...currentHelpfulBy, userId]
+          : currentHelpfulBy.filter(id => id !== userId);
+
+        return {
+          ...review,
+          isHelpful: result.newCount,
+          helpfulBy: newHelpfulBy
+        };
+      }));
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to mark review as helpful');
       setError(error);
       throw error;
     }
-  }, []);
+  }, [userId]);
 
   // Refresh reviews
   const refreshReviews = useCallback(async (): Promise<void> => {

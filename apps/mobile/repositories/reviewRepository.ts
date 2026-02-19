@@ -18,12 +18,13 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
   let clientName = 'Anonymous';
   let clientAvatar = undefined;
 
-  try {
-    if (review.requesterId) {
-      const requesterId = typeof review.requesterId === 'string'
-        ? review.requesterId
-        : (review.requesterId as any).id || review.requesterId;
+  // Extract requesterId as string
+  const requesterId = typeof review.requesterId === 'string'
+    ? review.requesterId
+    : (review.requesterId as any).id || review.requesterId;
 
+  try {
+    if (requesterId) {
       const user = await ProviderService.getUserById(requesterId as string);
       if (user) {
         clientName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous';
@@ -32,21 +33,6 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
     }
   } catch (error) {
     console.error('Error fetching user for review:', error);
-  }
-
-  // Fetch service name if available
-  let serviceName: string | undefined;
-  try {
-    if (review.serviceId) {
-      const serviceId = typeof review.serviceId === 'string'
-        ? review.serviceId
-        : (review.serviceId as any).id || review.serviceId;
-
-      // Service fetch would go here if needed
-      // For now, we'll leave it undefined
-    }
-  } catch (error) {
-    console.error('Error fetching service for review:', error);
   }
 
   // Transform timestamps to ISO strings
@@ -65,10 +51,12 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
     rating: review.rating,
     comment: review.comment,
     date: createdAt.toISOString(),
-    serviceId: typeof review.serviceId === 'string' ? review.serviceId : undefined,
-    serviceName,
+    serviceId: (review.serviceId as any) as string | undefined,
+    serviceName: undefined, // Service names are not fetched separately - would need provider context
     images: review.images || [],
     isHelpful: review.isHelpful || 0,
+    helpfulBy: review.helpfulBy || [],
+    userId: requesterId as string,
     response: latestResponse ? {
       text: latestResponse.text,
       date: responseDate?.toISOString() || new Date().toISOString()

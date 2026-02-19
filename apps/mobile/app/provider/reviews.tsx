@@ -9,6 +9,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 
 export default function ProviderReviewsScreen() {
   const { id } = useLocalSearchParams();
@@ -16,7 +18,8 @@ export default function ProviderReviewsScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'highest' | 'lowest'>('all');
-  
+  const { toast, showToast, hideToast } = useToast();
+
   // Convert the id param to a string
   const providerId = id?.toString();
   
@@ -34,6 +37,7 @@ export default function ProviderReviewsScreen() {
     submitReview,
     respondToReview,
     markHelpful,
+    deleteReview,
     refreshReviews,
   } = useReviews(providerId, currentUserId);
 
@@ -102,14 +106,14 @@ export default function ProviderReviewsScreen() {
         comment: newReviewComment,
       });
 
-      Alert.alert('Thank You!', 'Your review has been submitted successfully');
       setReviewModalVisible(false);
       setNewReviewRating(0);
       setNewReviewComment('');
+      showToast('Your review has been submitted!', 'success');
     } catch (error) {
       console.error('[Reviews] Error submitting review:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit review';
-      Alert.alert('Submission Failed', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setSubmittingReview(false);
     }
@@ -156,12 +160,14 @@ export default function ProviderReviewsScreen() {
           allowResponding={true}
           showStats={true}
           showFilters={true}
+          currentUserId={currentUserId}
           onFilterChange={handleFilterChange}
           onRespondToReview={async (reviewId: string, responseText: string) => {
             try {
               await respondToReview(reviewId, responseText);
+              showToast('Response submitted', 'success');
             } catch {
-              Alert.alert('Error', 'Failed to submit response. Please try again.');
+              showToast('Failed to submit response', 'error');
             }
           }}
           onMarkHelpful={async (reviewId: string) => {
@@ -172,7 +178,15 @@ export default function ProviderReviewsScreen() {
             try {
               await markHelpful(reviewId);
             } catch {
-              Alert.alert('Error', 'Failed to update vote');
+              showToast('Failed to update vote', 'error');
+            }
+          }}
+          onDeleteReview={async (reviewId: string) => {
+            try {
+              await deleteReview(reviewId);
+              showToast('Review deleted', 'success');
+            } catch {
+              showToast('Failed to delete review', 'error');
             }
           }}
           expandedByDefault={true}
@@ -323,6 +337,13 @@ export default function ProviderReviewsScreen() {
           </ThemedView>
         </View>
       </Modal>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={hideToast}
+      />
     </SafeAreaView>
   );
 }

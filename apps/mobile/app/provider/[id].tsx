@@ -12,6 +12,8 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import { useReviews } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/auth';
+import Toast from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -68,6 +70,7 @@ export default function ProviderProfileScreen() {
 
   const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
   const providerId = id.toString();
+  const { toast, showToast, hideToast } = useToast();
 
   // Get current user for review submission
   const { user } = useAuth();
@@ -82,6 +85,7 @@ export default function ProviderProfileScreen() {
     canReviewReason,
     submitReview,
     respondToReview,
+    deleteReview,
     refreshReviews,
     markHelpful,
   } = useReviews(providerId, currentUserId);
@@ -90,8 +94,9 @@ export default function ProviderProfileScreen() {
   const handleRespondToReview = async (reviewId: string, responseText: string) => {
     try {
       await respondToReview(reviewId, responseText);
+      showToast('Response submitted', 'success');
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit response. Please try again.');
+      showToast('Failed to submit response', 'error');
     }
   };
 
@@ -124,13 +129,13 @@ export default function ProviderProfileScreen() {
         comment: newReviewComment,
       });
 
-      Alert.alert('Success', 'Your review has been submitted!');
       setReviewModalVisible(false);
       setNewReviewRating(0);
       setNewReviewComment('');
+      showToast('Your review has been submitted!', 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit review. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setSubmittingReview(false);
     }
@@ -365,6 +370,7 @@ export default function ProviderProfileScreen() {
             allowResponding={true}
             expandedByDefault={testimonialsExpanded}
             maxReviewsCollapsed={1}
+            currentUserId={currentUserId}
             onRespondToReview={handleRespondToReview}
             onMarkHelpful={async (reviewId) => {
               if (!currentUserId) {
@@ -374,7 +380,15 @@ export default function ProviderProfileScreen() {
               try {
                 await markHelpful(reviewId);
               } catch {
-                Alert.alert('Error', 'Failed to update vote');
+                showToast('Failed to update vote', 'error');
+              }
+            }}
+            onDeleteReview={async (reviewId) => {
+              try {
+                await deleteReview(reviewId);
+                showToast('Review deleted', 'success');
+              } catch {
+                showToast('Failed to delete review', 'error');
               }
             }}
           />
@@ -506,6 +520,13 @@ export default function ProviderProfileScreen() {
           </ThemedView>
         </View>
       </Modal>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={hideToast}
+      />
     </SafeAreaView>
   );
 }
