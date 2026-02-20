@@ -1,129 +1,285 @@
-import { Review } from '@/types/provider';
-import { Providers } from '@/hooks/useProvidersMock';
+import { Review, ReviewStats } from '@/types/provider';
+import { Review as ReviewModel } from '@/backend/main/src/models/Review';
+import * as ReviewService from '@/backend/main/src/services/reviewService';
+import * as ProviderService from '@/backend/main/src/services/providerService';
 
 /**
  * Review Repository
  *
- * Handles review data operations and transformations.
- * Currently uses mock data, but can be easily switched to use backend services
- * when the real API is ready.
- *
- * TODO: Replace mock implementation with calls to backend review service
+ * Transforms database models to UI view models.
+ * Calls backend services to fetch data, then transforms for UI consumption.
  */
+
+/**
+ * Transforms a backend Review model to a UI Review view model
+ */
+async function transformToViewModel(review: ReviewModel): Promise<Review> {
+  // Fetch the requester's name
+  let clientName = 'Anonymous';
+  let clientAvatar = undefined;
+
+  // Extract requesterId as string
+  const requesterId = typeof review.requesterId === 'string'
+    ? review.requesterId
+    : (review.requesterId as any).id || review.requesterId;
+
+  try {
+    if (requesterId) {
+      const user = await ProviderService.getUserById(requesterId as string);
+      if (user) {
+        clientName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous';
+        clientAvatar = user.avatar;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user for review:', error);
+  }
+
+  // Transform timestamps to ISO strings
+  const createdAt = review.createdAt?.toDate?.() || new Date();
+
+  // Get the latest response from responses array (if any)
+  const latestResponse = review.responses && review.responses.length > 0
+    ? review.responses[review.responses.length - 1]
+    : null;
+  const responseDate = latestResponse?.date?.toDate?.() || null;
+
+  return {
+    id: review._id,
+    clientName,
+    clientAvatar,
+    rating: review.rating,
+    comment: review.comment,
+    date: createdAt.toISOString(),
+    serviceId: (review.serviceId as any) as string | undefined,
+    serviceName: undefined, // Service names are not fetched separately - would need provider context
+    images: review.images || [],
+    isHelpful: review.isHelpful || 0,
+    helpfulBy: review.helpfulBy || [],
+    userId: requesterId as string,
+    response: latestResponse ? {
+      text: latestResponse.text,
+      date: responseDate?.toISOString() || new Date().toISOString()
+    } : undefined
+  };
+}
 
 /**
  * Get reviews for a provider
  */
 export async function getProviderReviews(providerId: string): Promise<Review[]> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const reviews = await ReviewService.getReviewsByProviderId(providerId);
 
-  // Find provider and return their reviews
-  const providerIdNum = parseInt(providerId, 10);
-  const provider = Providers.find(p => p.id === providerIdNum);
+    // Transform all reviews to view models
+    const transformedReviews = await Promise.all(
+      reviews.map(review => transformToViewModel(review))
+    );
 
-  if (!provider) return [];
-  return provider.reviewItems || [];
+    return transformedReviews;
+  } catch (error) {
+    console.error('Error fetching provider reviews:', error);
+    throw error;
+  }
 }
 
 /**
- * Respond to a review
+ * Get reviews by the current user
  */
-export async function respondToReview(reviewId: string, responseText: string): Promise<Review> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 700));
+export async function getUserReviews(userId: string): Promise<Review[]> {
+  try {
+    const reviews = await ReviewService.getReviewsByRequesterId(userId);
 
-  // Find the review in all providers
-  let foundReview: Review | undefined;
+    const transformedReviews = await Promise.all(
+      reviews.map(review => transformToViewModel(review))
+    );
 
-  for (const provider of Providers) {
-    if (!provider.reviewItems) continue;
-
-    const review = provider.reviewItems.find(r => r.id === reviewId);
-    if (review) {
-      foundReview = review;
-      break;
-    }
+    return transformedReviews;
+  } catch (error) {
+    console.error('Error fetching user reviews:', error);
+    throw error;
   }
+}
 
-  if (!foundReview) {
-    throw new Error('Review not found');
+/**
+ * Check if user can review a provider
+ */
+export async function canUserReviewProvider(
+  userId: string,
+  providerId: string
+): Promise<{ canReview: boolean; reason?: string }> {
+  try {
+    return await ReviewService.canUserReviewProvider(userId, providerId);
+  } catch (error) {
+    console.error('Error checking review eligibility:', error);
+    throw error;
   }
-
-  // Create updated review with response
-  // This doesn't actually persist the data since we're using mock data
-  // When we integrate with a real API, this will be replaced with an actual API call
-  const updatedReview: Review = {
-    ...foundReview,
-    response: {
-      text: responseText,
-      date: new Date().toISOString()
-    }
-  };
-
-  return updatedReview;
 }
 
 /**
  * Add a new review
  */
-export async function addReview(providerId: string, reviewData: Omit<Review, 'id' | 'date'>): Promise<Review> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 800));
+export async function addReview(
+  providerId: string,
+  reviewData: {
+    requesterId: string;
+    bookingId?: string;
+    serviceId?: string;
+    rating: number;
+    comment: string;
+    localImageUris?: string[]; // Local URIs from image picker (disabled for now)
+  }
+): Promise<Review> {
+  console.log('[ReviewRepository] Adding review for provider:', providerId);
 
-  // Create a new review with generated ID and current date
-  const newReview: Review = {
-    ...reviewData,
-    id: `review-${Date.now()}`,
-    date: new Date().toISOString()
-  };
+  try {
+    // TODO: Enable image upload when ready for production
+    // Image upload is disabled to avoid Firebase Storage costs during development
+    // When ready, uncomment the code below:
+    /*
+    let imageUrls: string[] = [];
+    if (reviewData.localImageUris && reviewData.localImageUris.length > 0) {
+      console.log(`[ReviewRepository] Uploading ${reviewData.localImageUris.length} images...`);
+      const { uploadReviewImages } = await import('@/backend/main/src/services/storageService');
+      const tempId = `temp_${Date.now()}`;
+      imageUrls = await uploadReviewImages(reviewData.localImageUris, tempId);
+      console.log('[ReviewRepository] Images uploaded successfully');
+    }
+    */
 
-  return newReview;
+    // For now, just log if images were selected but not uploaded
+    if (reviewData.localImageUris && reviewData.localImageUris.length > 0) {
+      console.log(`[ReviewRepository] Note: ${reviewData.localImageUris.length} images selected but upload is disabled`);
+    }
+
+    const reviewId = await ReviewService.createReview({
+      providerId,
+      requesterId: reviewData.requesterId,
+      bookingId: reviewData.bookingId,
+      serviceId: reviewData.serviceId,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      images: [], // Empty for now - images disabled
+    });
+
+    console.log('[ReviewRepository] Review created with ID:', reviewId);
+
+    // Fetch the created review and transform it
+    const createdReview = await ReviewService.getReviewById(reviewId);
+    if (!createdReview) {
+      throw new Error('Failed to fetch created review');
+    }
+
+    return await transformToViewModel(createdReview);
+  } catch (error) {
+    console.error('[ReviewRepository] Error adding review:', error);
+    throw error;
+  }
 }
 
 /**
- * Delete a review (for admin or user who created the review)
+ * Respond to a review (provider response)
  */
-export async function deleteReview(reviewId: string): Promise<void> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 600));
+export async function respondToReview(reviewId: string, responseText: string): Promise<Review> {
+  try {
+    await ReviewService.addProviderResponse(reviewId, responseText);
 
-  // In a real implementation, this would make an API call to delete the review
-  // For now, we just simulate success
-  return Promise.resolve();
+    // Fetch the updated review and transform it
+    const updatedReview = await ReviewService.getReviewById(reviewId);
+    if (!updatedReview) {
+      throw new Error('Review not found after update');
+    }
+
+    return await transformToViewModel(updatedReview);
+  } catch (error) {
+    console.error('Error responding to review:', error);
+    throw error;
+  }
 }
 
 /**
  * Update a review
  */
-export async function updateReview(reviewId: string, reviewData: Partial<Review>): Promise<Review> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 700));
+export async function updateReview(
+  reviewId: string,
+  reviewData: {
+    rating?: number;
+    comment?: string;
+    images?: string[];
+  }
+): Promise<Review> {
+  try {
+    await ReviewService.updateReview(reviewId, reviewData);
 
-  // Find the review
-  let foundReview: Review | undefined;
-
-  for (const provider of Providers) {
-    if (!provider.reviewItems) continue;
-
-    const review = provider.reviewItems.find(r => r.id === reviewId);
-    if (review) {
-      foundReview = review;
-      break;
+    // Fetch the updated review and transform it
+    const updatedReview = await ReviewService.getReviewById(reviewId);
+    if (!updatedReview) {
+      throw new Error('Review not found after update');
     }
+
+    return await transformToViewModel(updatedReview);
+  } catch (error) {
+    console.error('Error updating review:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a review
+ */
+export async function deleteReview(reviewId: string): Promise<void> {
+  try {
+    await ReviewService.deleteReview(reviewId);
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    throw error;
+  }
+}
+
+/**
+ * Mark a review as helpful (toggle)
+ * Returns true if vote was added, false if removed
+ */
+export async function markReviewHelpful(
+  reviewId: string,
+  userId: string
+): Promise<{ added: boolean; newCount: number }> {
+  try {
+    return await ReviewService.markReviewHelpful(reviewId, userId);
+  } catch (error) {
+    console.error('Error marking review helpful:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate review stats from a list of reviews
+ */
+export function calculateReviewStats(reviews: Review[]): ReviewStats {
+  const totalReviews = reviews.length;
+
+  if (totalReviews === 0) {
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      ratingCounts: [0, 0, 0, 0, 0]
+    };
   }
 
-  if (!foundReview) {
-    throw new Error('Review not found');
-  }
+  const ratingCounts = [0, 0, 0, 0, 0];
+  let totalRating = 0;
 
-  // Return updated review
-  // Note: This doesn't actually persist the data
-  const updatedReview: Review = {
-    ...foundReview,
-    ...reviewData
+  reviews.forEach(review => {
+    totalRating += review.rating;
+    if (review.rating >= 1 && review.rating <= 5) {
+      ratingCounts[review.rating - 1]++;
+    }
+  });
+
+  return {
+    averageRating: Math.round((totalRating / totalReviews) * 10) / 10,
+    totalReviews,
+    ratingCounts
   };
-
-  return updatedReview;
 }
 
