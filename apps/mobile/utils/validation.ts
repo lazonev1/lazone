@@ -31,16 +31,16 @@ const validateDate = (value: string): string | null => {
 export const validateBusinessInfo = (data: any) => {
   const errors: Record<string, string> = {};
 
-  if (!data.businessName) errors.businessName = validateRequired(data.businessName);
-  if (!data.serviceCategory) errors.serviceCategory = validateRequired(data.serviceCategory);
-  if (!data.description) errors.description = validateRequired(data.description);
+  if (!data.businessName) errors.businessName = validateRequired(data.businessName)!;
+  if (!data.serviceCategory) errors.serviceCategory = validateRequired(data.serviceCategory)!;
+  if (!data.description) errors.description = validateRequired(data.description)!;
   
   // Location validation
   if (!data.location || !data.location.country) {
-    errors.country = validateRequired(data?.location?.country);
+    errors.country = validateRequired(data?.location?.country)!;
   }
   if (!data.location || !data.location.city) {
-    errors.city = validateRequired(data?.location?.city);
+    errors.city = validateRequired(data?.location?.city)!;
   }
 
   return {
@@ -52,7 +52,7 @@ export const validateBusinessInfo = (data: any) => {
 export const validateService = (service: any) => {
   const errors: Record<string, string> = {};
 
-  if (!service.name) errors.name = validateRequired(service.name);
+  if (!service.name) errors.name = validateRequired(service.name)!;
   const priceError = validatePrice(service.price);
   if (priceError) errors.price = priceError;
 
@@ -62,7 +62,7 @@ export const validateService = (service: any) => {
   };
 };
 
-export const validateCertification = (cert: Certification): CertificationErrors => {
+export const validateCertification = (cert: Certification): { isValid: boolean; errors: CertificationErrors } => {
   const errors: CertificationErrors = {};
 
   // Basic field validation
