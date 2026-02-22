@@ -1,7 +1,7 @@
 import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Appearance } from 'react-native';
 import { useState } from 'react';
 import { ServiceItem } from '@/types/provider';
-import { BookingRequest } from '@/types/booking';
+import { CreateBookingInput } from '@/types/booking';
 import { Button } from '@lazone/ui';
 import { TextBox } from '@/components/ui/TextBox';
 import { SelectList } from '@/components/ui/SelectList';
@@ -11,9 +11,11 @@ import { Colors } from '@/constants/Colors';
 
 interface Props {
   providerId: string;
+  providerName: string;
   services: ServiceItem[];
-  onSubmit: (booking: BookingRequest) => void;
+  onSubmit: (input: CreateBookingInput) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
   initialValues?: {
     serviceId?: string;
     scheduledDate?: Date;
@@ -22,7 +24,7 @@ interface Props {
   };
 }
 
-export function BookingRequestForm({ providerId, services, onSubmit, onCancel, initialValues }: Props) {
+export function BookingRequestForm({ providerId, providerName, services, onSubmit, onCancel, isSubmitting, initialValues }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -32,6 +34,15 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel, i
   const [price, setPrice] = useState(initialValues?.price || '');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto-fill price when a service is selected
+  const handleServiceChange = (serviceId: string) => {
+    setSelectedService(serviceId);
+    const service = services.find((s) => s.id === serviceId);
+    if (service?.price) {
+      setPrice(service.price);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -48,19 +59,17 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel, i
 
     const selectedServiceDetails = services.find(s => s.id === selectedService);
     
-    const booking: BookingRequest = {
-      requesterId: 'current-user-id', // Will come from auth context
-      providerId: providerId,
+    const input: CreateBookingInput = {
+      providerId,
+      providerName,
       serviceId: selectedService,
       serviceName: selectedServiceDetails?.name || '',
-      preferredDate: date,
-      proposedPrice: Number(price),
-      description: description || '',
-      createdAt: new Date(),
-      status: 'pending'
+      bookingDate: date,
+      price: Number(price),
+      notes: description || undefined,
     };
 
-    onSubmit(booking);
+    onSubmit(input);
   };
 
   return (
@@ -78,7 +87,7 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel, i
                 label: `${s.name} (${s.price} CFA)`, 
                 value: s.id 
               }))}
-              onChange={setSelectedService}
+              onChange={handleServiceChange}
               error={errors.service}
             />
 
@@ -117,12 +126,14 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel, i
                 onPress={onCancel}
                 variant="secondary"
                 style={styles.button}
+                disabled={isSubmitting}
               />
               <Button
-                label="Submit Request"
+                label={isSubmitting ? 'Submitting...' : 'Submit Request'}
                 onPress={handleSubmit}
                 variant="primary"
                 style={styles.button}
+                disabled={isSubmitting}
               />
             </View>
           </View>
@@ -132,7 +143,7 @@ export function BookingRequestForm({ providerId, services, onSubmit, onCancel, i
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (theme: typeof Colors.light, colorScheme: string | null | undefined) => StyleSheet.create({
   container: {
     padding: 16,
   },

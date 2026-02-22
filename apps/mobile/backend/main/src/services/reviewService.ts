@@ -182,7 +182,7 @@ export async function canUserReviewProvider(
     // Check if user has a completed booking with this provider
     const bookingsQuery = query(
       collection(db, COLLECTIONS.BOOKINGS),
-      where("userId", "==", userId),
+      where("requesterId", "==", userId),
       where("providerId", "==", providerId),
       where("status", "==", "completed")
     );
