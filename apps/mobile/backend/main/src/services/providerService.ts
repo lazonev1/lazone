@@ -156,12 +156,13 @@ export async function createProvider(
   providerData: Omit<Provider, "_id">
 ): Promise<string> {
   try {
-    await setDoc(doc(db, "providers", userId), {
+    const docRef = doc(db, "providers", userId);
+    await setDoc(docRef, {
       ...providerData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-
+    console.log('[ProviderService] Provider document created successfully:', userId);
     return userId;
   } catch (error) {
     console.error("Error creating provider:", error);
@@ -203,14 +204,16 @@ export async function createOrUpdateProvider(
   try {
     if (providerId) {
       // Update existing provider
+      console.log('[ProviderService] UPDATE mode');
       await updateProvider(providerId, providerData);
       return providerId;
     } else {
       // Create new provider with userId as document ID
+      console.log('[ProviderService] CREATE mode - calling createProvider');
       return await createProvider(userId, providerData as Omit<Provider, "_id">);
     }
   } catch (error) {
-    console.error("Error creating or updating provider:", error);
+    console.error("[ProviderService] Error creating or updating provider:", error);
     throw error;
   }
 }
