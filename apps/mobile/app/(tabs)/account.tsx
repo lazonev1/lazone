@@ -152,7 +152,7 @@ export default function AccountScreen() {
           </TouchableOpacity>
         )}
 
-        <Button label="Logout" onPress={handleLogout} style={{ marginTop: 20 }} />
+        {/* <Button label="Logout" onPress={handleLogout} style={{ marginTop: 20 }} /> */}
 
         {/* Bottom spacing */}
         <View style={{ height: 32 }} />

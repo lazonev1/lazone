@@ -13,7 +13,7 @@ type Props = TextInputProps & {
 export default function EditableField({ label, value, onChangeText, ...props }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, colorScheme);
   return (
     <View style={styles.field}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -21,31 +21,35 @@ export default function EditableField({ label, value, onChangeText, ...props }: 
         value={value}
         onChangeText={onChangeText}
         style={styles.input}
-        placeholderTextColor="#888"
+        placeholderTextColor="#999"
         {...props}
       />
     </View>
   );
 }
 
-function createStyles(theme) {
+function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' | null | undefined) {
   return StyleSheet.create({
     field: {
       marginBottom: 16,
       width: '100%',
     },
     label: {
-      color: theme.text,
-      marginBottom: 4,
-      fontSize: 16,
+      color: '#888',
+      marginBottom: 6,
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     input: {
-      borderRadius: 20,
+      borderRadius: 10,
       paddingVertical: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
       color: theme.text,
       fontSize: 16,
-      backgroundColor: theme.background,
+      backgroundColor: colorScheme === 'dark' ? '#2c2c2e' : '#f2f2f7',
+      borderWidth: 1,
+      borderColor: colorScheme === 'dark' ? '#444' : '#d1d1d6',
     },
   });
 }
