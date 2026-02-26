@@ -40,7 +40,7 @@ export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
         {
             id: 'invite',
             label: 'Invite Friends',
-            route: '/account/subscreens/placeholder?title=Invite%20Friends',
+            route: '/account/subscreens/invite',
             icon: 'share-social-outline',
         },
     ],
