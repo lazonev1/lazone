@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../backend/main/src/config/firebase';
-import { signupUser, loginUser, logoutUser, getUserProfile } from '../backend/main/src/services/authService';
+import { signupUser, loginUser, logoutUser, getUserProfile, updateUserProfile } from '../backend/main/src/services/authService';
 import { User as AppUser } from '../backend/main/src/models/User';
 
 interface AuthContextType {
@@ -9,10 +9,11 @@ interface AuthContextType {
   userProfile: AppUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  signup: (fullName, email, password, phone) => Promise<void>;
-  login: (email, password) => Promise<void>;
+  signup: (fullName: string, email: string, password: string, phone: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUserProfile: () => Promise<void>; // Add a refresh function for debugging
+  refreshUserProfile: () => Promise<void>;
+  updateProfile: (data: { firstName?: string; lastName?: string; phoneNumber?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,7 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Wrapper for the login function to also set the profile state.
-  const handleLogin = async (email, password) => {
+  const handleLogin = async (email: string, password: string) => {
     const firebaseUser = await loginUser(email, password);
     const profile = await getUserProfile(firebaseUser.uid);
     setUser(firebaseUser);
@@ -67,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Wrapper for the signup function to set state from the returned data.
-  const handleSignup = async (fullName, email, password, phone) => {
+  const handleSignup = async (fullName: string, email: string, password: string, phone: string) => {
     const { firebaseUser, profile } = await signupUser(fullName, email, password, phone);
     setUser(firebaseUser);
     setUserProfile(profile);
@@ -80,6 +81,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUserProfile(null);
   };
 
+  // Wrapper for updating user profile fields in Firestore.
+  const handleUpdateProfile = async (data: { firstName?: string; lastName?: string; phoneNumber?: string }) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('No authenticated user');
+    await updateUserProfile(currentUser.uid, data);
+    // Refresh the local profile state after update
+    const profile = await getUserProfile(currentUser.uid);
+    setUserProfile(profile);
+  };
+
   const value = {
     user,
     userProfile,
@@ -88,7 +99,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signup: handleSignup,
     login: handleLogin,
     logout: handleLogout,
-    refreshUserProfile, // Expose the refresh function
+    refreshUserProfile,
+    updateProfile: handleUpdateProfile,
   };
 
   return (

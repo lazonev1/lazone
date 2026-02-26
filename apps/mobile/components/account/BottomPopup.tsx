@@ -5,7 +5,9 @@ import {
     StyleSheet,
     Animated,
     TouchableWithoutFeedback,
-    Dimensions
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +58,10 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
             animationType='slide'
             onRequestClose={onClose}
         >
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
             <View style={styles.container}>
                 <TouchableWithoutFeedback onPress={onClose}>
                     <View style={styles.overlay} />
@@ -79,6 +85,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
                     </View>
                 </Animated.View>
             </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

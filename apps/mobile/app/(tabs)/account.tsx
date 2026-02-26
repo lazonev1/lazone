@@ -1,16 +1,15 @@
-import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { ACCOUNT_MENU_ITEMS } from '@/constants/account';
-import { MenuItem } from '@/types/user';
-import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
+import { PROFILE_MENU_ITEMS } from '@/constants/account';
 import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -18,10 +17,9 @@ export default function AccountScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
-  
-  const [userRole, setUserRole] = useState<'requester' | 'provider'>(
-    userProfile?.role === 'provider' ? 'provider' : 'requester'
-  );
+
+  const isProvider = userProfile?.role === 'provider' || userProfile?.role === 'both';
+  const [businessVisible, setBusinessVisible] = useState(true);
 
   // Show a loading indicator while the initial auth check is happening.
   if (loading) {
@@ -33,7 +31,6 @@ export default function AccountScreen() {
   }
 
   // If auth check is done, but there's no profile, show a specific message.
-  // This is the state you were seeing.
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -45,7 +42,7 @@ export default function AccountScreen() {
   }
 
   const navigateTo = (route: string) => {
-    router.push(route);
+    router.push(route as any);
   };
 
   const handleProfilePress = () => {
@@ -60,23 +57,20 @@ export default function AccountScreen() {
   const handleLogout = async () => {
     try {
       await logout();
-      // The root layout will handle redirection automatically.
     } catch (error) {
       Alert.alert("Logout Failed", "An error occurred while logging out.");
     }
   };
 
-  // Filter resources based on current role
-  const getFilteredResources = (items: MenuItem[], role: 'requester' | 'provider') => {
-    return items.filter(item => {
-      if (!item.roleAccess) return true;
-      return item.roleAccess.includes(role);
-    });
+  const handleToggleBusinessVisibility = (value: boolean) => {
+    setBusinessVisible(value);
+    // TODO: persist this to Firestore on the provider document
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* ── Profile header ─────────────────────────────── */}
         <TouchableOpacity onPress={handleProfilePress} activeOpacity={0.7}>
           <ThemedView style={styles.header}>
             <Image
@@ -90,54 +84,87 @@ export default function AccountScreen() {
               <ThemedText>{user?.email}</ThemedText>
               <ThemedText>{userProfile.phoneNumber}</ThemedText>
             </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.icon} />
           </ThemedView>
         </TouchableOpacity>
 
-        <SegmentedToggle
-          options={[
-            { label: 'Requester', value: 'requester' },
-            { label: 'Provider', value: 'provider' },
-          ]}
-          value={userRole}
-          onChange={(role) => setUserRole(role as 'requester' | 'provider')}
+        {/* ── General (everyone) ──────────────────────────── */}
+        <MenuSection
+          items={PROFILE_MENU_ITEMS.general}
+          onPress={navigateTo}
+          styles={styles}
         />
 
-        {/* Show different menu sections based on role */}
-        {userRole === 'requester' ? (
-          <MenuSection
-            items={ACCOUNT_MENU_ITEMS.requester}
-            onPress={navigateTo}
-            styles={styles}
-          />
-        ) : (
-          <MenuSection
-            items={ACCOUNT_MENU_ITEMS.provider || []}
-            onPress={navigateTo}
-            styles={styles}
-          />
-        )}
-
+        {/* ── Settings (everyone) ─────────────────────────── */}
         <MenuSection
           title="Settings"
-          items={ACCOUNT_MENU_ITEMS.settings}
+          items={PROFILE_MENU_ITEMS.settings}
           onPress={navigateTo}
           styles={styles}
         />
 
+        {/* ── Business visibility toggle (providers only) ── */}
+        {isProvider && (
+          <ThemedView style={styles.toggleSection}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name="storefront-outline" size={24} style={styles.menuIcon} />
+                <View>
+                  <ThemedText type="defaultSemiBold">Business Visibility</ThemedText>
+                  <ThemedText style={styles.toggleHint}>
+                    {businessVisible ? 'Your business is visible to clients' : 'Your business is hidden from clients'}
+                  </ThemedText>
+                </View>
+              </View>
+              <Switch
+                value={businessVisible}
+                onValueChange={handleToggleBusinessVisibility}
+                trackColor={{ false: '#767577', true: '#0A58A5' }}
+                thumbColor="#fff"
+              />
+            </View>
+          </ThemedView>
+        )}
+
+        {/* ── Support (everyone) ──────────────────────────── */}
         <MenuSection
-          title="Resources"
-          items={getFilteredResources(ACCOUNT_MENU_ITEMS.resources, userRole)}
+          title="Support"
+          items={PROFILE_MENU_ITEMS.support}
           onPress={navigateTo}
           styles={styles}
         />
 
-        <Button label="Logout" onPress={handleLogout} style={{marginTop: 20}}/>
+        {/* ── Become a Provider (requesters only) ─────────── */}
+        {!isProvider && (
+          <TouchableOpacity
+            style={styles.becomeProviderCard}
+            activeOpacity={0.7}
+            onPress={() => router.push('/provider/registration')}
+          >
+            <Ionicons name="briefcase-outline" size={24} color="#0A58A5" style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <ThemedText type="defaultSemiBold">Become a Provider</ThemedText>
+              <ThemedText style={styles.becomeProviderHint}>
+                Offer your services and start earning
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.icon} />
+          </TouchableOpacity>
+        )}
+
+        {/* <Button label="Logout" onPress={handleLogout} style={{ marginTop: 20 }} /> */}
+
+        {/* Bottom spacing */}
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+  const cardBg = colorScheme === 'dark' ? '#1c1c1e' : theme.background;
+  const borderClr = colorScheme === 'dark' ? '#333' : '#ccc';
+
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -157,14 +184,10 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       padding: 16,
       marginBottom: 24,
       borderRadius: 12,
-      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
-      // backgroundColor: theme.background,
-      borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
+      backgroundColor: cardBg,
+      borderColor: borderClr,
       borderWidth: 1,
       marginTop: 16,
-      paddingBottom: 16,
-      paddingTop: 16,
-      paddingHorizontal: 16,
     },
     avatar: {
       width: 64,
@@ -184,8 +207,7 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       paddingVertical: 12,
       paddingHorizontal: 16,
       borderRadius: 8,
-      backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
-      // backgroundColor:theme.background,
+      backgroundColor: cardBg,
     },
     sectionWithoutTitle: {
       paddingTop: 0,
@@ -215,6 +237,48 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
       marginLeft: 36,
       marginRight: 25,
       marginVertical: 8,
+    },
+
+    // ── Business visibility toggle ──
+    toggleSection: {
+      marginBottom: 24,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: cardBg,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    toggleLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      marginRight: 12,
+    },
+    toggleHint: {
+      fontSize: 12,
+      opacity: 0.5,
+      marginTop: 2,
+    },
+
+    // ── Become a Provider CTA ──
+    becomeProviderCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#0A58A5',
+      backgroundColor: colorScheme === 'dark' ? '#0a2540' : '#eaf3fc',
+      marginBottom: 8,
+    },
+    becomeProviderHint: {
+      fontSize: 13,
+      opacity: 0.6,
+      marginTop: 2,
     },
   });
 }

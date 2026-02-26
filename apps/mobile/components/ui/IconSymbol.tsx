@@ -22,6 +22,8 @@ const MAPPING = {
   'calendar': 'event',
   'message': 'message',
   'person.fill': 'person',
+  'briefcase': 'business-center',
+  'briefcase.fill': 'business-center',
 } as IconMapping;
 
 /**
