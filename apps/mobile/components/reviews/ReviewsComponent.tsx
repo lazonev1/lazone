@@ -1,10 +1,9 @@
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Image, Appearance } from 'react-native';
 import { useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
-import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { Review, ReviewStats } from '@/types/provider';
 
@@ -17,8 +16,11 @@ type ReviewsComponentProps = {
   showFilters?: boolean; // Whether to show filter options
   onFilterChange?: (filter: 'all' | 'recent' | 'highest' | 'lowest') => void;
   onRespondToReview?: (reviewId: string, responseText: string) => Promise<void>;
+  onMarkHelpful?: (reviewId: string) => Promise<void>; // Mark review as helpful
+  onDeleteReview?: (reviewId: string) => Promise<void>; // Delete review (for review authors)
   expandedByDefault?: boolean; // Whether to show all reviews by default
   maxReviewsCollapsed?: number; // How many reviews to show when collapsed
+  currentUserId?: string; // Current user ID to check if they voted and prevent self-voting
 };
 
 export default function ReviewsComponent({
@@ -30,8 +32,11 @@ export default function ReviewsComponent({
   showFilters = true,
   onFilterChange,
   onRespondToReview,
+  onMarkHelpful,
+  onDeleteReview,
   expandedByDefault = false,
-  maxReviewsCollapsed = 2
+  maxReviewsCollapsed = 2,
+  currentUserId
 }: ReviewsComponentProps) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -188,7 +193,7 @@ export default function ReviewsComponent({
             <Ionicons name="star-outline" size={48} color={theme.icon} />
             <ThemedText style={styles.emptyStateTitle}>No Reviews Yet</ThemedText>
             <ThemedText style={styles.emptyStateText}>
-              When clients leave reviews for your services, they'll appear here.
+              When clients leave reviews for your services, they will appear here.
             </ThemedText>
           </View>
         ) : (
@@ -205,8 +210,30 @@ export default function ReviewsComponent({
                       <ThemedText style={styles.reviewDate}>{formatDate(review.date)}</ThemedText>
                     </View>
                   </View>
-                  <View>
+                  <View style={styles.reviewHeaderRight}>
                     {renderStarRating(review.rating)}
+                    {/* Delete button - only for review author */}
+                    {currentUserId && currentUserId === review.userId && onDeleteReview && (
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => {
+                          Alert.alert(
+                            'Delete Review',
+                            'Are you sure you want to delete your review? This action cannot be undone.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => onDeleteReview(review.id),
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#F44336" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
                 
@@ -215,6 +242,24 @@ export default function ReviewsComponent({
                 )}
                 <ThemedText style={styles.reviewComment}>{review.comment}</ThemedText>
                 
+                {/* Review Images */}
+                {review.images && review.images.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.imagesContainer}
+                  >
+                    {review.images.map((imageUrl, index) => (
+                      <Image
+                        key={index}
+                        source={{ uri: imageUrl }}
+                        style={styles.reviewImage}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+
                 {/* Provider Response */}
                 {review.response && (
                   <View style={styles.responseContainer}>
@@ -233,7 +278,7 @@ export default function ReviewsComponent({
                 {allowResponding && respondingTo === review.id ? (
                   <View style={styles.responseInputContainer}>
                     <TextInput
-                      style={[styles.responseInput, { color: theme.text, borderColor: theme.border }]}
+                      style={[styles.responseInput, { color: theme.text, borderColor: theme.icon }]}
                       placeholder="Write your response..."
                       placeholderTextColor={theme.icon}
                       value={responseText}
@@ -260,15 +305,52 @@ export default function ReviewsComponent({
                       />
                     </View>
                   </View>
-                ) : (allowResponding && !review.response) && (
+                ) : null}
+
+                {/* Action Row: Respond Button + Helpful Button */}
+                <View style={styles.reviewActionsRow}>
+                  {/* Respond Button */}
+                  {(allowResponding && !review.response) && (
+                    <TouchableOpacity
+                      style={styles.respondButton}
+                      onPress={() => setRespondingTo(review.id)}
+                    >
+                      <Ionicons name="chatbox-outline" size={18} color={theme.tint} />
+                      <ThemedText style={styles.respondButtonText}>Respond to review</ThemedText>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Helpful Button */}
                   <TouchableOpacity
-                    style={styles.respondButton}
-                    onPress={() => setRespondingTo(review.id)}
+                    style={[
+                      styles.helpfulButton,
+                      currentUserId === review.userId && styles.helpfulButtonDisabled
+                    ]}
+                    onPress={() => {
+                      // Don't allow users to vote on their own reviews
+                      if (currentUserId === review.userId) return;
+                      if (!currentUserId) {
+                        Alert.alert('Sign In Required', 'Please sign in to vote');
+                        return;
+                      }
+                      onMarkHelpful && onMarkHelpful(review.id);
+                    }}
+                    disabled={currentUserId === review.userId}
                   >
-                    <Ionicons name="chatbox-outline" size={16} color={theme.tint} />
-                    <ThemedText style={styles.respondButtonText}>Respond to review</ThemedText>
+                    <Ionicons
+                      name={currentUserId && review.helpfulBy?.includes(currentUserId) ? "thumbs-up" : "thumbs-up-outline"}
+                      size={18}
+                      color={
+                        currentUserId === review.userId
+                          ? theme.icon
+                          : (currentUserId && review.helpfulBy?.includes(currentUserId) ? '#0A58A5' : theme.icon)
+                      }
+                    />
+                    {(review.isHelpful ?? 0) > 0 && (
+                      <ThemedText style={styles.helpfulCount}>({review.isHelpful})</ThemedText>
+                    )}
                   </TouchableOpacity>
-                )}
+                </View>
               </ThemedView>
             ))}
 
@@ -429,6 +511,15 @@ const styles = StyleSheet.create({
   reviewerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  reviewHeaderRight: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 4,
+    marginTop: 4,
   },
   avatarContainer: {
     marginRight: 12,
@@ -480,13 +571,41 @@ const styles = StyleSheet.create({
   respondButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
     alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
   respondButtonText: {
     color: '#0A58A5',
-    marginLeft: 6,
+    marginLeft: 8,
     fontSize: 14,
+  },
+  reviewActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    minHeight: 40,
+  },
+  helpfulButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(128, 128, 128, 0.1)',
+  },
+  helpfulButtonDisabled: {
+    opacity: 0.5,
+  },
+  helpfulCount: {
+    fontSize: 14,
+    marginLeft: 6,
+    opacity: 0.8,
+    fontWeight: '500',
   },
   responseInputContainer: {
     marginTop: 16,
@@ -527,7 +646,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonText: {
-    marginTop: 10, 
+    marginTop: 10,
     color: '#FF9900'
+  },
+  imagesContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  reviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginRight: 8,
   },
 });

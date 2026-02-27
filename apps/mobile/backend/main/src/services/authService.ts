@@ -7,6 +7,7 @@ import {
 import {
   doc,
   setDoc,
+  updateDoc,
   serverTimestamp,
   getDoc,
   Timestamp,
@@ -97,4 +98,18 @@ export async function getUserProfile(userId: string): Promise<User | null> {
     } as User;
   }
   return null;
+}
+
+/**
+ * Updates user profile fields in Firestore
+ */
+export async function updateUserProfile(
+  userId: string,
+  data: { firstName?: string; lastName?: string; phoneNumber?: string }
+): Promise<void> {
+  const userDocRef = doc(db, COLLECTIONS.USERS, userId);
+  await updateDoc(userDocRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }

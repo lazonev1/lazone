@@ -16,6 +16,7 @@ export interface Review {
   images: string[]; // URLs
   responses: ReviewResponse[];
   isHelpful: number; // Count of helpful votes
+  helpfulBy: string[]; // User IDs who marked this review as helpful
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

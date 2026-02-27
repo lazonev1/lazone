@@ -18,6 +18,10 @@ export type Review = {
   date: string;
   serviceId?: string;
   serviceName?: string;
+  images?: string[]; // URLs of attached images
+  isHelpful?: number; // Count of helpful votes
+  helpfulBy?: string[]; // User IDs who marked this review as helpful
+  userId?: string; // The ID of the user who created this review
   response?: {
     text: string;
     date: string;
