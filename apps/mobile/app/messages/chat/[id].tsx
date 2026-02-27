@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Animated, Appearance, Alert } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Animated, Appearance, Alert, Keyboard } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,8 @@ import { Colors } from '@/constants/Colors';
 import MessageBubble from '@/components/chat/MessageBubble';
 import DateDivider from '@/components/chat/DateDivider';
 import { Chats, CurrentUser, getOtherParticipant } from '@/hooks/useChats';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +17,8 @@ export default function ChatScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const scrollRef = useRef<ScrollView | null>(null);
   const [message, setMessage] = useState('');
+  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   type ChatData = {
     contact: {
       id: string;
@@ -26,7 +30,7 @@ export default function ChatScreen() {
   };
 
   const [chatData, setChatData] = useState<ChatData | null>(null);
-  const styles = createStyles(theme, colorScheme);
+  const styles = createStyles(theme, colorScheme, insets.bottom);
 
   // Load the correct chat data based on ID
   useEffect(() => {
@@ -73,9 +77,9 @@ export default function ChatScreen() {
   // If chat data is still loading
   if (!chatData) {
     return (
-      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ThemedText>Loading chat...</ThemedText>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -136,7 +140,7 @@ export default function ChatScreen() {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           headerTitle: () => (
@@ -182,7 +186,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={headerHeight}
       >
         <ScrollView
           ref={scrollRef}
@@ -232,11 +236,11 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function createStyles(theme: any, colorScheme: any) {
+function createStyles(theme: any, colorScheme: any, bottomInset: number) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -282,9 +286,11 @@ function createStyles(theme: any, colorScheme: any) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingTop: 8,
+      paddingBottom: Math.max(8, bottomInset),
       borderTopWidth: 1,
       borderTopColor: colorScheme === 'dark' ? '#2b2b2b' : '#eaeaea',
+      backgroundColor: theme.background,
     },
     inputButton: {
       backgroundColor: '#0A58A5',
