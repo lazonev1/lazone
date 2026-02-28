@@ -19,84 +19,67 @@ export const MOCK_USER_PROFILE: UserProfile = {
     updatedAt: '2024-01-01T00:00:00Z',
 };
 
-export const ACCOUNT_MENU_ITEMS: Record<string, MenuItem[]> = {
-    requester: [
-    {
-        id: 'saved',
-        label: 'Saved Providers',
-        route: '/account/subscreens/savedproviders',
-        icon: 'bookmark-outline',
-    },
-    {
-        id: 'wallet',
-        label: 'Wallet',
-        route: '/account/subscreens/wallet',
-        icon: 'wallet-outline',
-    },
-    {
-        id: 'invite',
-        label: 'Invite friends',
-        route: '/invite',
-        icon: 'share-social-outline',
-    },
-    ],
-    provider: [
-    {
-        id: 'my-portfolio',
-        label: 'preview/edit portfolio',
-        route: `/provider/preview?id=${MOCK_USER_PROFILE.id}`, // Add providerId
-        icon: 'briefcase-outline',
-    },
-    {
-        id: 'earnings',
-        label: 'Earnings',
-        route: '/earnings',
-        icon: 'cash-outline',
-    },
-    {
-        id: 'reviews',
-        label: 'Reviews',
-        route: `/provider/reviews?id=${MOCK_USER_PROFILE.id}`, // Add providerId to reviews route
-        icon: 'star-outline',
-    },
-    {
-        id: 'invite',
-        label: 'Invite friends',
-        route: '/invite',
-        icon: 'share-social-outline',
-    },
-    ],
-    settings: [
-    {
-        id: 'preferences',
-        label: 'Preferences',
-        route: '/account/subscreens/preferences',
-        icon: 'settings-outline',
-    },
-    {
-        id: 'account',
-        label: 'Account Info',
-        route: '/account/info',
-        icon: 'person-outline',
-    },
-    ],
-    resources: [
-    {
-        id: 'become-provider',
-        label: 'Become a Provider',
-        route: '/provider/registration',
-        icon: 'briefcase-outline',
-        roleAccess: ['requester'],
-    },
-    {
-        id: 'terms',
-        label: 'Terms and Policies',
-        route: '/terms',
-        icon: 'document-text-outline',
-    },
+// ── Unified Profile menu items (no role separation) ──────────────────────────
+// Role-conditional items use the `roleAccess` field and are filtered at render time.
+
+export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
+    /** Shown to everyone */
+    general: [
+        {
+            id: 'saved',
+            label: 'Saved Businesses',
+            route: '/account/subscreens/savedproviders',
+            icon: 'bookmark-outline',
+        },
+        {
+            id: 'wallet',
+            label: 'Payment Methods',
+            route: '/account/subscreens/wallet',
+            icon: 'wallet-outline',
+        },
+        {
+            id: 'invite',
+            label: 'Invite Friends',
+            route: '/account/subscreens/placeholder?title=Invite%20Friends',
+            icon: 'share-social-outline',
+        },
     ],
 
+    /** Settings — shown to everyone */
+    settings: [
+        {
+            id: 'preferences',
+            label: 'Preferences',
+            route: '/account/subscreens/preferences',
+            icon: 'settings-outline',
+        },
+        {
+            id: 'notifications',
+            label: 'Notification Settings',
+            route: '/account/subscreens/notifications',
+            icon: 'notifications-outline',
+        },
+    ],
+
+    /** Support — shown to everyone */
+    support: [
+        {
+            id: 'help',
+            label: 'Help & Support',
+            route: '/account/subscreens/placeholder?title=Help%20%26%20Support',
+            icon: 'help-circle-outline',
+        },
+        {
+            id: 'terms',
+            label: 'Terms and Policies',
+            route: '/account/subscreens/placeholder?title=Terms%20and%20Policies',
+            icon: 'document-text-outline',
+        },
+    ],
 };
+
+// Keep the old export name as an alias so nothing else breaks during migration.
+export const ACCOUNT_MENU_ITEMS = PROFILE_MENU_ITEMS;
 export const WALLET_SETTINGS_ITEMS: Record<string,  MenuItem[]> = {
     settings: [
         {

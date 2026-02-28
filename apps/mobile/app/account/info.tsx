@@ -1,71 +1,54 @@
-import { View, StyleSheet, Alert, Pressable, ActivityIndicator, ScrollView, Appearance } from 'react-native';
+import { View, StyleSheet, Alert, Pressable, ScrollView, Appearance } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
-import EditableField from '../../components/account/EditableField';
 import ProfileAvatar from '../../components/account/ProfileAvatar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import EditInfoPopup from '../../components/account/EditInfoPopup';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 
-const STORAGE_KEY = 'user-info';
+export default function AccountInfoScreen() {// router.replace('/(auth)/login');
+	const { user, userProfile, logout } = useAuth();
+	const [editPopupVisible, setEditPopupVisible] = useState(false);
+	const navigation = useNavigation();
 
-export default function AccountInfoScreen() {
-	const params = useLocalSearchParams();
-	const userProfile = params.userProfile ? JSON.parse(params.userProfile as string) : null;
-
-	const [name, setName] = useState(userProfile?.firstName + ' ' + userProfile?.lastName || '');
-	const [email, setEmail] = useState(userProfile?.email || '');
-	const [phone, setPhone] = useState(userProfile?.phone || '');
-	const [avatar, setAvatar] = useState<string | null>(userProfile?.avatar || null);
-	const [saving, setSaving] = useState(false);
-	const { logout } = useAuth();
-	const router = useRouter();
 	const colorScheme = Appearance.getColorScheme();
 	const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 	const styles = createStyles(theme, colorScheme);
-	const navigation = useNavigation();
+
+	const firstName = userProfile?.firstName ?? '';
+	const lastName = userProfile?.lastName ?? '';
+	const fullName = [firstName, lastName].filter(Boolean).join(' ');
+	const email = user?.email ?? '';
+	const phone = userProfile?.phoneNumber ?? '';
+	const avatar = userProfile?.avatar ?? null;
 
 	useEffect(() => {
 		navigation.setOptions({ title: 'Account Info' });
 	}, []);
 
-	// Save to local storage (Todo: replace with API)
-	const handleSave = async () => {
-		setSaving(true);
-		const payload = { name, email, phone, avatar };
-
-		try {
-			//TODO:Replace this with API later
-			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-			Alert.alert('Success', 'Your changes have been saved!');
-		} catch (err) {
-			Alert.alert('Error', 'Could not save your info');
-		}
-
-		setSaving(false);
-	};
+	const editData = { firstName, lastName, email, phone };
 
 	return (
 		<ScrollView contentContainerStyle={styles.container}>
-			<ProfileAvatar uri={avatar} onChange={setAvatar} />
-			<EditableField value={name} onChangeText={setName} />
-			<EditableField value={email} onChangeText={setEmail} keyboardType="email-address" />
-			<EditableField value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+			<ProfileAvatar uri={avatar} onChange={() => setEditPopupVisible(true)} />
+
+			<View style={styles.infoSection}>
+				<InfoRow label="Name" value={fullName} placeholder="No name provided" theme={theme} />
+				<View style={styles.divider} />
+				<InfoRow label="Email" value={email} placeholder="No email on file" theme={theme} />
+				<View style={styles.divider} />
+				<InfoRow label="Phone" value={phone} placeholder="No phone number on file" theme={theme} />
+			</View>
 
 			<View style={styles.buttonContainer}>
-				{saving ? (
-					<ActivityIndicator size="large" color={theme.tint} />
-				) : (
-					<Button
-						label="Save Changes"
-						onPress={handleSave}
-						variant="primary"
-					/>
-				)}
+				<Button
+					label="Edit Information"
+					onPress={() => setEditPopupVisible(true)}
+					variant="primary"
+				/>
 			</View>
 
 			<ThemedText type="subtitle" style={styles.sectionTitle}>Account Management</ThemedText>
@@ -93,22 +76,72 @@ export default function AccountInfoScreen() {
 			<Pressable
 				style={styles.logout}
 				onPress={() => {
-					logout();
-					router.replace('/(auth)/login');
+					Alert.alert(
+						'Logout',
+						'Are you sure you want to logout?',
+						[
+							{ text: 'Cancel', style: 'cancel' },
+							{ text: 'Logout', style: 'destructive', onPress: () => logout() },
+						]
+					);
 				}}
 			>
 				<ThemedText style={styles.logoutText}>⎋ Logout</ThemedText>
 			</Pressable>
+
+			<EditInfoPopup
+				visible={editPopupVisible}
+				onClose={() => setEditPopupVisible(false)}
+				initialData={editData}
+			/>
 		</ScrollView>
 	);
 }
 
-function createStyles(theme, colorScheme) {
+function InfoRow({ label, value, placeholder, theme }: { label: string; value: string; placeholder: string; theme: any }) {
+	const hasValue = value.trim().length > 0;
+	return (
+		<View style={infoRowStyles.container}>
+			<ThemedText style={infoRowStyles.label}>{label}</ThemedText>
+			<ThemedText style={[infoRowStyles.value, !hasValue && { color: '#999', fontStyle: 'italic' }]}>
+				{hasValue ? value : placeholder}
+			</ThemedText>
+		</View>
+	);
+}
+
+const infoRowStyles = StyleSheet.create({
+	container: {
+		paddingVertical: 14,
+		paddingHorizontal: 16,
+	},
+	label: {
+		fontSize: 13,
+		color: '#888',
+		marginBottom: 4,
+		textTransform: 'uppercase',
+		letterSpacing: 0.5,
+	},
+	value: {
+		fontSize: 16,
+	},
+});
+
+function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' | null | undefined) {
 	return StyleSheet.create({
 		container: {
 			padding: 24,
 		},
+		infoSection: {
+			borderRadius: 12,
+			backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : theme.background,
+			borderColor: colorScheme === 'dark' ? '#333' : '#ccc',
+			borderWidth: 1,
+			overflow: 'hidden',
+			marginBottom: 8,
+		},
 		buttonContainer: {
+			marginTop: 16,
 			marginBottom: 32,
 		},
 		sectionTitle: {
