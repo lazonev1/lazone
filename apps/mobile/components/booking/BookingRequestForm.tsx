@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Appearance } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Appearance } from 'react-native';
 import { useState } from 'react';
 import { ServiceItem } from '@/types/provider';
 import { CreateBookingInput } from '@/types/booking';
@@ -34,6 +34,8 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
   const [price, setPrice] = useState(initialValues?.price || '');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Auto-fill price when a service is selected
   const handleServiceChange = (serviceId: string) => {
@@ -93,12 +95,58 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
 
             <View style={styles.dateSection}>
               <ThemedText style={styles.label}>Preferred Date and Time *</ThemedText>
-              <DateTimePicker
-                value={date}
-                mode="datetime"
-                onChange={(_, selectedDate) => setDate(selectedDate || date)}
-                minimumDate={new Date()}
-              />
+              {Platform.OS === 'ios' ? (
+                <DateTimePicker
+                  value={date}
+                  mode="datetime"
+                  onChange={(_, selectedDate) => setDate(selectedDate || date)}
+                  minimumDate={new Date()}
+                />
+              ) : (
+                <>
+                  <View style={styles.datePills}>
+                    <TouchableOpacity
+                      style={styles.datePill}
+                      onPress={() => setShowDatePicker(true)}
+                      activeOpacity={0.6}
+                    >
+                      <ThemedText style={styles.datePillText}>
+                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.datePill}
+                      onPress={() => setShowTimePicker(true)}
+                      activeOpacity={0.6}
+                    >
+                      <ThemedText style={styles.datePillText}>
+                        {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      onChange={(_, selectedDate) => {
+                        setShowDatePicker(false);
+                        if (selectedDate) setDate(selectedDate);
+                      }}
+                      minimumDate={new Date()}
+                    />
+                  )}
+                  {showTimePicker && (
+                    <DateTimePicker
+                      value={date}
+                      mode="time"
+                      onChange={(_, selectedDate) => {
+                        setShowTimePicker(false);
+                        if (selectedDate) setDate(selectedDate);
+                      }}
+                    />
+                  )}
+                </>
+              )}
               {errors.date && <ThemedText style={styles.error}>{errors.date}</ThemedText>}
             </View>
 
@@ -178,5 +226,20 @@ const createStyles = (theme: typeof Colors.light, colorScheme: string | null | u
   },
   button: {
     flex: 1,
-  }
+  },
+  datePills: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  datePill: {
+    backgroundColor: colorScheme === 'dark' ? '#3a3a3c' : '#e8e8ed',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  datePillText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colorScheme === 'dark' ? '#fff' : '#000',
+  },
 });
