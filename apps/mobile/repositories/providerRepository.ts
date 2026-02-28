@@ -407,7 +407,7 @@ export async function createOrUpdateProviderProfile(
         firstName: user.firstName,
         lastName: user.lastName,
         dob: user.dob,
-        role: "provider",
+        role: "both",
         verified: user.verified,
         subscriptionType: user.subscriptionType,
         bookmarked: user.bookmarked || [],
@@ -462,9 +462,9 @@ export async function createOrUpdateProviderProfile(
       const newProviderId = await ProviderService.createOrUpdateProvider(userId, null, providerData);
       console.log('[ProviderRepo] Provider created with ID:', newProviderId);
 
-      // Update the user's role to "provider" in the users collection
-      await ProviderService.updateUserRole(userId, "provider");
-      console.log('[ProviderRepo] User role updated');
+      // Update the user's role to "both" (can book services + provide services)
+      await ProviderService.updateUserRole(userId, "both");
+      console.log('[ProviderRepo] User role updated to "both"');
 
       return newProviderId;
     }

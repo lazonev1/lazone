@@ -1,5 +1,6 @@
 import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBookingDetail } from '@/hooks/useBookings';
@@ -7,7 +8,7 @@ import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
 import { BookingStatus, BookingViewModel } from '@/types/booking';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Colors } from '@/constants/Colors';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -24,7 +25,7 @@ function formatStatus(status: BookingStatus): string {
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
   const bookingId = id?.toString();
-  const { booking, isLoading, cancelBooking } = useBookingDetail(bookingId);
+  const { booking, isLoading, cancelBooking, refreshBooking } = useBookingDetail(bookingId);
   const { toast, showToast, hideToast } = useToast();
   const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -33,6 +34,15 @@ export default function BookingDetailsScreen() {
   useEffect(() => {
     navigation.setOptions({ title: 'Booking Details' });
   }, [navigation]);
+
+  // Re-fetch booking data when screen regains focus (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      if (bookingId) {
+        refreshBooking();
+      }
+    }, [bookingId, refreshBooking])
+  );
 
   const formatDate = (dateString: string) => {
     try {

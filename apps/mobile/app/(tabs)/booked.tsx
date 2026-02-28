@@ -56,7 +56,7 @@ export default function BookedScreen() {
             </ThemedText>
             <Button
               label="Find a Provider"
-              onPress={() => router.push('/(tabs)/search')}
+              onPress={() => router.push('/explore/search-results')}
               variant="primary"
               style={styles.emptyButton}
             />
