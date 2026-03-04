@@ -1,30 +1,67 @@
-export type BookingStatus = 'pending' | 'accepted' | 'completed' | 'cancelled';
+/**
+ * Booking Types
+ *
+ * All types for the booking system.
+ * IDs are strings (Firestore document IDs).
+ * Statuses align with the backend model.
+ */
 
-export interface Booking {
-  id: number;
-  // Provider info (minimal)
-  providerId: number;
+/** Booking status — matches backend model */
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+/**
+ * What the UI displays — resolved names, formatted ISO strings.
+ * This is the output of the repository's transform layer.
+ */
+export interface BookingViewModel {
+  id: string;
+  // Requester
+  requesterId: string;
+  requesterName: string;
+  // Provider
+  providerId: string;
   providerName: string;
-  // Service info (essential only)
-  serviceId: number;
+  providerAvatar?: string;
+  // Service
+  serviceId: string;
   serviceName: string;
-  price: string;
-  // Scheduling
-  scheduledDate: string;  // ISO date string
-  // Optional details
-  description?: string;
-  location?: string;
+  // Details
+  bookingDate: string; // ISO string
+  price: number;
+  notes?: string;
   // Tracking
   status: BookingStatus;
-  createdAt: string;    // ISO date string
-  updatedAt?: string;   // Make it optional since pending bookings might not have it
+  createdAt: string; // ISO string
+  updatedAt?: string; // ISO string
 }
-// What we need to create a booking
-export interface CreateBookingRequest {
-  providerId: number;
-  serviceId: number;
-  scheduledDate: string;
-  price: string;
-  description?: string;
-  location?: string;
+
+/**
+ * What the booking form submits to create a new booking.
+ * Provider/service names are captured at submission time (denormalized).
+ */
+export interface CreateBookingInput {
+  providerId: string;
+  providerName: string;
+  serviceId: string;
+  serviceName: string;
+  bookingDate: Date;
+  price: number;
+  notes?: string;
+}
+
+/**
+ * What the edit form submits to update an existing booking.
+ * All fields optional — only changed fields need to be sent.
+ */
+export interface UpdateBookingInput {
+  serviceId?: string;
+  serviceName?: string;
+  bookingDate?: Date;
+  price?: number;
+  notes?: string;
 }

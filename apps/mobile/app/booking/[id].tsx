@@ -1,40 +1,60 @@
-import { View, StyleSheet, ScrollView, Appearance, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Bookings } from '@/hooks/useBookings';
+import { useBookingDetail } from '@/hooks/useBookings';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
-import { capitalize } from '@lazone/ui';
-import { Booking, BookingStatus } from '@/types/booking';
-import { useEffect } from 'react';
+import { BookingStatus, BookingViewModel } from '@/types/booking';
+import { useEffect, useCallback } from 'react';
 import { Colors } from '@/constants/Colors';
+import Toast from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function formatStatus(status: BookingStatus): string {
+  if (status === 'in_progress') return 'In Progress';
+  return capitalize(status);
+}
 
 export default function BookingDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const booking = Bookings.find(b => b.id === Number(id));
-  const colorScheme = Appearance.getColorScheme() || 'light'; // Provide default value
+  const bookingId = id?.toString();
+  const { booking, isLoading, cancelBooking, refreshBooking } = useBookingDetail(bookingId);
+  const { toast, showToast, hideToast } = useToast();
+  const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({ title: 'Booking Details' });
-  }, []);
+  }, [navigation]);
+
+  // Re-fetch booking data when screen regains focus (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      if (bookingId) {
+        refreshBooking();
+      }
+    }, [bookingId, refreshBooking])
+  );
 
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Date not set';
-      }
+      if (isNaN(date.getTime())) return 'Date not set';
       return date.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
-    } catch (error) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -42,17 +62,41 @@ export default function BookingDetailsScreen() {
   const formatTime = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return '';
-      }
-      return date.toLocaleTimeString();
-    } catch (error) {
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
       return '';
     }
   };
 
-  const handleEditBooking = (booking: Booking) => {
-    if (booking.status !== 'pending') {
+  const handleCancelBooking = () => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking? This cannot be undone.',
+      [
+        { text: 'Keep Booking', style: 'cancel' },
+        {
+          text: 'Cancel Booking',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelBooking();
+              showToast('Booking cancelled', 'success');
+            } catch {
+              showToast('Failed to cancel booking', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditBooking = (b: BookingViewModel) => {
+    if (b.status !== 'pending') {
       Alert.alert('Cannot Edit', 'Only pending bookings can be modified.');
       return;
     }
@@ -60,24 +104,39 @@ export default function BookingDetailsScreen() {
     router.push({
       pathname: '/booking/edit',
       params: {
-        bookingId: booking.id,
-        providerId: booking.providerId,
-        currentDate: booking.scheduledDate,
-        currentPrice: booking.price,
-        currentService: booking.serviceId,
-        description: booking.description || ''
-      }
+        bookingId: b.id,
+        providerId: b.providerId,
+        currentDate: b.bookingDate,
+        currentPrice: String(b.price),
+        currentService: b.serviceId,
+        description: b.notes || '',
+      },
     });
   };
 
-  if (!booking) {
-    return <ThemedText>Booking not found</ThemedText>;
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={theme.tint} />
+        <ThemedText style={styles.loadingText}>Loading booking...</ThemedText>
+      </View>
+    );
   }
 
-  const statusText = `Booking ${capitalize(booking.status)}`;
+  if (!booking) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Ionicons name="alert-circle-outline" size={64} color={theme.icon} />
+        <ThemedText style={styles.loadingText}>Booking not found</ThemedText>
+        <Button label="Go Back" onPress={() => router.back()} variant="primary" size="small" style={{ marginTop: 16 }} />
+      </View>
+    );
+  }
+
   const statusColor = getStatusColor(booking.status);
 
-  const renderActionButtons = (booking: Booking) => {
+  const renderActionButtons = () => {
     return (
       <View style={styles.bottomButtons}>
         {booking.status === 'pending' && (
@@ -85,15 +144,23 @@ export default function BookingDetailsScreen() {
             label="Edit Booking"
             onPress={() => handleEditBooking(booking)}
             variant="primary"
-            style={styles.editButton}
+            style={styles.actionButton}
           />
         )}
-        {(booking.status === 'accepted' || booking.status === 'pending') && (
+        {(booking.status === 'pending' || booking.status === 'confirmed') && (
           <Button
             label="Cancel Booking"
-            onPress={() => {}}
+            onPress={handleCancelBooking}
             variant="secondary"
             style={styles.cancelButton}
+          />
+        )}
+        {booking.status === 'completed' && (
+          <Button
+            label="Leave a Review"
+            onPress={() => router.push(`/provider/reviews?id=${booking.providerId}`)}
+            variant="primary"
+            style={styles.actionButton}
           />
         )}
       </View>
@@ -101,152 +168,155 @@ export default function BookingDetailsScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container]}>
-      {/* Status Banner */}
-      <View style={styles.header}>
-        <Ionicons name="calendar" size={32} color={statusColor} />
-        <ThemedText type="title" style={[styles.headerText, { color: statusColor }]}>
-          {statusText}
-        </ThemedText>
-        <ThemedText style={styles.bookingRef}>Ref: #{booking.id}</ThemedText>
-      </View>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container}>
+        {/* Status Banner */}
+        <View style={styles.header}>
+          <Ionicons name="calendar" size={32} color={statusColor} />
+          <ThemedText type="title" style={[styles.headerText, { color: statusColor }]}>
+            Booking {formatStatus(booking.status)}
+          </ThemedText>
+          <ThemedText style={styles.bookingRef}>Ref: #{booking.id.slice(0, 8)}</ThemedText>
+        </View>
 
-      {/* Service and Schedule Details */}
-      <View style={styles.section}>
-        <ThemedText type="subtitle">Booking Details</ThemedText>
-        <ThemedView style={[styles.baseCard, styles.card]}>
-          <View style={styles.detailRow}>
-            <Ionicons name="construct" size={20} color={theme.text} />
-            <View style={styles.detailContent}>
-              <ThemedText style={[styles.baseText, styles.detailLabel]}>Service</ThemedText>
-              <ThemedText style={styles.detailValue}>{booking.serviceName}</ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="cash" size={20} color={theme.text} />
-            <View style={styles.detailContent}>
-              <ThemedText style={[styles.baseText, styles.detailLabel]}>Price</ThemedText>
-              <ThemedText style={styles.detailValue}>{booking.price}</ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="time" size={20} color={theme.text} />
-            <View style={styles.detailContent}>
-              <ThemedText style={[styles.baseText, styles.detailLabel]}>Date & Time</ThemedText>
-              <ThemedText style={styles.detailValue}>
-                {formatDate(booking.scheduledDate)}
-              </ThemedText>
-              <ThemedText style={[styles.baseText, styles.detailSubvalue]}>
-                {formatTime(booking.scheduledDate)}
-              </ThemedText>
-            </View>
-          </View>
-
-          {booking.location && (
-            <View style={[styles.detailRow, styles.lastDetailRow]}>
-              <Ionicons name="location" size={20} color={theme.text} />
+        {/* Booking Details */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">Booking Details</ThemedText>
+          <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
+            <View style={styles.detailRow}>
+              <Ionicons name="construct" size={20} color={theme.text} />
               <View style={styles.detailContent}>
-                <ThemedText style={[styles.baseText, styles.detailLabel]}>Location</ThemedText>
-                <ThemedText style={styles.detailValue}>{booking.location}</ThemedText>
+                <ThemedText style={styles.detailLabel}>Service</ThemedText>
+                <ThemedText style={styles.detailValue}>{booking.serviceName}</ThemedText>
               </View>
             </View>
-          )}
-        </ThemedView>
-      </View>
 
-      {/* Provider Section */}
-      <View style={styles.section}>
-        <ThemedText type="subtitle">Provider Information</ThemedText>
-        <ThemedView style={[styles.baseCard, styles.providerCard]}>
-          <View style={styles.providerInfo}>
-            <Ionicons name="person-circle-outline" size={40} color="#666" />
-            <ThemedText style={styles.providerName}>{booking.providerName}</ThemedText>
-          </View>
-          <View style={styles.buttonContainer}>
-            <Button
-              label="Call"
-              onPress={() => {}}
-              variant="primary"
-              size="small"
-              style={styles.button}
-            />
-            <Button
-              label="Message"
-              onPress={() => {}}
-              variant="primary"
-              size="small"
-              style={styles.button}
-            />
-          </View>
-        </ThemedView>
-      </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="cash" size={20} color={theme.text} />
+              <View style={styles.detailContent}>
+                <ThemedText style={styles.detailLabel}>Price</ThemedText>
+                <ThemedText style={styles.detailValue}>{booking.price.toLocaleString()} CFA</ThemedText>
+              </View>
+            </View>
 
-      {/* Additional Information */}
-      {booking.description && (
-        <View style={styles.section}>
-          <ThemedText type="subtitle">Additional Details</ThemedText>
-          <ThemedView style={[styles.baseCard, styles.card]}>
-            <ThemedText style={[styles.baseText, styles.description]}>{booking.description}</ThemedText>
+            <View style={styles.detailRow}>
+              <Ionicons name="time" size={20} color={theme.text} />
+              <View style={styles.detailContent}>
+                <ThemedText style={styles.detailLabel}>Date & Time</ThemedText>
+                <ThemedText style={styles.detailValue}>{formatDate(booking.bookingDate)}</ThemedText>
+                <ThemedText style={styles.detailSubvalue}>{formatTime(booking.bookingDate)}</ThemedText>
+              </View>
+            </View>
           </ThemedView>
         </View>
-      )}
 
-      {/* Booking Timeline */}
-      <View style={styles.section}>
-        <ThemedText type="subtitle">Booking Timeline</ThemedText>
-        <ThemedView style={[styles.baseCard, styles.card]}>
-          <View style={styles.timeline}>
-            <View style={styles.timelineItem}>
-              <View style={[styles.timelineDot, { backgroundColor: '#4CAF50' }]} />
-              <View style={styles.timelineContent}>
-                <ThemedText style={styles.timelineTitle}>Booking Created</ThemedText>
-                <ThemedText style={styles.timelineDate}>
-                  {formatDate(booking.createdAt)} {formatTime(booking.createdAt)}
-                </ThemedText>
-              </View>
+        {/* Provider Section */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">Provider Information</ThemedText>
+          <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
+            <View style={styles.providerInfo}>
+              <Ionicons name="person-circle-outline" size={40} color="#666" />
+              <ThemedText style={styles.providerName}>{booking.providerName}</ThemedText>
             </View>
-            {booking.status !== 'pending' && booking.updatedAt && (
+            <View style={styles.buttonContainer}>
+              <Button
+                label="View Profile"
+                onPress={() => router.push(`/provider/${booking.providerId}`)}
+                variant="primary"
+                size="small"
+                style={styles.providerButton}
+              />
+              <Button
+                label="Message"
+                onPress={() => {}}
+                variant="primary"
+                size="small"
+                style={styles.providerButton}
+              />
+            </View>
+          </ThemedView>
+        </View>
+
+        {/* Notes */}
+        {booking.notes && (
+          <View style={styles.section}>
+            <ThemedText type="subtitle">Additional Details</ThemedText>
+            <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
+              <ThemedText style={styles.notesText}>{booking.notes}</ThemedText>
+            </ThemedView>
+          </View>
+        )}
+
+        {/* Timeline */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle">Booking Timeline</ThemedText>
+          <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
+            <View style={styles.timeline}>
               <View style={styles.timelineItem}>
-                <View style={[styles.timelineDot, { backgroundColor: statusColor }]} />
+                <View style={[styles.timelineDot, { backgroundColor: '#4CAF50' }]} />
                 <View style={styles.timelineContent}>
-                  <ThemedText style={styles.timelineTitle}>
-                    Status Updated to {capitalize(booking.status)}
-                  </ThemedText>
+                  <ThemedText style={styles.timelineTitle}>Booking Created</ThemedText>
                   <ThemedText style={styles.timelineDate}>
-                    {formatDate(booking.updatedAt)} {formatTime(booking.updatedAt)}
+                    {formatDate(booking.createdAt)} {formatTime(booking.createdAt)}
                   </ThemedText>
                 </View>
               </View>
-            )}
-          </View>
-        </ThemedView>
-      </View>
+              {booking.status !== 'pending' && booking.updatedAt && (
+                <View style={styles.timelineItem}>
+                  <View style={[styles.timelineDot, { backgroundColor: statusColor }]} />
+                  <View style={styles.timelineContent}>
+                    <ThemedText style={styles.timelineTitle}>
+                      Status Updated to {formatStatus(booking.status)}
+                    </ThemedText>
+                    <ThemedText style={styles.timelineDate}>
+                      {formatDate(booking.updatedAt)} {formatTime(booking.updatedAt)}
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
+            </View>
+          </ThemedView>
+        </View>
 
-      {/* Action Buttons */}
-      {renderActionButtons(booking)}
-    </ScrollView>
+        {/* Action Buttons */}
+        {renderActionButtons()}
+
+        {/* Bottom spacing */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={hideToast}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Layout styles
   container: {
     flex: 1,
     padding: 20,
   },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    opacity: 0.7,
+  },
   section: {
     marginBottom: 24,
   },
-
-  // Header styles
   header: {
     alignItems: 'center',
     marginBottom: 30,
   },
   headerText: {
-    color: '#4CAF50',
     marginTop: 10,
   },
   bookingRef: {
@@ -254,38 +324,24 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginTop: 4,
   },
-
-  // Card styles - combine common card properties
-  baseCard: {
+  card: {
     padding: 16,
     borderRadius: 12,
     marginTop: 8,
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#1c1c1e' : '#f5f5f5',
   },
-
-
-  // Detail row styles
   detailRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Appearance.getColorScheme() === 'dark' ? '#333' : '#eee',
-  },
-  lastDetailRow: {
-    borderBottomWidth: 0,
-    paddingBottom: 0,
+    borderBottomColor: 'rgba(128,128,128,0.2)',
   },
   detailContent: {
     flex: 1,
   },
-
-  // Text styles - combine similar text styles
-  baseText: {
-    fontSize: 14,
-  },
   detailLabel: {
+    fontSize: 14,
     opacity: 0.7,
     marginBottom: 4,
   },
@@ -294,14 +350,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   detailSubvalue: {
+    fontSize: 14,
     opacity: 0.7,
     marginTop: 2,
   },
-  description: {
-    opacity: 0.7,
-  },
-
-  // Provider section styles
   providerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -312,24 +364,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-
-  // Button styles
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
   },
-  button: {
+  providerButton: {
     flex: 1,
   },
-  bottomButtons: {
-    marginTop: 'auto',
-    gap: 12,
+  notesText: {
+    fontSize: 14,
+    opacity: 0.7,
   },
-  cancelButton: {
-    backgroundColor: '#FF9900',
-  },
-
-  // Timeline styles
   timeline: {
     paddingVertical: 8,
   },
@@ -354,5 +399,13 @@ const styles = StyleSheet.create({
   timelineDate: {
     fontSize: 13,
     opacity: 0.7,
+  },
+  bottomButtons: {
+    marginTop: 8,
+    gap: 12,
+  },
+  actionButton: {},
+  cancelButton: {
+    backgroundColor: '#FF9900',
   },
 });

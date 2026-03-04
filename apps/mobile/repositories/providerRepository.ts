@@ -40,8 +40,8 @@ export async function getProviderViewModel(
       ? await populatePortfolio(provider.portfolio)
       : [];
 
-    // 4. Fetch services for this provider
-    const services = await fetchProviderServices(provider._id);
+    // 4. Extract services from provider document (embedded, not a separate collection)
+    const services = extractProviderServices(provider);
 
     // 5. Transform to UI ViewModel with distance calculation
     return transformToViewModel(provider, {
@@ -71,7 +71,7 @@ export async function getAllProvidersWithDetails(
         const portfolioItems = provider.portfolio
           ? await populatePortfolio(provider.portfolio)
           : [];
-        const services = await fetchProviderServices(provider._id);
+        const services = extractProviderServices(provider);
 
         return transformToViewModel(provider, {
           reviewItems,
@@ -104,7 +104,7 @@ export async function getProvidersByCategory(
         const portfolioItems = provider.portfolio
           ? await populatePortfolio(provider.portfolio)
           : [];
-        const services = await fetchProviderServices(provider._id);
+        const services = extractProviderServices(provider);
 
         return transformToViewModel(provider, {
           reviewItems,
@@ -155,7 +155,7 @@ export async function searchProviders(
         const portfolioItems = provider.portfolio
           ? await populatePortfolio(provider.portfolio)
           : [];
-        const services = await fetchProviderServices(provider._id);
+        const services = extractProviderServices(provider);
 
         return transformToViewModel(provider, {
           reviewItems,
@@ -282,23 +282,23 @@ async function populatePortfolio(
 }
 
 /**
- * Fetches services for a provider
+ * Extracts services from the provider document.
+ * Services are embedded directly on the provider (no separate collection).
  */
-async function fetchProviderServices(userId: string): Promise<ServiceItem[]> {
-  try {
-    const services = await ProviderService.getServicesByUserId(userId);
-
-    return services.map((service) => ({
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      price: (service.price / 100).toFixed(2), // Convert cents to display format
-      availability: service.availability,
-    }));
-  } catch (error) {
-    console.error("Error fetching services:", error);
+function extractProviderServices(provider: any): ServiceItem[] {
+  if (!provider.services || !Array.isArray(provider.services)) {
     return [];
   }
+
+  return provider.services
+    .filter((s: any) => s.name)
+    .map((s: any) => ({
+      id: s.id || '',
+      name: s.name,
+      description: s.description || '',
+      price: s.price || '0',
+      availability: s.availability,
+    }));
 }
 
 /**
@@ -365,7 +365,17 @@ export async function createOrUpdateProviderProfile(
         profession: registrationData.serviceCategory,
         categoryName: registrationData.serviceCategory,
         bio: registrationData.description,
-        remoteService: registrationData.remoteService,
+        remoteService: registrationData.remoteService ?? false,
+        // Embed services directly on the provider document (atomic save)
+        services: (registrationData.services || [])
+          .filter((s) => s.name.trim())
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            price: s.price,
+            availability: s.availability || null,
+          })),
       };
 
       // Only add location if coordinates are provided
@@ -397,7 +407,7 @@ export async function createOrUpdateProviderProfile(
         firstName: user.firstName,
         lastName: user.lastName,
         dob: user.dob,
-        role: "provider",
+        role: "both",
         verified: user.verified,
         subscriptionType: user.subscriptionType,
         bookmarked: user.bookmarked || [],
@@ -409,12 +419,23 @@ export async function createOrUpdateProviderProfile(
         profession: registrationData.serviceCategory,
         categoryName: registrationData.serviceCategory,
         bio: registrationData.description,
-        remoteService: registrationData.remoteService,
+        remoteService: registrationData.remoteService ?? false,
 
         // Initialize review fields for new providers
         reviews: [],
         averageRating: 0,
         reviewCount: 0,
+
+        // Embed services directly on the provider document (atomic save)
+        services: (registrationData.services || [])
+          .filter((s) => s.name.trim())
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            price: s.price,
+            availability: s.availability || null,
+          })),
       };
 
       // Only add avatar if it exists
@@ -437,11 +458,13 @@ export async function createOrUpdateProviderProfile(
         providerData.location = user.location;
       }
 
-      // Create the provider document
+      // Create the provider document (includes services)
       const newProviderId = await ProviderService.createOrUpdateProvider(userId, null, providerData);
+      console.log('[ProviderRepo] Provider created with ID:', newProviderId);
 
-      // Update the user's role to "provider" in the users collection
-      await ProviderService.updateUserRole(userId, "provider");
+      // Update the user's role to "both" (can book services + provide services)
+      await ProviderService.updateUserRole(userId, "both");
+      console.log('[ProviderRepo] User role updated to "both"');
 
       return newProviderId;
     }

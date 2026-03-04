@@ -12,6 +12,7 @@
  *   import { messageRepository, reviewRepository } from '@/repositories';
  */
 
+export * as bookingRepository from './bookingRepository';
 export * as messageRepository from './messageRepository';
 export * as reviewRepository from './reviewRepository';
 

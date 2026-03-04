@@ -1,14 +1,14 @@
 import { StyleSheet, View, Appearance, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Booking, BookingStatus as StatusType } from '@/types/booking';
+import { BookingViewModel } from '@/types/booking';
 import { BookingStatus, getStatusColor } from './BookingStatus';
 import { ArrowButton } from '@/components/ui/ArrowButton';
 import { Colors } from '@/constants/Colors';
 
 type Props = {
-  booking: Booking;
-  onPress?: (booking: Booking) => void;
+  booking: BookingViewModel;
+  onPress?: (booking: BookingViewModel) => void;
 };
 
 export function BookingCard({ booking, onPress }: Props) {
@@ -34,7 +34,7 @@ export function BookingCard({ booking, onPress }: Props) {
     }
   };
 
-  const { date, time } = formatDateTime(booking.scheduledDate);
+  const { date, time } = formatDateTime(booking.bookingDate);
   const formattedDateTime = `${date} at ${time}`;
 
   return (

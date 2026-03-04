@@ -23,6 +23,7 @@ const SERVICE_CATEGORIES = getCategoryOptions();
 export default function BusinessInfoStep({ initialData, onNext, isEditMode = false }: Props) {
   const [formData, setFormData] = useState({
     ...initialData,
+    remoteService: initialData?.remoteService ?? false,
     location: {
       country: 'BF', // Use country code for Burkina Faso
       city: '',
