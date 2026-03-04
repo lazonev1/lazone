@@ -38,9 +38,9 @@ export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
             icon: 'wallet-outline',
         },
         {
-            id: 'invite',
-            label: 'Invite Friends',
-            route: '/account/subscreens/placeholder?title=Invite%20Friends',
+            id: 'referral',
+            label: 'Refer a Friend',
+            route: '/account/subscreens/refer',
             icon: 'share-social-outline',
         },
     ],
