@@ -15,4 +15,5 @@
 export * as bookingRepository from './bookingRepository';
 export * as messageRepository from './messageRepository';
 export * as reviewRepository from './reviewRepository';
-
+export * as providerRepository from './providerRepository';
+export * as referralRepository from './referralRepository';
