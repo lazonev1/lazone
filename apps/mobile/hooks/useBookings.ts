@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
 import * as bookingRepo from '@/repositories/bookingRepository';
 
@@ -198,3 +198,151 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
     refreshBooking,
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Provider-side hook — "Bookings others made TO me"
+// Separate from useBookings (requester-side) by design:
+//   • Different Firestore query (providerId vs requesterId)
+//   • Different mutations (accept/decline vs create/cancel/edit)
+//   • Different UI filtering (pending → incoming, confirmed → upcoming, etc.)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface UseProviderBookingsResult {
+  /** All bookings for this provider (unfiltered) */
+  allBookings: BookingViewModel[];
+  /** Pending bookings awaiting provider response */
+  incomingRequests: BookingViewModel[];
+  /** Confirmed or in-progress bookings */
+  upcomingBookings: BookingViewModel[];
+  /** Completed bookings (for earnings display) */
+  completedBookings: BookingViewModel[];
+
+  /** Transition a pending booking → confirmed */
+  acceptBooking: (bookingId: string) => Promise<void>;
+  /** Transition a pending booking → cancelled (declined) */
+  declineBooking: (bookingId: string) => Promise<void>;
+
+  isLoading: boolean;
+  error: Error | null;
+  refreshBookings: () => Promise<void>;
+}
+
+/**
+ * Hook for the provider's Business screen.
+ * Fetches all bookings where the current user is the provider,
+ * then partitions them by status for different UI sections.
+ *
+ * @param providerId — The provider's ID (same as user._id for providers)
+ */
+export function useProviderBookings(providerId?: string): UseProviderBookingsResult {
+  const [allBookings, setAllBookings] = useState<BookingViewModel[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchBookings = useCallback(async () => {
+    if (!providerId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await bookingRepo.getProviderBookings(providerId);
+      setAllBookings(data);
+    } catch (err) {
+      console.error('[useProviderBookings] Error fetching bookings:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch provider bookings'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [providerId]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  // ── Derived lists (re-computed only when allBookings changes) ──
+
+  const incomingRequests = useMemo(
+    () => allBookings.filter((b) => b.status === 'pending'),
+    [allBookings]
+  );
+
+  const upcomingBookings = useMemo(
+    () => allBookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress'),
+    [allBookings]
+  );
+
+  const completedBookings = useMemo(
+    () => allBookings.filter((b) => b.status === 'completed'),
+    [allBookings]
+  );
+
+  // ── Mutations with optimistic updates ──
+
+  const acceptBooking = useCallback(
+    async (bookingId: string): Promise<void> => {
+      const previous = [...allBookings];
+
+      // Optimistic: move from pending → confirmed
+      setAllBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: 'confirmed' as const } : b
+        )
+      );
+
+      try {
+        await bookingRepo.confirmBooking(bookingId);
+        console.log('[useProviderBookings] Booking accepted:', bookingId);
+      } catch (err) {
+        console.error('[useProviderBookings] Error accepting booking:', err);
+        setAllBookings(previous); // Rollback
+        const error = err instanceof Error ? err : new Error('Failed to accept booking');
+        setError(error);
+        throw error;
+      }
+    },
+    [allBookings]
+  );
+
+  const declineBooking = useCallback(
+    async (bookingId: string): Promise<void> => {
+      const previous = [...allBookings];
+
+      // Optimistic: move from pending → cancelled
+      setAllBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
+        )
+      );
+
+      try {
+        await bookingRepo.declineBooking(bookingId);
+        console.log('[useProviderBookings] Booking declined:', bookingId);
+      } catch (err) {
+        console.error('[useProviderBookings] Error declining booking:', err);
+        setAllBookings(previous); // Rollback
+        const error = err instanceof Error ? err : new Error('Failed to decline booking');
+        setError(error);
+        throw error;
+      }
+    },
+    [allBookings]
+  );
+
+  const refreshBookings = useCallback(async () => {
+    await fetchBookings();
+  }, [fetchBookings]);
+
+  return {
+    allBookings,
+    incomingRequests,
+    upcomingBookings,
+    completedBookings,
+    acceptBooking,
+    declineBooking,
+    isLoading,
+    error,
+    refreshBookings,
+  };
+}
+
