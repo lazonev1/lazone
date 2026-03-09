@@ -111,3 +111,26 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   console.log('[BookingRepository] Booking cancelled successfully');
 }
 
+// ========== Provider-side Read ==========
+
+export async function getProviderBookings(providerId: string): Promise<BookingViewModel[]> {
+  console.log('[BookingRepository] Fetching bookings for provider:', providerId);
+
+  const docs = await BookingService.getBookingsByProviderId(providerId);
+  return docs.map(toViewModel);
+}
+
+// ========== Provider-side Status Mutations ==========
+
+export async function confirmBooking(bookingId: string): Promise<void> {
+  console.log('[BookingRepository] Confirming booking:', bookingId);
+  await BookingService.updateBookingStatus(bookingId, 'confirmed');
+  console.log('[BookingRepository] Booking confirmed successfully');
+}
+
+export async function declineBooking(bookingId: string): Promise<void> {
+  console.log('[BookingRepository] Declining booking:', bookingId);
+  await BookingService.updateBookingStatus(bookingId, 'cancelled');
+  console.log('[BookingRepository] Booking declined successfully');
+}
+

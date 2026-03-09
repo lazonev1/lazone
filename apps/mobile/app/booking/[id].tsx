@@ -4,11 +4,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBookingDetail } from '@/hooks/useBookings';
+import * as bookingRepo from '@/repositories/bookingRepository';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
 import { BookingStatus, BookingViewModel } from '@/types/booking';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -23,10 +24,12 @@ function formatStatus(status: BookingStatus): string {
 }
 
 export default function BookingDetailsScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, role } = useLocalSearchParams();
   const bookingId = id?.toString();
+  const isProvider = role === 'provider';
   const { booking, isLoading, cancelBooking, refreshBooking } = useBookingDetail(bookingId);
   const { toast, showToast, hideToast } = useToast();
+  const [actionInFlight, setActionInFlight] = useState(false);
   const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -114,6 +117,47 @@ export default function BookingDetailsScreen() {
     });
   };
 
+  const handleAcceptBooking = async () => {
+    if (!bookingId) return;
+    setActionInFlight(true);
+    try {
+      await bookingRepo.confirmBooking(bookingId);
+      showToast('Booking accepted', 'success');
+      refreshBooking();
+    } catch {
+      showToast('Failed to accept booking', 'error');
+    } finally {
+      setActionInFlight(false);
+    }
+  };
+
+  const handleDeclineBooking = () => {
+    if (!bookingId || !booking) return;
+    Alert.alert(
+      'Decline Request',
+      `Are you sure you want to decline this request from ${booking.requesterName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setActionInFlight(true);
+            try {
+              await bookingRepo.declineBooking(bookingId);
+              showToast('Request declined', 'success');
+              refreshBooking();
+            } catch {
+              showToast('Failed to decline request', 'error');
+            } finally {
+              setActionInFlight(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -137,6 +181,31 @@ export default function BookingDetailsScreen() {
   const statusColor = getStatusColor(booking.status);
 
   const renderActionButtons = () => {
+    if (isProvider) {
+      return (
+        <View style={styles.bottomButtons}>
+          {booking.status === 'pending' && (
+            <>
+              <Button
+                label={actionInFlight ? 'Accepting...' : 'Accept Booking'}
+                onPress={handleAcceptBooking}
+                variant="success"
+                style={styles.actionButton}
+                disabled={actionInFlight}
+              />
+              <Button
+                label={actionInFlight ? 'Declining...' : 'Decline'}
+                onPress={handleDeclineBooking}
+                variant="secondary"
+                style={styles.cancelButton}
+                disabled={actionInFlight}
+              />
+            </>
+          )}
+        </View>
+      );
+    }
+
     return (
       <View style={styles.bottomButtons}>
         {booking.status === 'pending' && (
@@ -210,30 +279,47 @@ export default function BookingDetailsScreen() {
           </ThemedView>
         </View>
 
-        {/* Provider Section */}
+        {/* Person Section — Provider sees client info, Requester sees provider info */}
         <View style={styles.section}>
-          <ThemedText type="subtitle">Provider Information</ThemedText>
+          <ThemedText type="subtitle">
+            {isProvider ? 'Client Information' : 'Provider Information'}
+          </ThemedText>
           <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
             <View style={styles.providerInfo}>
               <Ionicons name="person-circle-outline" size={40} color="#666" />
-              <ThemedText style={styles.providerName}>{booking.providerName}</ThemedText>
+              <ThemedText style={styles.providerName}>
+                {isProvider ? booking.requesterName : booking.providerName}
+              </ThemedText>
             </View>
-            <View style={styles.buttonContainer}>
-              <Button
-                label="View Profile"
-                onPress={() => router.push(`/provider/${booking.providerId}`)}
-                variant="primary"
-                size="small"
-                style={styles.providerButton}
-              />
-              <Button
-                label="Message"
-                onPress={() => {}}
-                variant="primary"
-                size="small"
-                style={styles.providerButton}
-              />
-            </View>
+            {!isProvider && (
+              <View style={styles.buttonContainer}>
+                <Button
+                  label="View Profile"
+                  onPress={() => router.push(`/provider/${booking.providerId}`)}
+                  variant="primary"
+                  size="small"
+                  style={styles.providerButton}
+                />
+                <Button
+                  label="Message"
+                  onPress={() => {}}
+                  variant="primary"
+                  size="small"
+                  style={styles.providerButton}
+                />
+              </View>
+            )}
+            {isProvider && (booking.status === 'confirmed' || booking.status === 'in_progress' || booking.status === 'completed') && (
+              <View style={styles.buttonContainer}>
+                <Button
+                  label="Message"
+                  onPress={() => {}}
+                  variant="primary"
+                  size="small"
+                  style={styles.providerButton}
+                />
+              </View>
+            )}
           </ThemedView>
         </View>
 

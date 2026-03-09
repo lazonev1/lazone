@@ -5,78 +5,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Appearance,
-  Image,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';
+import { useProviderBookings } from '@/hooks/useBookings';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@lazone/ui';
-
-// ─── Static Data (to be replaced with hooks / Firestore later) ───────────────
-
-const STATS = {
-  profileViews: 128,
-  totalEarnings: '475,000 CFA',
-  averageRating: 4.7,
-  completedJobs: 34,
-};
-
-const INCOMING_REQUESTS = [
-  {
-    id: 'req-1',
-    clientName: 'Aminata Ouédraogo',
-    clientAvatar: null,
-    serviceName: 'Kitchen Plumbing Repair',
-    requestedDate: '2026-02-20T10:00:00',
-    message: 'My kitchen sink has been leaking for a couple days. Available Friday morning.',
-    createdAt: '2026-02-17T08:30:00',
-  },
-  {
-    id: 'req-2',
-    clientName: 'Moussa Traoré',
-    clientAvatar: null,
-    serviceName: 'Bathroom Tiling',
-    requestedDate: '2026-02-22T14:00:00',
-    message: 'Need the bathroom floor re-tiled. About 8 m².',
-    createdAt: '2026-02-16T19:45:00',
-  },
-];
-
-const UPCOMING_BOOKINGS = [
-  {
-    id: 'bk-1',
-    clientName: 'Fatou Compaoré',
-    serviceName: 'Electrical Wiring',
-    scheduledDate: '2026-02-19T09:00:00',
-    status: 'confirmed' as const,
-    price: '120,000 CFA',
-  },
-  {
-    id: 'bk-2',
-    clientName: 'Ibrahim Kaboré',
-    serviceName: 'Light Fixture Installation',
-    scheduledDate: '2026-02-21T15:30:00',
-    status: 'confirmed' as const,
-    price: '45,000 CFA',
-  },
-  {
-    id: 'bk-3',
-    clientName: 'Awa Sané',
-    serviceName: 'Full Apartment Rewiring',
-    scheduledDate: '2026-02-25T08:00:00',
-    status: 'confirmed' as const,
-    price: '310,000 CFA',
-  },
-];
-
-const RECENT_EARNINGS = [
-  { id: 'e-1', clientName: 'Jean-Paul Nikiéma', service: 'Outlet Repair', amount: '35,000 CFA', date: '2026-02-15' },
-  { id: 'e-2', clientName: 'Mariam Sawadogo', service: 'Generator Hookup', amount: '90,000 CFA', date: '2026-02-12' },
-  { id: 'e-3', clientName: 'David Zoungrana', service: 'Panel Upgrade', amount: '150,000 CFA', date: '2026-02-08' },
-];
+import Toast from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -100,16 +44,85 @@ function timeAgo(isoString: string) {
   return `${days}d ago`;
 }
 
+function formatPrice(amount: number): string {
+  return amount.toLocaleString('en-US') + ' CFA';
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BusinessScreen() {
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+  const { toast, showToast, hideToast } = useToast();
 
   const isProvider = userProfile?.role === 'provider' || userProfile?.role === 'both';
+
+  // Provider's booking data — providerId === user._id
+  const {
+    incomingRequests,
+    upcomingBookings,
+    completedBookings,
+    acceptBooking,
+    declineBooking,
+    isLoading,
+    refreshBookings,
+  } = useProviderBookings(isProvider ? user?.uid : undefined);
+
+  // Track which booking is currently being acted on (for button loading states)
+  const [actionInFlight, setActionInFlight] = useState<string | null>(null);
+
+  // Refresh bookings whenever this tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (isProvider && user?.uid) {
+        refreshBookings();
+      }
+    }, [isProvider, user?.uid, refreshBookings])
+  );
+
+  // ── Computed metrics ──
+  const totalEarnings = completedBookings.reduce((sum, b) => sum + b.price, 0);
+
+  // ── Handlers ──
+  const handleAccept = async (bookingId: string) => {
+    setActionInFlight(bookingId);
+    try {
+      await acceptBooking(bookingId);
+      showToast('Booking accepted', 'success');
+    } catch {
+      showToast('Failed to accept booking', 'error');
+    } finally {
+      setActionInFlight(null);
+    }
+  };
+
+  const handleDecline = (bookingId: string, clientName: string) => {
+    Alert.alert(
+      'Decline Request',
+      `Are you sure you want to decline the request from ${clientName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setActionInFlight(bookingId);
+            try {
+              await declineBooking(bookingId);
+              showToast('Request declined', 'success');
+            } catch {
+              showToast('Failed to decline request', 'error');
+            } finally {
+              setActionInFlight(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Non-provider users see a prompt to register
   if (!isProvider) {
@@ -135,7 +148,13 @@ export default function BusinessScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refreshBookings} />
+        }
+      >
         {/* ── Header ────────────────────────────────────── */}
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>Business</ThemedText>
@@ -149,28 +168,28 @@ export default function BusinessScreen() {
           <MetricCard
             icon="eye-outline"
             label="Profile Views"
-            value={String(STATS.profileViews)}
+            value="—"
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="cash-outline"
             label="Earnings"
-            value={STATS.totalEarnings}
+            value={formatPrice(totalEarnings)}
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="star-outline"
             label="Avg Rating"
-            value={String(STATS.averageRating)}
+            value="—"
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="checkmark-done-outline"
             label="Completed"
-            value={String(STATS.completedJobs)}
+            value={String(completedBookings.length)}
             theme={theme}
             colorScheme={colorScheme}
           />
@@ -179,17 +198,21 @@ export default function BusinessScreen() {
         {/* ── Incoming Requests ──────────────────────────── */}
         <SectionHeader
           title="Incoming Requests"
-          count={INCOMING_REQUESTS.length}
+          count={incomingRequests.length}
           theme={theme}
         />
-        {INCOMING_REQUESTS.length === 0 ? (
+        {incomingRequests.length === 0 ? (
           <ThemedView style={styles.emptyCard}>
             <ThemedText style={styles.emptyText}>No pending requests</ThemedText>
           </ThemedView>
         ) : (
-          INCOMING_REQUESTS.map((req) => (
-            <ThemedView
+          incomingRequests.map((req) => (
+            <TouchableOpacity
               key={req.id}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/booking/${req.id}?role=provider`)}
+            >
+            <ThemedView
               style={styles.requestCard}
               lightColor={theme.background}
               darkColor="#1c1c1e"
@@ -200,96 +223,139 @@ export default function BusinessScreen() {
                     <Ionicons name="person" size={18} color="#fff" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <ThemedText type="defaultSemiBold">{req.clientName}</ThemedText>
+                    <ThemedText type="defaultSemiBold">{req.requesterName}</ThemedText>
                     <ThemedText style={styles.requestService}>{req.serviceName}</ThemedText>
                   </View>
                   <ThemedText style={styles.timeAgo}>{timeAgo(req.createdAt)}</ThemedText>
                 </View>
               </View>
-              <ThemedText style={styles.requestMessage} numberOfLines={2}>
-                "{req.message}"
-              </ThemedText>
+              {req.notes ? (
+                <ThemedText style={styles.requestMessage} numberOfLines={2}>
+                  "{req.notes}"
+                </ThemedText>
+              ) : null}
               <View style={styles.requestMeta}>
                 <View style={styles.requestDateRow}>
                   <Ionicons name="calendar-outline" size={14} color={theme.icon} />
                   <ThemedText style={styles.requestDateText}>
-                    {formatDate(req.requestedDate)} at {formatTime(req.requestedDate)}
+                    {formatDate(req.bookingDate)} at {formatTime(req.bookingDate)}
                   </ThemedText>
                 </View>
+                <ThemedText style={styles.requestPrice}>{formatPrice(req.price)}</ThemedText>
               </View>
               <View style={styles.requestActions}>
-                <TouchableOpacity style={styles.declineButton}>
-                  <ThemedText style={styles.declineText}>Decline</ThemedText>
+                <TouchableOpacity
+                  style={styles.declineButton}
+                  onPress={() => handleDecline(req.id, req.requesterName)}
+                  disabled={actionInFlight === req.id}
+                >
+                  {actionInFlight === req.id ? (
+                    <ActivityIndicator size="small" color={theme.text} />
+                  ) : (
+                    <ThemedText style={styles.declineText}>Decline</ThemedText>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.acceptButton}>
-                  <ThemedText style={styles.acceptText}>Accept</ThemedText>
+                <TouchableOpacity
+                  style={styles.acceptButton}
+                  onPress={() => handleAccept(req.id)}
+                  disabled={actionInFlight === req.id}
+                >
+                  {actionInFlight === req.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <ThemedText style={styles.acceptText}>Accept</ThemedText>
+                  )}
                 </TouchableOpacity>
               </View>
             </ThemedView>
+            </TouchableOpacity>
           ))
         )}
 
         {/* ── Upcoming Bookings ──────────────────────────── */}
         <SectionHeader
           title="Upcoming Bookings"
-          count={UPCOMING_BOOKINGS.length}
+          count={upcomingBookings.length}
           theme={theme}
         />
-        {UPCOMING_BOOKINGS.map((booking) => (
-          <ThemedView
-            key={booking.id}
-            style={styles.bookingCard}
-            lightColor={theme.background}
-            darkColor="#1c1c1e"
-          >
-            <View style={styles.bookingRow}>
-              <View style={{ flex: 1 }}>
-                <ThemedText type="defaultSemiBold">{booking.clientName}</ThemedText>
-                <ThemedText style={styles.bookingService}>{booking.serviceName}</ThemedText>
-                <View style={styles.bookingDateRow}>
-                  <Ionicons name="calendar-outline" size={14} color={theme.icon} />
-                  <ThemedText style={styles.bookingDateText}>
-                    {formatDate(booking.scheduledDate)} at {formatTime(booking.scheduledDate)}
+        {upcomingBookings.length === 0 ? (
+          <ThemedView style={styles.emptyCard}>
+            <ThemedText style={styles.emptyText}>No upcoming bookings</ThemedText>
+          </ThemedView>
+        ) : (
+          upcomingBookings.map((booking) => (
+            <TouchableOpacity
+              key={booking.id}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/booking/${booking.id}?role=provider`)}
+            >
+            <ThemedView
+              style={styles.bookingCard}
+              lightColor={theme.background}
+              darkColor="#1c1c1e"
+            >
+              <View style={styles.bookingRow}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold">{booking.requesterName}</ThemedText>
+                  <ThemedText style={styles.bookingService}>{booking.serviceName}</ThemedText>
+                  <View style={styles.bookingDateRow}>
+                    <Ionicons name="calendar-outline" size={14} color={theme.icon} />
+                    <ThemedText style={styles.bookingDateText}>
+                      {formatDate(booking.bookingDate)} at {formatTime(booking.bookingDate)}
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.bookingRight}>
+                  <ThemedText type="defaultSemiBold" style={styles.bookingPrice}>
+                    {formatPrice(booking.price)}
                   </ThemedText>
-                </View>
-              </View>
-              <View style={styles.bookingRight}>
-                <ThemedText type="defaultSemiBold" style={styles.bookingPrice}>
-                  {booking.price}
-                </ThemedText>
-                <View style={styles.confirmedBadge}>
-                  <ThemedText style={styles.confirmedText}>Confirmed</ThemedText>
-                </View>
+                  <View style={styles.confirmedBadge}>
+                    <ThemedText style={styles.confirmedText}>
+                      {booking.status === 'in_progress' ? 'In Progress' : 'Confirmed'}
+                    </ThemedText>
+                  </View>
               </View>
             </View>
           </ThemedView>
-        ))}
+          </TouchableOpacity>
+          ))
+        )}
 
         {/* ── Recent Earnings ────────────────────────────── */}
         <SectionHeader title="Recent Earnings" theme={theme} />
-        <ThemedView
-          style={styles.earningsCard}
-          lightColor={theme.background}
-          darkColor="#1c1c1e"
-        >
-          {RECENT_EARNINGS.map((earning, index) => (
-            <View key={earning.id}>
-              <View style={styles.earningRow}>
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">{earning.service}</ThemedText>
-                  <ThemedText style={styles.earningClient}>{earning.clientName}</ThemedText>
+        {completedBookings.length === 0 ? (
+          <ThemedView style={styles.emptyCard}>
+            <ThemedText style={styles.emptyText}>No completed bookings yet</ThemedText>
+          </ThemedView>
+        ) : (
+          <ThemedView
+            style={styles.earningsCard}
+            lightColor={theme.background}
+            darkColor="#1c1c1e"
+          >
+            {completedBookings.map((booking, index) => (
+              <TouchableOpacity
+                key={booking.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/booking/${booking.id}?role=provider`)}
+              >
+                <View style={styles.earningRow}>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText type="defaultSemiBold">{booking.serviceName}</ThemedText>
+                    <ThemedText style={styles.earningClient}>{booking.requesterName}</ThemedText>
+                  </View>
+                  <View style={styles.earningRight}>
+                    <ThemedText type="defaultSemiBold" style={styles.earningAmount}>
+                      {formatPrice(booking.price)}
+                    </ThemedText>
+                    <ThemedText style={styles.earningDate}>{formatDate(booking.bookingDate)}</ThemedText>
+                  </View>
                 </View>
-                <View style={styles.earningRight}>
-                  <ThemedText type="defaultSemiBold" style={styles.earningAmount}>
-                    {earning.amount}
-                  </ThemedText>
-                  <ThemedText style={styles.earningDate}>{formatDate(earning.date)}</ThemedText>
-                </View>
-              </View>
-              {index < RECENT_EARNINGS.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
-        </ThemedView>
+                {index < completedBookings.length - 1 && <View style={styles.divider} />}
+              </TouchableOpacity>
+            ))}
+          </ThemedView>
+        )}
 
         {/* ── Quick Actions ──────────────────────────────── */}
         <SectionHeader title="Manage" theme={theme} />
@@ -327,6 +393,14 @@ export default function BusinessScreen() {
         {/* Bottom spacing for tab bar */}
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* ── Toast notifications ──────────────────────── */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={hideToast}
+      />
     </SafeAreaView>
   );
 }
@@ -554,6 +628,9 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
     },
     requestMeta: {
       marginBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     requestDateRow: {
       flexDirection: 'row',
@@ -563,6 +640,11 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
     requestDateText: {
       fontSize: 13,
       opacity: 0.6,
+    },
+    requestPrice: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#0A58A5',
     },
     requestActions: {
       flexDirection: 'row',
