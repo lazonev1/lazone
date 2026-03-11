@@ -1,9 +1,10 @@
-import { SafeAreaView, StyleSheet, View, TextInput, Platform } from 'react-native';
+import { SafeAreaView, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { ScrollView } from "react-native-gesture-handler";
-import { ChatItem } from "@/components/messages/ChatItem";
+import { ConversationItem } from "@/components/messages/ConversationItem";
 import { useRouter, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Chats, getOtherParticipant, CurrentUser } from '@/hooks/useChats';
+import { useConversationsList } from '@/hooks/useMessages';
+import { useAuth } from '@/contexts/auth';
 import { formatMessageTime } from '@/backend/main/src/utils/utils';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -18,22 +19,22 @@ export default function Messages() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
+  const { user } = useAuth();
+  const userId = user?.uid ?? '';
+  const { conversations, loading } = useConversationsList(userId);
+
   useEffect(() => {
     navigation.setOptions({
-      headerShown: false // Hide the default header
+      headerShown: false
     });
   }, []);
 
-  // Filter chats based on search query
-  const filteredChats = Chats.filter(chat => {
-    const otherPerson = getOtherParticipant(chat);
+  // Filter conversations based on search query
+  const filteredConversations = conversations.filter(conversation => {
     const searchLower = searchQuery.toLowerCase();
-
-    // Search in name, profession, and message text
     return (
-      otherPerson.name.toLowerCase().includes(searchLower) ||
-      (otherPerson.profession && otherPerson.profession.toLowerCase().includes(searchLower)) ||
-      chat.lastMessage.text.toLowerCase().includes(searchLower)
+      conversation.otherUser.name.toLowerCase().includes(searchLower) ||
+      (conversation.lastMessage?.text?.toLowerCase().includes(searchLower) ?? false)
     );
   });
 
@@ -42,7 +43,7 @@ export default function Messages() {
       <View style={styles.container}>
         {/* Title Section */}
         <View style={styles.titleContainer}>
-          <ThemedText style={styles.subtitle}>Chats</ThemedText>
+          <ThemedText style={styles.subtitle}>Messages</ThemedText>
         </View>
 
         {/* Search Section */}
@@ -51,31 +52,44 @@ export default function Messages() {
           onChangeText={setSearchQuery}
           placeholder="Search messages"/>
 
-        {/* Chat List */}
+        {/* Conversation List */}
         <ScrollView style={styles.scrollView}>
-          {filteredChats.length === 0 ? (
+          {loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={theme.tint} />
+            </View>
+          ) : filteredConversations.length === 0 ? (
             <ThemedView style={styles.emptyState}>
               <ThemedText style={styles.emptyText}>
-                No chats found matching "{searchQuery}"
+                {searchQuery
+                  ? `No messages found matching "${searchQuery}"`
+                  : 'Your messages will appear here.'}
               </ThemedText>
             </ThemedView>
           ) : (
-            filteredChats.map((chat) => {
-              const otherPerson = getOtherParticipant(chat);
-              const formattedTime = formatMessageTime(chat.lastMessage.timestamp);
-              const isFromOther = chat.lastMessage.senderId !== CurrentUser.id;
+            filteredConversations.map((conversation) => {
+              const formattedTime = conversation.lastMessage?.createdAt
+                ? formatMessageTime(conversation.lastMessage.createdAt)
+                : '';
 
               return (
-                <ChatItem
-                  key={chat.id}
-                  sender={otherPerson.name}
-                  text={chat.lastMessage.text}
+                <ConversationItem
+                  key={conversation._id}
+                  sender={conversation.otherUser.name}
+                  text={conversation.lastMessage?.text ?? ''}
                   time={formattedTime}
-                  unreadCount={chat.unreadCount}
-                  avatar={otherPerson.avatar}
-                  profession={otherPerson.profession}
-                  isFromOther={isFromOther}
-                  onPress={() => router.push(`/messages/chat/${chat.id}`)}
+                  unreadCount={conversation.unreadCount}
+                  avatar={conversation.otherUser.avatar ? { uri: conversation.otherUser.avatar } : undefined}
+                  isFromOther={!(conversation.lastMessage?.isFromMe ?? false)}
+                  isTyping={conversation.isTyping}
+                  onPress={() => router.push({
+                    pathname: '/messages/[id]',
+                    params: {
+                      id: conversation._id,
+                      name: conversation.otherUser.name,
+                      avatar: conversation.otherUser.avatar ?? '',
+                    }
+                  })}
                 />
               );
             })
