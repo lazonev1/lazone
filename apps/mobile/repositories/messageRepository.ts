@@ -1,9 +1,10 @@
 import {
   getDoc,
+  doc,
   Timestamp,
-  DocumentReference,
   DocumentSnapshot,
 } from "firebase/firestore";
+import { db, COLLECTIONS } from "@/backend/main/src/config/firebase";
 import * as conversationService from "@/backend/main/src/services/conversationService";
 import { Message } from "@/backend/main/src/models/Message";
 import { Conversation } from "@/backend/main/src/models/Conversation";
@@ -160,6 +161,26 @@ export function subscribeToConversationsList(
   );
 }
 
+/**
+ * Subscribes to real-time messages in a conversation and transforms them to UI format
+ */
+export function subscribeToMessages(
+  conversationId: string,
+  onUpdate: (messages: MessageViewModel[]) => void,
+  messageLimit: number = 50
+): () => void {
+  return conversationService.subscribeToMessages(
+    conversationId,
+    async (messages) => {
+      const uiMessages = await Promise.all(
+        messages.map((msg) => transformMessageToUI(msg))
+      );
+      onUpdate(uiMessages);
+    },
+    messageLimit
+  );
+}
+
 // ========== TRANSFORMATION FUNCTIONS ==========
 
 /**
@@ -168,14 +189,14 @@ export function subscribeToConversationsList(
 async function transformMessageToUI(
   message: Message
 ): Promise<MessageViewModel> {
-  // Fetch sender details from the DocumentReference
-  const senderDoc = await getDoc(message.senderId);
+  // Fetch sender details using the string userId
+  const senderDoc = await getDoc(doc(db, COLLECTIONS.USERS, message.senderId));
   const senderData = senderDoc.exists() ? (senderDoc.data() as User) : null;
 
   return {
     _id: message._id,
-    conversationId: extractIdFromRef(message.conversationId),
-    senderId: senderDoc.id,
+    conversationId: message.conversationId,
+    senderId: message.senderId,
     senderName: senderData
       ? `${senderData.firstName} ${senderData.lastName}`
       : "Unknown User",
@@ -208,7 +229,7 @@ async function transformConversationToUI(
     const lastMsgDoc = await getDoc(conversation.lastMessage);
     if (lastMsgDoc.exists()) {
       const msgData = lastMsgDoc.data() as Message;
-      const senderDoc = await getDoc(msgData.senderId);
+      const senderDoc = await getDoc(doc(db, COLLECTIONS.USERS, msgData.senderId));
       const senderData = senderDoc.exists()
         ? (senderDoc.data() as User)
         : null;
@@ -216,7 +237,7 @@ async function transformConversationToUI(
       lastMessage = {
         messageId: lastMsgDoc.id,
         text: msgData.text,
-        senderId: senderDoc.id,
+        senderId: msgData.senderId,
         senderName: senderData
           ? `${senderData.firstName} ${senderData.lastName}`
           : "Unknown",
@@ -279,12 +300,11 @@ async function transformToListItem(
     const lastMsgDoc = await getDoc(conversation.lastMessage);
     if (lastMsgDoc.exists()) {
       const msgData = lastMsgDoc.data() as Message;
-      const senderId = extractIdFromRef(msgData.senderId);
 
       lastMessage = {
         text: msgData.text,
         createdAt: timestampToISO(msgData.createdAt),
-        isFromMe: senderId === currentUserId,
+        isFromMe: msgData.senderId === currentUserId,
       };
     }
   }
@@ -313,15 +333,17 @@ async function transformToListItem(
 
 // ========== UTILITY FUNCTIONS ==========
 
-function extractIdFromRef(ref: DocumentReference): string {
-  return ref.id;
-}
-
-function timestampToISO(timestamp: Timestamp): string {
+function timestampToISO(timestamp: Timestamp | null | undefined): string {
+  if (!timestamp || typeof timestamp.toDate !== 'function') {
+    return new Date().toISOString();
+  }
   return timestamp.toDate().toISOString();
 }
 
-function timestampToMillis(timestamp: Timestamp): number {
+function timestampToMillis(timestamp: Timestamp | null | undefined): number {
+  if (!timestamp || typeof timestamp.toMillis !== 'function') {
+    return Date.now();
+  }
   return timestamp.toMillis();
 }
 
@@ -335,7 +357,9 @@ function calculateUnreadCount(
   const userLastRead = conversation.lastRead[userId];
   if (!userLastRead) return 1; // If never read, assume 1 unread
 
-  const lastReadTime = userLastRead.toMillis();
+  const lastReadTime = typeof userLastRead.toMillis === 'function'
+    ? userLastRead.toMillis()
+    : Date.now();
   const lastMessageTime = new Date(lastMessageDate).getTime();
 
   // Simple check: if last message is after last read, there's at least 1 unread

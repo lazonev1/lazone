@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DocumentSnapshot } from "firebase/firestore";
 import * as messageRepository from "@/repositories/messageRepository";
 import {
@@ -8,85 +8,61 @@ import {
 } from "@/types/message";
 
 /**
- * Hook for fetching and managing messages in a conversation
+ * Hook for real-time messages in a conversation.
+ * Subscribes to Firestore onSnapshot for live updates.
  *
  * @example
  * ```tsx
- * function ChatScreen({ conversationId }) {
- *   const { messages, loading, error, sendMessage, loadMore } = useMessages(conversationId);
+ * function ConversationScreen({ conversationId }) {
+ *   const { user } = useAuth();
+ *   const { messages, loading, error, sendMessage } = useMessages(conversationId);
  *
  *   return (
  *     <FlatList
  *       data={messages}
- *       onEndReached={loadMore}
  *       renderItem={({ item }) => <MessageBubble message={item} />}
  *     />
  *   );
  * }
  * ```
  */
-export function useMessages(conversationId: string, limit: number = 20) {
+export function useMessages(conversationId: string, limit: number = 50) {
   const [messages, setMessages] = useState<MessageViewModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [lastDoc, setLastDoc] = useState<DocumentSnapshot | undefined>();
 
-  const fetchMessages = useCallback(async () => {
-    if (!conversationId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const fetchedMessages = await messageRepository.getMessagesForConversation(
-        conversationId,
-        limit
-      );
-
-      setMessages(fetchedMessages);
-      setHasMore(fetchedMessages.length >= limit);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch messages";
-      setError(message);
-      console.error("useMessages error:", err);
-    } finally {
+  // Real-time subscription
+  useEffect(() => {
+    if (!conversationId) {
       setLoading(false);
+      return;
     }
+
+    setLoading(true);
+
+    const unsubscribe = messageRepository.subscribeToMessages(
+      conversationId,
+      (updatedMessages) => {
+        setMessages(updatedMessages);
+        setLoading(false);
+      },
+      limit
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, [conversationId, limit]);
-
-  const loadMore = useCallback(async () => {
-    if (!hasMore || loading || !lastDoc) return;
-
-    try {
-      const moreMessages = await messageRepository.getMessagesForConversation(
-        conversationId,
-        limit,
-        lastDoc
-      );
-
-      if (moreMessages.length < limit) {
-        setHasMore(false);
-      }
-
-      setMessages((prev) => [...prev, ...moreMessages]);
-    } catch (err) {
-      console.error("Error loading more messages:", err);
-    }
-  }, [conversationId, limit, lastDoc, hasMore, loading]);
 
   const sendMessage = useCallback(
     async (senderId: string, text: string): Promise<void> => {
       try {
-        const newMessage = await messageRepository.sendMessage(
+        await messageRepository.sendMessage(
           conversationId,
           senderId,
           text
         );
-
-        // Add new message to the beginning (most recent)
-        setMessages((prev) => [newMessage, ...prev]);
+        // No need to manually add — onSnapshot will pick it up
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to send message";
@@ -97,18 +73,11 @@ export function useMessages(conversationId: string, limit: number = 20) {
     [conversationId]
   );
 
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
   return {
     messages,
     loading,
     error,
-    hasMore,
     sendMessage,
-    loadMore,
-    refetch: fetchMessages,
   };
 }
 
