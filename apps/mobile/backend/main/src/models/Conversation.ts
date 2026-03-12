@@ -2,9 +2,9 @@ import { Timestamp, DocumentReference } from "firebase/firestore";
 
 export interface Conversation {
   _id: string; // Firestore document ID
-  participants: DocumentReference[]; // Array of 2 User refs
+  participants: string[]; // Array of 2 user IDs (plain strings for simple rules & queries)
   participantDetails: {
-    // Adding this to denormalize data for quick UI rendering, we don't have to fetch user's details in a separate query 
+    // Denormalized data for quick UI rendering without extra fetches
     [userId: string]: {
       name: string;
       avatar?: string;

@@ -4,7 +4,7 @@ import { ThemedView } from "../ThemedView";
 import { Colors } from "@/constants/Colors";
 import { Image } from "expo-image";
 
-type ChatItemProps = {
+type ConversationItemProps = {
     sender: string;
     text: string;
     time: string;
@@ -12,11 +12,11 @@ type ChatItemProps = {
     avatar?: any;
     profession?: string;
     isFromOther?: boolean;
+    isTyping?: boolean;
     onPress: () => void;
 }
 
-// This should accept a message object that contains title, message, sender, time, ... attribute.
-export function ChatItem({
+export function ConversationItem({
     sender,
     text,
     time,
@@ -24,8 +24,9 @@ export function ChatItem({
     avatar,
     profession,
     isFromOther = true,
+    isTyping = false,
     onPress
-}: ChatItemProps) {
+}: ConversationItemProps) {
     const colorScheme = Appearance.getColorScheme()
     const theme = colorScheme === 'dark' ? Colors.dark : Colors.light
     const styles = createStyle(theme, colorScheme)
@@ -68,7 +69,7 @@ export function ChatItem({
                             numberOfLines={1}
                             ellipsizeMode="tail"
                         >
-                            {isFromOther ? text : `You: ${text}`}
+                            {isTyping ? 'typing...' : isFromOther ? text : `You: ${text}`}
                         </ThemedText>
                     </View>
                 </View>

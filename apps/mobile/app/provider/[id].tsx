@@ -244,7 +244,24 @@ export default function ProviderProfileScreen() {
         <View style={styles.actionsRow}>
           <Button
             label="Message"
-            onPress={() => {}}
+            onPress={() => {
+              if (!currentUserId) {
+                Alert.alert('Sign in required', 'Please sign in to message this provider.');
+                return;
+              }
+              // Compute canonical conversation ID without creating a Firestore document.
+              // The conversation will only be created when the first message is sent.
+              const sortedIds = [currentUserId, String(provider.id)].sort();
+              const conversationId = sortedIds.join('_');
+              router.push({
+                pathname: '/messages/[id]',
+                params: {
+                  id: conversationId,
+                  name: provider.name,
+                  avatar: typeof provider.avatar === 'string' ? provider.avatar : '',
+                },
+              });
+            }}
             variant="primary"
             size="small"
             style={styles.actionButton}

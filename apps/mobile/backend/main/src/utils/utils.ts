@@ -1,13 +1,16 @@
 export function formatMessageTime(isoString: string): string {
   const date = new Date(isoString);
   const now = new Date();
-  const isToday = date.setHours(0, 0, 0, 0) === now.setHours(0, 0, 0, 0);
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const isToday = startOfDate === startOfToday;
 
   if (isToday) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } else {
     const daysDiff = Math.round(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+      (startOfToday - startOfDate) / (1000 * 60 * 60 * 24)
     );
     if (daysDiff < 7) {
       return date.toLocaleDateString([], { weekday: "short" });
@@ -15,4 +18,23 @@ export function formatMessageTime(isoString: string): string {
       return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
   }
+}
+
+export function formatDateDivider(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+  if (startOfDate === startOfToday) {
+    return 'Today';
+  }
+
+  const startOfYesterday = startOfToday - 86400000;
+  if (startOfDate === startOfYesterday) {
+    return 'Yesterday';
+  }
+
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }

@@ -85,15 +85,18 @@ export async function sendMessage(
 
   // Create the new message document
   const newMessage: Omit<Message, "_id"> = {
-    conversationId: doc(db, COLLECTIONS.CONVERSATIONS, conversationId),
-    senderId: doc(db, COLLECTIONS.USERS, senderId),
+    conversationId,
+    senderId,
     text,
     createdAt: serverTimestamp() as Timestamp,
   };
 
+  // Ensure conversation exists before sending
+  await findOrCreateConversation(senderId, conversationId.split('_').find(id => id !== senderId) || '');
+
   const messageDocRef = await addDoc(messagesColRef, newMessage);
 
-  // Also, update the 'lastMessage' on the parent conversation document
+  // Update the conversation: lastMessage, updatedAt, and sender's lastRead
   const conversationDocRef = doc(
     db,
     COLLECTIONS.CONVERSATIONS,
@@ -102,11 +105,13 @@ export async function sendMessage(
   await updateDoc(conversationDocRef, {
     lastMessage: messageDocRef,
     updatedAt: serverTimestamp(),
+    [`lastRead.${senderId}`]: serverTimestamp(),
   });
 
   return {
     _id: messageDocRef.id,
     ...newMessage,
+    createdAt: Timestamp.now(),
   } as Message;
 }
 
@@ -148,10 +153,7 @@ export async function findOrCreateConversation(
   const user2Data = user2Doc.data() as User;
 
   const newConversation: Omit<Conversation, "_id"> = {
-    participants: [
-      doc(db, COLLECTIONS.USERS, userId1),
-      doc(db, COLLECTIONS.USERS, userId2),
-    ],
+    participants: [userId1, userId2],
     participantDetails: {
       [userId1]: {
         name: `${user1Data.firstName} ${user1Data.lastName}`,
@@ -205,10 +207,9 @@ export function getConversations(
   userId: string,
   onConversationsUpdate: (conversations: Conversation[]) => void
 ) {
-  const userRef = doc(db, COLLECTIONS.USERS, userId);
   const q = query(
     collection(db, COLLECTIONS.CONVERSATIONS),
-    where("participants", "array-contains", userRef)
+    where("participants", "array-contains", userId)
   );
 
   return onSnapshot(q, (querySnapshot) => {
@@ -239,5 +240,41 @@ export async function setTypingStatus(
 
   await updateDoc(conversationDocRef, {
     [fieldToUpdate]: isTyping,
+  });
+}
+
+/**
+ * Subscribes to real-time message updates in a conversation.
+ * @param conversationId The ID of the conversation.
+ * @param onMessagesUpdate A callback function that receives the updated list of messages.
+ * @param messageLimit The maximum number of messages to listen to.
+ * @returns An unsubscribe function to stop listening for updates.
+ */
+export function subscribeToMessages(
+  conversationId: string,
+  onMessagesUpdate: (messages: Message[]) => void,
+  messageLimit: number = 50
+) {
+  const messagesColRef = collection(
+    db,
+    COLLECTIONS.CONVERSATIONS,
+    conversationId,
+    COLLECTIONS.MESSAGES
+  );
+
+  const q = query(
+    messagesColRef,
+    orderBy("createdAt", "desc"),
+    limit(messageLimit)
+  );
+
+  return onSnapshot(q, (querySnapshot) => {
+    const messages = querySnapshot.docs
+      .map((doc) => ({ _id: doc.id, ...doc.data() } as Message))
+      .reverse();
+    onMessagesUpdate(messages);
+  }, (error) => {
+    // Silently handle permission errors for conversations that don't exist yet
+    console.warn('Messages subscription error (conversation may not exist yet):', error.message);
   });
 }

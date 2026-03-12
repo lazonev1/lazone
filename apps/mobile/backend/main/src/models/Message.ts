@@ -1,9 +1,9 @@
-import { Timestamp, DocumentReference } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 
 export interface Message {
   _id: string; // Firestore document ID
-  conversationId: DocumentReference; // Ref to Conversation
-  senderId: DocumentReference; // Ref to User who sent it
+  conversationId: string; // ID of the parent Conversation
+  senderId: string; // ID of the User who sent it
   text: string;
   createdAt: Timestamp;
 }

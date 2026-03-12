@@ -9,7 +9,7 @@ type Props = {
   avatar?: string;
 };
 
-export default function ChatHeader({ name, avatar }: Props) {
+export default function ConversationHeader({ name, avatar }: Props) {
   const router = useRouter();
   
   return (
