@@ -27,12 +27,12 @@ export default function ConversationScreen() {
   // Real-time messages subscription
   const { messages, loading, error, sendMessage } = useMessages(id);
 
-  // Mark conversation as read when entering
+  // Mark conversation as read when entering and when new messages arrive
   useEffect(() => {
     if (id && userId) {
       messageRepository.updateReadStatus(id, userId);
     }
-  }, [id, userId]);
+  }, [id, userId, messages.length]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
