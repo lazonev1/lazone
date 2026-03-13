@@ -242,14 +242,15 @@ export default function ConversationScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.bottom}
       >
         <ScrollView
           ref={scrollRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messageContent}
+          keyboardShouldPersistTaps="handled"
         >
           {Object.entries(groupedMessages).map(([date, msgs]) => (
             <View key={date}>
