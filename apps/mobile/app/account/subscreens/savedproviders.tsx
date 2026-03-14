@@ -1,21 +1,12 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, SafeAreaView } from 'react-native';
+import { useCallback } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { Platform } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { Appearance } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
-type Provider = {
-    id: number;
-    name: string;
-    description: string;
-    rating: number;
-    avatar: any;
-};
+import { useBookmarks } from '@/hooks/useBookmarks';
 
 export default function SavedProvidersScreen() {
     const router = useRouter();
@@ -23,43 +14,22 @@ export default function SavedProvidersScreen() {
     const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
     const styles = createStyles(theme, colorScheme);
 
-    const [savedProviders, setSavedProviders] = useState<Provider[]>([]);
+    const {
+        bookmarkedProviders,
+        fetchBookmarkedProviders,
+        isLoadingProviders,
+        toggleBookmark,
+    } = useBookmarks();
 
-    useFocusEffect(() => {
-        loadSavedProviders();
-    });
-
-    // Normally, load saved providers from AsyncStorage
-    const loadSavedProviders = async () => {
-        try {
-            const savedData = await AsyncStorage.getItem('savedProviders');
-            if (savedData) {
-                setSavedProviders(JSON.parse(savedData));
-            } else {
-                setSavedProviders([
-                    {
-                        id: 1,
-                        name: "John's Plumbing Services",
-                        description: "Highly rated plumbing solutions for your home.",
-                        rating: 4.8,
-                        avatar: require('@/assets/images/avatar-placeholder.png'),
-                    },
-                    {
-                        id: 2,
-                        name: "Electric Solutions Co.",
-                        description: "Experienced electricians for all installations.",
-                        rating: 4.7,
-                        avatar: require('@/assets/images/avatar-placeholder.png'),
-                    },
-                ]);
-            }
-        } catch (error) {
-            console.error("Failed to load saved providers:", error);
-        }
-    };
+    // Fetch full provider details when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchBookmarkedProviders();
+        }, [fetchBookmarkedProviders])
+    );
 
     // Navigate to a provider's profile
-    const navigateToProvider = (id: number) => {
+    const navigateToProvider = (id: string | number) => {
         router.push(`/provider/${id}`);
     };
 
@@ -75,8 +45,22 @@ export default function SavedProvidersScreen() {
                 }}
             />
 
-            <ScrollView style={styles.scrollContainer}>
-                {savedProviders.length === 0 ? (
+            <ScrollView
+                style={styles.scrollContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isLoadingProviders}
+                        onRefresh={fetchBookmarkedProviders}
+                        tintColor={theme.tint}
+                    />
+                }
+            >
+                {isLoadingProviders && bookmarkedProviders.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <ActivityIndicator size="large" color={theme.tint} />
+                        <ThemedText style={styles.emptySubtext}>Loading saved providers...</ThemedText>
+                    </View>
+                ) : bookmarkedProviders.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="bookmark" size={48} color={theme.tabIconDefault} />
                         <ThemedText style={styles.emptyText}>
@@ -87,26 +71,41 @@ export default function SavedProvidersScreen() {
                         </ThemedText>
                     </View>
                 ) : (
-                    savedProviders.map((provider) => (
+                    bookmarkedProviders.map((provider) => (
                         <TouchableOpacity
-                            key={provider.id}
+                            key={String(provider.id)}
                             style={styles.providerCard}
-                            // No need to add unbookmark ability. User can press and unbookmark from the profider's profile and 
-                            // saved providers list will update itself and reflect back here.
                             onPress={() => navigateToProvider(provider.id)}
-
                         >
-                            <Image source={provider.avatar} style={styles.providerAvatar} />
+                            <Image
+                                source={
+                                    typeof provider.avatar === 'string'
+                                        ? { uri: provider.avatar }
+                                        : provider.avatar ?? require('@/assets/images/avatar-placeholder.png')
+                                }
+                                style={styles.providerAvatar}
+                            />
                             <View style={styles.providerInfo}>
-                                <ThemedText type="defaultSemiBold" style={styles.providerName}>
-                                    {provider.name}
-                                </ThemedText>
+                                <View style={styles.nameRow}>
+                                    <ThemedText type="defaultSemiBold" style={styles.providerName}>
+                                        {provider.name}
+                                    </ThemedText>
+                                    <TouchableOpacity
+                                        onPress={() => toggleBookmark(String(provider.id))}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <Ionicons name="bookmark" size={22} color="#0A58A5" />
+                                    </TouchableOpacity>
+                                </View>
                                 <ThemedText style={styles.providerDescription}>
-                                    {provider.description}
+                                    {provider.profession}
                                 </ThemedText>
                                 <View style={styles.ratingContainer}>
                                     <ThemedText style={styles.ratingText}>
-                                        {provider.rating} <Ionicons name="star" size={14} color="#FFD700" />
+                                        {provider.rating.toFixed(1)} <Ionicons name="star" size={14} color="#FFD700" />
+                                    </ThemedText>
+                                    <ThemedText style={styles.reviewCount}>
+                                        ({provider.reviews} reviews)
                                     </ThemedText>
                                 </View>
                             </View>
@@ -134,7 +133,6 @@ function createStyles(theme: any, colorScheme: string | null | undefined) {
             padding: 16,
             marginBottom: 16,
             alignItems: 'center',
-            // Shadow for light mode
             ...Platform.select({
                 ios: {
                     shadowColor: '#000',
@@ -158,9 +156,16 @@ function createStyles(theme: any, colorScheme: string | null | undefined) {
         providerInfo: {
             flex: 1,
         },
+        nameRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 4,
+        },
         providerName: {
             fontSize: 18,
-            marginBottom: 4,
+            flex: 1,
+            marginRight: 8,
         },
         providerDescription: {
             fontSize: 14,
@@ -175,6 +180,11 @@ function createStyles(theme: any, colorScheme: string | null | undefined) {
             fontSize: 14,
             color: '#FFD700',
             fontWeight: '600',
+        },
+        reviewCount: {
+            fontSize: 13,
+            opacity: 0.6,
+            marginLeft: 6,
         },
         emptyState: {
             flex: 1,

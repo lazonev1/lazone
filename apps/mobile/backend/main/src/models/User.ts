@@ -1,4 +1,4 @@
-import { Timestamp, DocumentReference } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { Location } from "./Location";
 
 export interface User {
@@ -11,7 +11,7 @@ export interface User {
   avatar?: string;
   verified: boolean;
   subscriptionType: "free" | "premium" | "enterprise";
-  bookmarked: DocumentReference[]; // References to other User documents
+  bookmarked: string[]; // Provider IDs the user has saved
   location?: Location;
   createdAt: Timestamp;
   updatedAt: Timestamp;

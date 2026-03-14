@@ -12,6 +12,7 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import { useReviews } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/auth';
+import { requireAuth } from '@/utils/auth';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 
@@ -76,6 +77,12 @@ export default function ProviderProfileScreen() {
   const { user } = useAuth();
   const currentUserId = user?.uid;
 
+  const handleBookmarkPress = async () => {
+    if (!requireAuth(currentUserId, 'Please sign in to save providers.')) return;
+    toggleBookmark(providerId);
+  };
+
+
   // Use enhanced reviews hook with user context
   const {
     reviews: reviewItems,
@@ -116,10 +123,7 @@ export default function ProviderProfileScreen() {
       return;
     }
 
-    if (!currentUserId) {
-      Alert.alert('Error', 'Please log in to submit a review');
-      return;
-    }
+    if (!requireAuth(currentUserId, 'Please sign in to submit a review.')) return;
 
     setSubmittingReview(true);
 
@@ -224,7 +228,7 @@ export default function ProviderProfileScreen() {
             <View style={styles.nameRow}>
               <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
               <TouchableOpacity 
-                onPress={() => toggleBookmark(providerId)}
+                onPress={handleBookmarkPress}
                 style={styles.bookmarkButton}
                 disabled={isLoading}
               >
@@ -245,10 +249,7 @@ export default function ProviderProfileScreen() {
           <Button
             label="Message"
             onPress={() => {
-              if (!currentUserId) {
-                Alert.alert('Sign in required', 'Please sign in to message this provider.');
-                return;
-              }
+              if (!requireAuth(currentUserId, 'Please sign in to message this provider.')) return;
               // Compute canonical conversation ID without creating a Firestore document.
               // The conversation will only be created when the first message is sent.
               const sortedIds = [currentUserId, String(provider.id)].sort();
@@ -348,10 +349,7 @@ export default function ProviderProfileScreen() {
             <View style={styles.reviewActions}>
               <TouchableOpacity
                 onPress={() => {
-                  if (!currentUserId) {
-                    Alert.alert('Sign In Required', 'Please sign in to leave a review');
-                    return;
-                  }
+                  if (!requireAuth(currentUserId, 'Please sign in to leave a review.')) return;
 
                   // TODO: Toggle this to enable/disable review eligibility check
                   // Set to `true` to enforce booking requirement, `false` to skip for testing
@@ -390,10 +388,7 @@ export default function ProviderProfileScreen() {
             currentUserId={currentUserId}
             onRespondToReview={handleRespondToReview}
             onMarkHelpful={async (reviewId) => {
-              if (!currentUserId) {
-                Alert.alert('Sign In Required', 'Please sign in to vote');
-                return;
-              }
+              if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
               try {
                 await markHelpful(reviewId);
               } catch {
