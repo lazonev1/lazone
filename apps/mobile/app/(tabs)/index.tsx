@@ -11,7 +11,6 @@ import { useState, useEffect, useMemo } from 'react';
 import AppHeader from '@/components/ui/AppHeader';
 import { useProvider } from '@/hooks/useProvider';
 import { useLocation } from '@/hooks/useLocation';
-import { useAuth } from '@/contexts/auth';
 
 export default function HomeScreen() {
   const colorScheme = Appearance.getColorScheme();
