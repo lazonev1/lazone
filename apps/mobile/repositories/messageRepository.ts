@@ -1,6 +1,10 @@
 import {
   getDoc,
+  getDocs,
   doc,
+  collection,
+  query,
+  where,
   Timestamp,
   DocumentSnapshot,
 } from "firebase/firestore";
@@ -123,14 +127,19 @@ export function subscribeToConversations(
   return conversationService.getConversations(
     userId,
     async (conversations) => {
-      // Transform all conversations to UI format
-      const uiConversations = await Promise.all(
-        conversations.map((conv) =>
-          transformConversationToUI(conv, userId)
-        )
-      );
+      try {
+        // Transform all conversations to UI format
+        const uiConversations = await Promise.all(
+          conversations.map((conv) =>
+            transformConversationToUI(conv, userId)
+          )
+        );
 
-      onUpdate(uiConversations);
+        onUpdate(uiConversations);
+      } catch (error) {
+        console.error("Error transforming conversations:", error);
+        onUpdate([]);
+      }
     }
   );
 }
@@ -145,18 +154,23 @@ export function subscribeToConversationsList(
   return conversationService.getConversations(
     userId,
     async (conversations) => {
-      // Transform to list items
-      const listItems = await Promise.all(
-        conversations.map((conv) => transformToListItem(conv, userId))
-      );
+      try {
+        // Transform to list items
+        const listItems = await Promise.all(
+          conversations.map((conv) => transformToListItem(conv, userId))
+        );
 
-      // Sort by most recent
-      listItems.sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      );
+        // Sort by most recent
+        listItems.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
 
-      onUpdate(listItems);
+        onUpdate(listItems);
+      } catch (error) {
+        console.error("Error transforming conversation list:", error);
+        onUpdate([]);
+      }
     }
   );
 }
@@ -253,10 +267,9 @@ async function transformConversationToUI(
   }
 
   // Calculate unread count
-  const unreadCount = calculateUnreadCount(
+  const unreadCount = await calculateUnreadCount(
     conversation,
     currentUserId,
-    lastMessage?.createdAt
   );
 
   return {
@@ -315,10 +328,9 @@ async function transformToListItem(
     : false;
 
   // Calculate unread count
-  const unreadCount = calculateUnreadCount(
+  const unreadCount = await calculateUnreadCount(
     conversation,
     currentUserId,
-    lastMessage?.createdAt
   );
 
   return {
@@ -347,23 +359,29 @@ function timestampToMillis(timestamp: Timestamp | null | undefined): number {
   return timestamp.toMillis();
 }
 
-function calculateUnreadCount(
+async function calculateUnreadCount(
   conversation: Conversation,
   userId: string,
-  lastMessageDate?: string
-): number {
-  if (!lastMessageDate) return 0;
-
+): Promise<number> {
   const userLastRead = conversation.lastRead[userId];
-  if (!userLastRead) return 1; // If never read, assume 1 unread
 
-  const lastReadTime = typeof userLastRead.toMillis === 'function'
-    ? userLastRead.toMillis()
-    : Date.now();
-  const lastMessageTime = new Date(lastMessageDate).getTime();
+  // Build a query for messages in this conversation after the user's lastRead
+  const messagesColRef = collection(
+    db,
+    COLLECTIONS.CONVERSATIONS,
+    conversation._id,
+    COLLECTIONS.MESSAGES
+  );
 
-  // Simple check: if last message is after last read, there's at least 1 unread
-  // For accurate count, you'd need to query messages created after lastRead
-  return lastMessageTime > lastReadTime ? 1 : 0;
+  const q = userLastRead && typeof userLastRead.toDate === 'function'
+    ? query(messagesColRef, where("createdAt", ">", userLastRead))
+    : messagesColRef;
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.reduce((count, docSnapshot) => {
+    const message = docSnapshot.data() as Message;
+    return message.senderId !== userId ? count + 1 : count;
+  }, 0);
 }
 

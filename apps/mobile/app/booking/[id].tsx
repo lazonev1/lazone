@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBookingDetail } from '@/hooks/useBookings';
 import * as bookingRepo from '@/repositories/bookingRepository';
+import * as messageRepository from '@/repositories/messageRepository';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
@@ -13,6 +14,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
+import { useAuth } from '@/contexts/auth';
 
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -32,6 +34,25 @@ export default function BookingDetailsScreen() {
   const [actionInFlight, setActionInFlight] = useState(false);
   const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { user } = useAuth();
+
+  const handleMessage = async (otherUserId: string, otherUserName: string, otherUserAvatar?: string) => {
+    if (!user?.uid) return;
+    try {
+      const conversationId = await messageRepository.findOrCreateConversation(user.uid, otherUserId);
+      router.push({
+        pathname: '/messages/[id]',
+        params: {
+          id: conversationId,
+          name: otherUserName,
+          avatar: otherUserAvatar ?? '',
+        },
+      });
+    } catch (err) {
+      console.error('Failed to open conversation:', err);
+      showToast('Failed to open conversation', 'error');
+    }
+  };
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -302,7 +323,7 @@ export default function BookingDetailsScreen() {
                 />
                 <Button
                   label="Message"
-                  onPress={() => {}}
+                  onPress={() => handleMessage(booking.providerId, booking.providerName, booking.providerAvatar)}
                   variant="primary"
                   size="small"
                   style={styles.providerButton}
@@ -313,7 +334,7 @@ export default function BookingDetailsScreen() {
               <View style={styles.buttonContainer}>
                 <Button
                   label="Message"
-                  onPress={() => {}}
+                  onPress={() => handleMessage(booking.requesterId, booking.requesterName)}
                   variant="primary"
                   size="small"
                   style={styles.providerButton}
