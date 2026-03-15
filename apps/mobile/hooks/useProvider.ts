@@ -9,11 +9,15 @@ import {
 } from "@/repositories/providerRepository";
 import { ProviderViewModel, ProviderRegistration } from "@/types/provider";
 import { Coordinates } from "@/backend/main/src/utils/geo";
+import { useAuth } from "@/contexts/auth";
 
 /**
  * Hook Layer - State Management Wrapper for React Components
  * Uses repository methods and manages loading/error states
  * Provides convenience methods for UI interactions
+ *
+ * Automatically excludes the current user's own provider profile from all
+ * list results so a provider never sees themselves in browse/search.
  */
 
 export interface UseProviderResult {
@@ -41,6 +45,10 @@ export const useProvider = (providerId?: string): UseProviderResult => {
   const [providers, setProviders] = useState<ProviderViewModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Get the current user's ID to exclude their own provider profile from lists
+  const { user } = useAuth();
+  const currentUserId = user?.uid;
 
   // Fetch single provider when providerId is provided
   useEffect(() => {
@@ -71,14 +79,14 @@ export const useProvider = (providerId?: string): UseProviderResult => {
     setError(null);
 
     try {
-      const data = await getAllProvidersWithDetails(userLocation);
+      const data = await getAllProvidersWithDetails(userLocation, currentUserId);
       setProviders(data);
     } catch (err: any) {
       setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUserId]);
 
   /**
    * Fetches providers by category
@@ -90,14 +98,14 @@ export const useProvider = (providerId?: string): UseProviderResult => {
     setError(null);
 
     try {
-      const data = await getProvidersByCategory(category, userLocation);
+      const data = await getProvidersByCategory(category, userLocation, currentUserId);
       setProviders(data);
     } catch (err: any) {
       setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUserId]);
 
   /**
    * Searches providers with filters
@@ -108,14 +116,14 @@ export const useProvider = (providerId?: string): UseProviderResult => {
     setError(null);
 
     try {
-      const data = await repoSearchProviders(params);
+      const data = await repoSearchProviders({ ...params, excludeId: currentUserId });
       setProviders(data);
     } catch (err: any) {
       setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUserId]);
 
   /**
    * Refetches the current provider data

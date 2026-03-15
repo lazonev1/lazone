@@ -58,12 +58,19 @@ export async function getProviderViewModel(
 /**
  * Fetches all providers with details populated
  * @param userLocation - Optional user's current location for distance calculation
+ * @param excludeId - Optional provider ID to exclude from results (e.g., current user)
  */
 export async function getAllProvidersWithDetails(
-  userLocation?: Coordinates | null
+  userLocation?: Coordinates | null,
+  excludeId?: string
 ): Promise<ProviderViewModel[]> {
   try {
-    const providers = await ProviderService.getAllProviders();
+    let providers = await ProviderService.getAllProviders();
+
+    // Exclude the specified provider early (before expensive populate calls)
+    if (excludeId) {
+      providers = providers.filter(p => p._id !== excludeId);
+    }
 
     return await Promise.all(
       providers.map(async (provider) => {
@@ -90,13 +97,20 @@ export async function getAllProvidersWithDetails(
  * Searches providers by category with details populated
  * @param category - Category to filter by
  * @param userLocation - Optional user's current location for distance calculation
+ * @param excludeId - Optional provider ID to exclude from results (e.g., current user)
  */
 export async function getProvidersByCategory(
   category: string,
-  userLocation?: Coordinates | null
+  userLocation?: Coordinates | null,
+  excludeId?: string
 ): Promise<ProviderViewModel[]> {
   try {
-    const providers = await ProviderService.getProvidersByCategory(category);
+    let providers = await ProviderService.getProvidersByCategory(category);
+
+    // Exclude the specified provider early (before expensive populate calls)
+    if (excludeId) {
+      providers = providers.filter(p => p._id !== excludeId);
+    }
 
     return await Promise.all(
       providers.map(async (provider) => {
@@ -130,6 +144,7 @@ export interface SearchProvidersParams {
   maxPrice?: number;
   maxDistance?: number;
   userLocation?: Coordinates | null;
+  excludeId?: string; // Provider ID to exclude from results (e.g., current user)
 }
 
 /**
@@ -141,12 +156,17 @@ export async function searchProviders(
 ): Promise<ProviderViewModel[]> {
   try {
     // Use backend search for basic filtering
-    const providers = await ProviderService.searchProviders({
+    let providers = await ProviderService.searchProviders({
       query: params.query,
       category: params.category,
       remoteOnly: params.remoteOnly,
       minRating: params.minRating,
     });
+
+    // Exclude the specified provider early
+    if (params.excludeId) {
+      providers = providers.filter(p => p._id !== params.excludeId);
+    }
 
     // Transform to ViewModels with distance calculation
     const viewModels = await Promise.all(
