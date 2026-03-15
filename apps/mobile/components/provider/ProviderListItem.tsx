@@ -1,9 +1,10 @@
 import { View, StyleSheet, Image, Pressable, Appearance, TouchableOpacity } from 'react-native';
-import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useBookmarks } from '@/hooks/useBookmarks';
+import { useAuth } from '@/contexts/auth';
+import { requireAuth } from '@/utils/auth';
 
 type Props = {
   id: string; // Add provider ID to props
@@ -16,9 +17,15 @@ type Props = {
 
 export default function ProviderListItem({ id, name, description, avatar, rating, onPress }: Props) {
   const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
+  const { user } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+
+  const handleBookmarkPress = () => {
+    if (!requireAuth(user?.uid, 'Please sign in to save providers.')) return;
+    toggleBookmark(id);
+  };
 
 
   return (
@@ -34,7 +41,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
           <TouchableOpacity 
             onPress={(e) =>{
               e.stopPropagation(); // Prevent triggering onPress of Pressable
-              toggleBookmark(id);
+              handleBookmarkPress();
             }}
             style={styles.bookmarkButton}
             disabled={isLoading}

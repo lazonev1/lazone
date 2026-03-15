@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import { useReviews } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/auth';
+import { requireAuth } from '@/utils/auth';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
@@ -49,10 +50,7 @@ export default function ProviderReviewsScreen() {
 
   // Handle opening review modal with validation
   const handleOpenReviewModal = () => {
-    if (!currentUserId) {
-      Alert.alert('Sign In Required', 'Please sign in to leave a review');
-      return;
-    }
+    if (!requireAuth(currentUserId, 'Please sign in to leave a review.')) return;
 
     // TODO: Toggle this to enable/disable review eligibility check
     // Set to `true` to enforce booking requirement, `false` to skip for testing
@@ -171,10 +169,7 @@ export default function ProviderReviewsScreen() {
             }
           }}
           onMarkHelpful={async (reviewId: string) => {
-            if (!currentUserId) {
-              Alert.alert('Sign In Required', 'Please sign in to vote');
-              return;
-            }
+            if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
             try {
               await markHelpful(reviewId);
             } catch {

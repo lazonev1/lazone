@@ -13,6 +13,7 @@
  */
 
 export * as bookingRepository from './bookingRepository';
+export * as bookmarkRepository from './bookmarkRepository';
 export * as messageRepository from './messageRepository';
 export * as reviewRepository from './reviewRepository';
 export * as providerRepository from './providerRepository';

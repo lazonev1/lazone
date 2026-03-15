@@ -6,6 +6,7 @@ import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { Review, ReviewStats } from '@/types/provider';
+import { requireAuth } from '@/utils/auth';
 
 type ReviewsComponentProps = {
   reviews: Review[];
@@ -329,10 +330,7 @@ export default function ReviewsComponent({
                     onPress={() => {
                       // Don't allow users to vote on their own reviews
                       if (currentUserId === review.userId) return;
-                      if (!currentUserId) {
-                        Alert.alert('Sign In Required', 'Please sign in to vote');
-                        return;
-                      }
+                      if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
                       onMarkHelpful && onMarkHelpful(review.id);
                     }}
                     disabled={currentUserId === review.userId}
