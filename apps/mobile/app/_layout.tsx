@@ -8,6 +8,10 @@ import { AuthProvider, useAuth } from '@/contexts/auth';
 import { BookmarkProvider } from '@/contexts/bookmarks';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  registerForegroundMessageHandler,
+  registerNotificationOpenHandlers,
+} from '@/services/notifications/messageHandlers';
 
 
 function RootLayoutNav() {
@@ -36,6 +40,18 @@ function RootLayoutNav() {
     }
     // Otherwise, allow browsing (home, explore, provider details) without auth
   }, [isAuthenticated, segments, loading, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribeForeground = registerForegroundMessageHandler();
+    const unsubscribeOpen = registerNotificationOpenHandlers(router);
+
+    return () => {
+      unsubscribeForeground();
+      unsubscribeOpen();
+    };
+  }, [isAuthenticated, router]);
 
   if (loading) {
     return null; 

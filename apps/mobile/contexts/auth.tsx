@@ -3,6 +3,11 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../backend/main/src/config/firebase';
 import { signupUser, loginUser, logoutUser, getUserProfile, updateUserProfile } from '../backend/main/src/services/authService';
 import { User as AppUser } from '../backend/main/src/models/User';
+import {
+  cleanupPushNotificationsOnLogout,
+  forceDeleteLocalPushToken,
+  initializePushNotificationsForUser,
+} from '@/services/notifications/pushNotifications';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -50,6 +55,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Always fetch the profile when a user is detected.
         const profile = await getUserProfile(firebaseUser.uid);
         setUserProfile(profile);
+
+        initializePushNotificationsForUser(firebaseUser.uid).catch((error) => {
+          console.warn('Push notification initialization failed:', error);
+        });
       } else {
         // User is signed out, clear the profile.
         setUserProfile(null);
@@ -76,9 +85,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Wrapper for the logout function to clear all state.
   const handleLogout = async () => {
-    await logoutUser();
-    setUser(null);
-    setUserProfile(null);
+    const currentUserId = auth.currentUser?.uid ?? user?.uid ?? null;
+
+    try {
+      await cleanupPushNotificationsOnLogout(currentUserId);
+    } catch (error) {
+      console.warn('Push notification logout cleanup failed:', error);
+    }
+
+    try {
+      await logoutUser();
+    } finally {
+      await forceDeleteLocalPushToken();
+      setUser(null);
+      setUserProfile(null);
+    }
   };
 
   // Wrapper for updating user profile fields in Firestore.
