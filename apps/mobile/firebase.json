@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "backend/main/src/functions"
+  },
   "react-native": {
     "messaging_ios_foreground_presentation_options": [
       "badge",
