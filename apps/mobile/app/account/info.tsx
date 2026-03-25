@@ -8,8 +8,9 @@ import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 
-export default function AccountInfoScreen() {// router.replace('/(auth)/login');
+export default function AccountInfoScreen() {
 	const { user, userProfile, logout } = useAuth();
 	const [editPopupVisible, setEditPopupVisible] = useState(false);
 	const navigation = useNavigation();
@@ -28,6 +29,8 @@ export default function AccountInfoScreen() {// router.replace('/(auth)/login');
 	useEffect(() => {
 		navigation.setOptions({ title: 'Account Info' });
 	}, []);
+
+	if (!user) { return null; }
 
 	const editData = { firstName, lastName, email, phone };
 
@@ -81,7 +84,10 @@ export default function AccountInfoScreen() {// router.replace('/(auth)/login');
 						'Are you sure you want to logout?',
 						[
 							{ text: 'Cancel', style: 'cancel' },
-							{ text: 'Logout', style: 'destructive', onPress: () => logout() },
+							{ text: 'Logout', style: 'destructive', onPress: () => {
+								logout();
+								router.replace("/(tabs)");
+							} },
 						]
 					);
 				}}
