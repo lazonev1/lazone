@@ -11,9 +11,15 @@ export interface Strings {
       noAccount: string;
       signUpLink: string;
       discoverText: string;
+      browseFirst: string;
+      loggingIn: string;
+      tabLogin: string;
+      tabSignup: string;
     },
     signup: {
       title: string;
+      subtitle: string;
+      signingUp: string;
       fullName: string;
       emailAddress: string;
       phoneNumber: string;
