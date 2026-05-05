@@ -1,4 +1,4 @@
-import { Alert, DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter } from 'react-native';
 import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import { Router } from 'expo-router';
 
@@ -51,14 +51,16 @@ export function registerForegroundMessageHandler(getCurrentPath: () => string | 
 }
 
 export function registerNotificationOpenHandlers(router: Router) {
-  const unsubscribe = messaging().onNotificationOpenedApp((remoteMessage: any) => {
-    if (!remoteMessage || !isNewMessageNotification(remoteMessage)) return;
-    handleNewMessageNavigation(router, remoteMessage);
-  });
+  const unsubscribe = messaging().onNotificationOpenedApp(
+    (remoteMessage: FirebaseMessagingTypes.RemoteMessage | null) => {
+      if (!remoteMessage || !isNewMessageNotification(remoteMessage)) return;
+      handleNewMessageNavigation(router, remoteMessage);
+    }
+  );
 
   messaging()
     .getInitialNotification()
-    .then((remoteMessage: any) => {
+    .then((remoteMessage: FirebaseMessagingTypes.RemoteMessage | null) => {
       if (!remoteMessage || !isNewMessageNotification(remoteMessage)) return;
       handleNewMessageNavigation(router, remoteMessage);
     })

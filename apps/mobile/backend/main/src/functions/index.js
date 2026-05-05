@@ -1,5 +1,5 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
-const { logger } = require('firebase-functions');
+const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 
 admin.initializeApp();

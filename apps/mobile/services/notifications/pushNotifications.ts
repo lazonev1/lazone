@@ -83,13 +83,15 @@ async function subscribeToConfiguredTopics(settings: NotificationSettings): Prom
 
 function setupTokenRefreshListener(userId: string) {
   tokenRefreshUnsubscribe?.();
-tokenRefreshUnsubscribe = messaging().onTokenRefresh(async (token: string): Promise<void> => {
-    try {
+  tokenRefreshUnsubscribe = messaging().onTokenRefresh(
+    async (token: string): Promise<void> => {
+      try {
         await saveUserNotificationToken(userId, token);
-    } catch (error) {
+      } catch (error) {
         console.warn('Failed to save refreshed FCM token:', error);
+      }
     }
-});
+  );
 }
 
 export async function initializePushNotificationsForUser(userId: string): Promise<void> {
