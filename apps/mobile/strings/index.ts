@@ -12,12 +12,18 @@ export default {
       forgotPassword: 'Forgot your password?',
       noAccount: 'Don\'t have an account?',
       signUpLink: 'Sign Up',
-      discoverText: 'Discover skilled service providers'
+      discoverText: 'Discover skilled service providers',
+      browseFirst: 'Explore first →',
+      loggingIn: 'Logging in...',
+      tabLogin: 'Log In',
+      tabSignup: 'Sign Up'
     },
     logout: 'Logout',
     // Signup 
     signup: {
-      title: 'Sign Up',
+      title: 'Create your account',
+      subtitle: 'Join thousands discovering trusted services or provide your services',
+      signingUp: 'Creating account...',
       fullName: 'Full Name',
       emailAddress: 'Email Address',
       phoneNumber: 'Phone Number',
