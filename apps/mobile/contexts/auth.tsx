@@ -5,7 +5,6 @@ import { signupUser, loginUser, logoutUser, getUserProfile, updateUserProfile } 
 import { User as AppUser } from '../backend/main/src/models/User';
 import {
   cleanupPushNotificationsOnLogout,
-  forceDeleteLocalPushToken,
   initializePushNotificationsForUser,
 } from '@/services/notifications/pushNotifications';
 
@@ -96,7 +95,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await logoutUser();
     } finally {
-      await forceDeleteLocalPushToken();
       setUser(null);
       setUserProfile(null);
     }
