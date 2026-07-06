@@ -64,7 +64,8 @@
       "expo-secure-store",
       "expo-web-browser",
       "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      "@react-native-firebase/messaging",
+      "./plugins/withFirebaseNonModularFix"
     ],
     "experiments": {
       "typedRoutes": true
