@@ -5,76 +5,75 @@ import { useNavigation } from 'expo-router';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STORAGE_KEY = 'notificationSettings';
+import { useAuth } from '@/contexts/auth';
+import {
+  getUserNotificationSettings,
+  updateNotificationTopicSetting,
+} from '@/services/notifications/pushNotifications';
+import { NotificationSettings, NotificationTopicKey } from '@/services/notifications/topics';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<NotificationSettings>({
     all: true,
     messages: true,
     bookings: true,
     reminders: true,
     payments: true,
-    promotions: false,
+    promotions: true,
     updates: true,
   });
 
   useEffect(() => {
     navigation.setOptions({ title: 'Notifications' });
-    loadSettings();
-  }, []);
+  }, [navigation]);
 
-  const loadSettings = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSettings(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Failed to load notification settings:', error);
-    }
-  };
+  useEffect(() => {
+    const userId = user?.uid;
+    if (!userId) return;
 
-  const persistSettings = async (next: typeof settings) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch (error) {
-      console.error('Failed to save notification settings:', error);
-    }
-  };
+    getUserNotificationSettings(userId)
+      .then(setSettings)
+      .catch((error) => {
+        console.error('Failed to load notification settings:', error);
+      });
+  }, [user?.uid]);
 
-  const toggle = (key: keyof typeof settings) => {
-    setSettings(prev => {
+  const toggle = async (key: NotificationTopicKey) => {
+    const userId = user?.uid;
+    if (!userId) return;
+
+    const nextEnabled = key === 'all' ? !(getAllState() === 'on') : !settings[key];
+
+    setSettings((prev) => {
       const next = { ...prev };
-
       if (key === 'all') {
-        const activeCount = Object.entries(next)
-          .filter(([k]) => k !== 'all')
-          .filter(([_, v]) => v === true).length;
-        const totalCount = Object.keys(next).length - 1;
-        const currentState =
-          activeCount === 0 ? 'off' : activeCount === totalCount ? 'on' : 'mixed';
-        const newValue = currentState === 'on' ? false : true;
-        Object.keys(next).forEach(k => {
-          next[k as keyof typeof settings] = newValue;
-        });
+        next.all = nextEnabled;
+        next.messages = nextEnabled;
+        next.bookings = nextEnabled;
+        next.reminders = nextEnabled;
+        next.payments = nextEnabled;
+        next.promotions = nextEnabled;
+        next.updates = nextEnabled;
       } else {
-        next[key] = !prev[key];
-        const allOn = Object.entries(next)
-          .filter(([k]) => k !== 'all')
-          .every(([, v]) => v === true);
-        next.all = allOn;
+        next[key] = nextEnabled;
       }
-
-      persistSettings(next);
       return next;
     });
+
+    try {
+      const updated = await updateNotificationTopicSetting(userId, key, nextEnabled);
+      setSettings(updated);
+    } catch (error) {
+      console.error('Failed to update notification topic subscription:', error);
+      const restored = await getUserNotificationSettings(userId);
+      setSettings(restored);
+    }
   };
 
   const getAllState = (): 'on' | 'off' | 'mixed' => {
