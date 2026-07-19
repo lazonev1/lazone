@@ -31,7 +31,7 @@ export default function BookingSuccessScreen() {
           </ThemedText>
           
           <ThemedText style={styles.subtitle}>
-            Your booking request has been sent to {providerName}. You'll receive a notification once they respond.
+            Your booking request has been sent to {providerName}. You&apos;ll receive a notification once they respond.
           </ThemedText>
         
           <View style={styles.buttonGroup}>

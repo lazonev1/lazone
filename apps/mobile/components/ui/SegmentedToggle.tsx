@@ -43,7 +43,10 @@ export function SegmentedToggle({ options, value, onChange }: Props) {
     </View>
   );
 }
-function createStyles(theme, colorScheme) {
+function createStyles(
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',

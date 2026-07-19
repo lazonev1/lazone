@@ -67,6 +67,7 @@ export interface ServiceItem {
   description: string;
   price: string;
   availability?: string; // Optional: when the service is available
+  errors?: Partial<Record<'name' | 'description' | 'price', string>>;
 }
 
 export interface CertificationErrors {
@@ -74,6 +75,11 @@ export interface CertificationErrors {
   issuer?: string;
   date?: string;
   document?: string;
+}
+
+export interface CertificationValidationResult {
+  isValid: boolean;
+  errors: CertificationErrors;
 }
 
 export interface Certification {
@@ -94,6 +100,9 @@ export interface Certification {
 export interface ProviderViewModel {
   id: number | string;
   name: string;
+  /** Provider-facing fields retained so the registration form can be edited. */
+  businessName?: string;
+  phoneNumber?: string;
   profession: string;
   categoryName: string;
   remoteService: boolean;
@@ -103,6 +112,10 @@ export interface ProviderViewModel {
   avatar: any; // Image source (require or URL)
   cover: any; // coverImage source
   location: Coordinates;
+  locationDetails?: {
+    country: string;
+    city: string;
+  };
   distance?: number; // Calculated distance from user
   portfolio: PortfolioItem[];
   services: ServiceItem[];
