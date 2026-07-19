@@ -158,7 +158,10 @@ export default function BusinessScreen() {
         {/* ── Header ────────────────────────────────────── */}
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>Business</ThemedText>
-          <TouchableOpacity onPress={() => router.push('/provider/registration?editMode=true')}>
+          <TouchableOpacity onPress={() => router.push({
+            pathname: '/provider/registration',
+            params: { editMode: 'true', providerId: user?.uid ?? '' },
+          })}>
             <Ionicons name="settings-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -231,7 +234,7 @@ export default function BusinessScreen() {
               </View>
               {req.notes ? (
                 <ThemedText style={styles.requestMessage} numberOfLines={2}>
-                  "{req.notes}"
+                  {'"'}{req.notes}{'"'}
                 </ThemedText>
               ) : null}
               <View style={styles.requestMeta}>
@@ -363,14 +366,20 @@ export default function BusinessScreen() {
           <QuickActionCard
             icon="images-outline"
             label="Portfolio"
-            onPress={() => router.push('/provider/registration?editMode=true')}
+            onPress={() => router.push({
+              pathname: '/provider/registration',
+              params: { editMode: 'true', providerId: user?.uid ?? '' },
+            })}
             theme={theme}
             colorScheme={colorScheme}
           />
           <QuickActionCard
             icon="pricetags-outline"
             label="Services & Pricing"
-            onPress={() => router.push('/provider/registration?editMode=true')}
+            onPress={() => router.push({
+              pathname: '/provider/registration',
+              params: { editMode: 'true', providerId: user?.uid ?? '' },
+            })}
             theme={theme}
             colorScheme={colorScheme}
           />
@@ -384,7 +393,10 @@ export default function BusinessScreen() {
           <QuickActionCard
             icon="person-outline"
             label="Public Profile"
-            onPress={() => router.push('/provider/preview')}
+            onPress={() => router.push({
+              pathname: '/provider/preview',
+              params: { id: user?.uid ?? '' },
+            })}
             theme={theme}
             colorScheme={colorScheme}
           />

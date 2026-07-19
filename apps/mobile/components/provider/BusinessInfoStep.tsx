@@ -5,7 +5,7 @@ import { SelectList } from '@/components/ui/SelectList';
 import { TextBox } from '@/components/ui/TextBox';
 import { LocationPicker } from '@/components/ui/LocationPicker';
 import Checkbox from '@/components/ui/CheckBox';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import { getCategoryOptions } from '@/constants/categories';
 import { validateBusinessInfo } from '@/utils/validation';
@@ -20,20 +20,32 @@ interface Props {
 // Use centralized categories
 const SERVICE_CATEGORIES = getCategoryOptions();
 
-export default function BusinessInfoStep({ initialData, onNext, isEditMode = false }: Props) {
-  const [formData, setFormData] = useState({
+function getInitialFormData(initialData: Partial<ProviderRegistration>) {
+  return {
     ...initialData,
-    remoteService: initialData?.remoteService ?? false,
+    remoteService: initialData.remoteService ?? false,
     location: {
       country: 'BF', // Use country code for Burkina Faso
       city: '',
-      ...initialData?.location // Preserve any existing location data
-    }
-  });
+      ...initialData.location, // Preserve any existing location data
+    },
+  };
+}
+
+export default function BusinessInfoStep({ initialData, onNext, isEditMode = false }: Props) {
+  const [formData, setFormData] = useState(() => getInitialFormData(initialData));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+
+  // The provider record is fetched asynchronously when editing. Sync the saved
+  // values once it arrives so the inputs show the current profile details.
+  useEffect(() => {
+    if (isEditMode) {
+      setFormData(getInitialFormData(initialData));
+    }
+  }, [initialData, isEditMode]);
 
   const handleFieldChange = (field: string, value: any) => {
     const newFormData = { ...formData, [field]: value };
