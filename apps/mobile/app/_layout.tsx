@@ -64,8 +64,9 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
     // Protected routes that require authentication
     const protectedRoutes = ['booking', 'messages', 'account'];
-    const inProtectedRoute = protectedRoutes.includes(segments[0] as string) ||
-                             (segments[0] === '(tabs)' && protectedRoutes.includes(segments[1] as string));
+    const inProtectedRoute = protectedRoutes.some(
+      (route) => pathname === `/${route}` || pathname.startsWith(`/${route}/`)
+    );
 
     // If authenticated and in auth group, redirect to home
     if (isAuthenticated && inAuthGroup) {
@@ -76,7 +77,7 @@ function RootLayoutNav() {
       router.replace('/(auth)/login');
     }
     // Otherwise, allow browsing (home, explore, provider details) without auth
-  }, [isAuthenticated, segments, loading, router]);
+  }, [isAuthenticated, segments, loading, pathname, router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
