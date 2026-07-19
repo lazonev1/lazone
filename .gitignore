@@ -1,1 +1,5 @@
 node_modules
+.idea/
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+apps/mobile/firestore-debug.log
