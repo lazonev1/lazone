@@ -206,7 +206,10 @@ export function CertificationUploader({ certificates, onChange }: Props) {
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     gap: 16,
   },
@@ -244,6 +247,13 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
+  certIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeButton: {
+    padding: 4,
+  },
   row: {
     flexDirection: 'row',
     gap: 12,
@@ -268,6 +278,10 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     borderColor: '#FF3B30',
     borderWidth: 1,
   },
+  uploadText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   errorText: {
     color: '#FF3B30',
   },
@@ -280,6 +294,10 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colorScheme === 'dark' ? '#333' : '#ddd',
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   documentStatus: {
     flexDirection: 'row',

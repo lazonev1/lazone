@@ -57,7 +57,7 @@ export default function SearchBar({
   );
 }
 
-function createStyles(theme) {
+function createStyles(theme: typeof Colors.light) {
     return StyleSheet.create({
         container: {
             flexDirection: 'row',

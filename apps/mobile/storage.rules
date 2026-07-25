@@ -6,10 +6,11 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Review images - authenticated users can upload
+    // Review-image uploads are disabled in the app until reviews have a
+    // server-verified upload flow. Do not leave an unauthorised write path open.
     match /reviews/{reviewId}/{allPaths=**} {
       allow read: if true; // Anyone can view review images
-      allow write: if isAuthenticated(); // Only authenticated users can upload
+      allow write: if false;
     }
 
     // User profile images
@@ -21,14 +22,12 @@ service firebase.storage {
     // Provider images (portfolio, cover, etc.)
     match /providers/{providerId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == providerId;
     }
 
     // Default: deny all other paths
     match /{allPaths=**} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }
-

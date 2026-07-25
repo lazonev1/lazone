@@ -38,7 +38,10 @@ export function TextBox({
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     width: '100%',
   },

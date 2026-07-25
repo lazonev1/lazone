@@ -31,7 +31,7 @@ export function MenuSection({ title, items, onPress, styles }: MenuSectionProps)
                         <View style={styles.menuItemLeft}>
                             {item.icon && (
                                 <Ionicons
-                                    name={item.icon}
+                                    name={item.icon as keyof typeof Ionicons.glyphMap}
                                     size={24}
                                     style={styles.menuIcon}
                                 />

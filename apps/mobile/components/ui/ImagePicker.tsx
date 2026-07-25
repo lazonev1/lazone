@@ -5,16 +5,11 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { TextBox } from './TextBox';
-
-type ImageItem = {
-  id: string;
-  uri: string;
-  caption?: string;
-};
+import type { PortfolioItem } from '@/types/provider';
 
 type Props = {
-  images: ImageItem[];
-  onChange: (images: ImageItem[]) => void;
+  images: PortfolioItem[];
+  onChange: (images: PortfolioItem[]) => void;
   maxImages?: number;
   allowCaptions?: boolean;
   captionPlaceholder?: string;
@@ -48,9 +43,9 @@ export function PortfolioImagePicker({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newImage: ImageItem = {
+        const newImage: PortfolioItem = {
           id: Date.now().toString(),
-          uri: result.assets[0].uri
+          image: result.assets[0].uri
         };
         onChange([...images, newImage]);
       }
@@ -76,7 +71,7 @@ export function PortfolioImagePicker({
       <View style={styles.imageGrid}>
         {images.map((img) => (
           <View key={img.id} style={styles.imageContainer}>
-            <Image source={{ uri: img.uri }} style={styles.image} />
+            <Image source={{ uri: img.image }} style={styles.image} />
             <TouchableOpacity
               style={styles.removeButton}
               onPress={() => removeImage(img.id)}
@@ -109,7 +104,10 @@ export function PortfolioImagePicker({
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     marginVertical: 8,
   },

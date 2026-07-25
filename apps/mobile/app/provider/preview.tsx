@@ -1,42 +1,51 @@
-import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Image, View, Text, TouchableOpacity, Animated, Appearance, SafeAreaView, Pressable, ImageSourcePropType, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '@/constants/Colors';
-import { Providers } from '@/hooks/useProvidersMock';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
+import type { ProviderViewModel } from '@/types/provider';
+import { useProvider } from '@/hooks/useProvider';
+import { useAuth } from '@/contexts/auth';
 
 export default function ProviderPreviewScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
 
-  const scrollRef = useRef(null);
-  const aboutRef = useRef(null);
-  const portfolioRef = useRef(null);
-  const testimonialRef = useRef(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const aboutRef = useRef<View>(null);
+  const portfolioRef = useRef<View>(null);
+  const testimonialRef = useRef<View>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const scrollTo = (ref) => {
-    if (ref.current && scrollRef.current) {
-      ref.current.measure((x, y, width, height, pageX, pageY) => {
-        scrollRef.current.scrollTo({ y: pageY - 100, animated: true });
+  const scrollTo = (ref: React.RefObject<View | null>) => {
+    const scrollView = scrollRef.current;
+    if (ref.current && scrollView) {
+      ref.current.measure((_x, _y, _width, _height, _pageX, pageY) => {
+        scrollView.scrollTo({ y: pageY - 100, animated: true });
       });
     }
   };
 
-  const initialProvider = Providers.find((p) => p.id === parseInt(id, 10)) || Providers[0];
-  const [provider, setProvider] = useState(initialProvider);
+  const providerId = Array.isArray(id) ? id[0] : id;
+  const resolvedProviderId = providerId ?? user?.uid;
+  const { provider: savedProvider, isLoading, error } = useProvider(resolvedProviderId);
+  const [provider, setProvider] = useState<ProviderViewModel | null>(null);
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [testimonialsExpanded, setTestimonialsExpanded] = useState(false);
   const [mainTabsPosition, setMainTabsPosition] = useState(0);
-  const [showImageEditors, setShowImageEditors] = useState(false);
+
+  useEffect(() => {
+    setProvider(savedProvider);
+  }, [savedProvider]);
 
   const stickyHeaderOpacity = scrollY.interpolate({
     inputRange: [mainTabsPosition - 1, mainTabsPosition],
@@ -44,57 +53,63 @@ export default function ProviderPreviewScreen() {
     extrapolate: 'clamp'
   });
 
-  const onMainTabsLayout = (event) => {
+  const onMainTabsLayout = (event: LayoutChangeEvent) => {
     const layout = event.nativeEvent.layout;
     setMainTabsPosition(layout.y);
   };
 
   const navigation = useNavigation();
   useEffect(() => {
-    navigation.setOptions({ title: provider.name });
-  }, [provider.name]);
+    if (provider) {
+      navigation.setOptions({ title: provider.name });
+    }
+  }, [navigation, provider]);
 
   const styles = createStyles(theme, colorScheme);
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.y;
     scrollY.setValue(scrollPosition);
   };
 
-  const updateProviderData = (field, value) => {
-    setProvider(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const updateProviderData = (field: 'cover' | 'avatar', value: ImageSourcePropType) => {
+    setProvider(prev => prev ? { ...prev, [field]: value } : prev);
   };
 
-  const handleEditProfile = () => {
-    const providerFormData = {
-      businessName: provider.name,
-      serviceCategory: provider.categoryName,
-      description: provider.bio,
-      bio: provider.bio,
-      remoteService: provider.remoteService || false,
-      location: {
-        country: 'BF',
-        city: '',
-        coordinates: provider.location
-      },
-      services: provider.services.map(service => ({
-        id: service.id,
-        name: service.name,
-        description: service.description || '',
-        price: service.price
-      })),
-      portfolio: provider.portfolio || []
-    };
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.centeredState}>
+        <ThemedText>Loading your provider profile…</ThemedText>
+      </SafeAreaView>
+    );
+  }
 
+  if (!provider) {
+    return (
+      <SafeAreaView style={styles.centeredState}>
+        <ThemedText type="subtitle">Provider profile unavailable</ThemedText>
+        <ThemedText style={styles.stateMessage}>
+          {error?.message ?? 'Create your provider profile before viewing it.'}
+        </ThemedText>
+        <Button
+          label="Edit Provider Profile"
+          onPress={() => router.push({
+            pathname: '/provider/registration',
+            params: { editMode: 'true', providerId: resolvedProviderId ?? '' },
+          })}
+          variant="primary"
+          style={styles.quoteButton}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const handleEditProfile = () => {
     router.push({
       pathname: '/provider/registration',
       params: {
         editMode: 'true',
         providerId: provider.id.toString(),
-        prefilledData: JSON.stringify(providerFormData)
       }
     });
   };
@@ -254,7 +269,7 @@ export default function ProviderPreviewScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
             {(portfolioExpanded ? provider.portfolio : provider.portfolio.slice(0, 1)).map((item, i) => (
               <View key={i} style={styles.card}>
-                <Image source={item.image} style={styles.image} />
+                <Image source={{ uri: item.image }} style={styles.image} />
                 {item.caption && <ThemedText style={styles.caption}>{item.caption}</ThemedText>}
               </View>
             ))}
@@ -310,8 +325,23 @@ export default function ProviderPreviewScreen() {
   );
 }
 
-function createStyles(theme, colorScheme) {
+function createStyles(
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) {
   return StyleSheet.create({
+    centeredState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+      backgroundColor: theme.background,
+    },
+    stateMessage: {
+      marginTop: 8,
+      textAlign: 'center',
+      color: theme.icon,
+    },
     container: { flex: 1, 
       backgroundColor: theme.background,
      padding:16},

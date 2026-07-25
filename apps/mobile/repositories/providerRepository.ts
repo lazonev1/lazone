@@ -347,6 +347,8 @@ function transformToViewModel(
   return {
     id: provider._id,
     name: `${provider.firstName} ${provider.lastName}`,
+    businessName: provider.businessName || undefined,
+    phoneNumber: provider.phoneNumber || undefined,
     profession: provider.profession,
     categoryName: provider.categoryName,
     remoteService: provider.remoteService,
@@ -356,6 +358,12 @@ function transformToViewModel(
     avatar: provider.avatar || require("@/assets/images/avatar-placeholder.png"),
     cover: provider.coverImage || require("@/assets/images/loginbg.png"),
     location: provider.location?.coordinates || { latitude: 0, longitude: 0 },
+    locationDetails: provider.location
+      ? {
+          country: provider.location.country || '',
+          city: provider.location.city || '',
+        }
+      : undefined,
     distance,
     portfolio: populated.portfolioItems,
     services: populated.services,
@@ -493,4 +501,3 @@ export async function createOrUpdateProviderProfile(
     throw error;
   }
 }
-
