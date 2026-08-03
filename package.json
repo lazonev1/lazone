@@ -8,6 +8,8 @@
     "eas:login": "pnpm --filter ./apps/mobile exec eas login",
     "prebuild:mobile": "pnpm --filter ./apps/mobile exec expo prebuild --clean",
     "build:simulator": "pnpm --filter ./apps/mobile exec eas build --profile simulator --platform all --non-interactive",
+    "build:simulator:ios": "pnpm --filter ./apps/mobile exec eas build --profile simulator --platform ios --non-interactive",
+    "build:simulator:android": "pnpm --filter ./apps/mobile exec eas build --profile simulator --platform android --non-interactive",
     "build:android": "pnpm --filter ./apps/mobile exec eas build --profile development --platform android",
     "build:ios": "pnpm --filter ./apps/mobile exec eas build --profile development --platform ios",
     "build:mobile:dev": "pnpm --filter ./apps/mobile exec eas build --profile development --platform all",

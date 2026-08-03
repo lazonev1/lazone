@@ -29,7 +29,10 @@ import { Review } from "../models/Review";
 
 /**
  * Creates a new review in Firestore
- * Also updates the provider's averageRating and reviewCount
+ * TEMPORARY DEVELOPMENT DESIGN: after a review mutation, the client updates the
+ * reviewed provider's aggregate rating. This requires a deliberately broad
+ * provider-update Firestore rule. Move the aggregation to a trusted backend
+ * before production so clients cannot write another provider's profile.
  */
 export async function createReview(reviewData: {
   providerId: string;
@@ -69,11 +72,8 @@ export async function createReview(reviewData: {
 
     console.log('[ReviewService] Review created with ID:', reviewDoc.id);
 
-    // Update provider's rating and review count
-    console.log('[ReviewService] Updating provider rating...');
-    await recalculateProviderRating(reviewData.providerId);
-
     console.log('[ReviewService] Review creation complete');
+    await recalculateProviderRating(reviewData.providerId);
     return reviewDoc.id;
   } catch (error) {
     console.error("[ReviewService] Error creating review:", error);
@@ -238,7 +238,6 @@ export async function updateReview(
       throw new Error("Rating must be between 1 and 5");
     }
 
-    // Get current review to find providerId for rating recalculation
     const currentReview = await getReviewById(reviewId);
     if (!currentReview) {
       throw new Error("Review not found");
@@ -249,7 +248,6 @@ export async function updateReview(
       updatedAt: serverTimestamp(),
     });
 
-    // Recalculate provider rating if rating was changed
     if (updates.rating !== undefined) {
       await recalculateProviderRating(currentReview.providerId as unknown as string);
     }
@@ -291,7 +289,6 @@ export async function markReviewHelpful(
   console.log(`[ReviewService] Toggling helpful vote for review ${reviewId} by user ${userId}`);
 
   try {
-    // Get current review to check if user already voted
     const review = await getReviewById(reviewId);
     if (!review) {
       throw new Error("Review not found");
@@ -301,24 +298,20 @@ export async function markReviewHelpful(
     const hasVoted = helpfulBy.includes(userId);
 
     if (hasVoted) {
-      // Remove the vote
-      console.log('[ReviewService] Removing helpful vote');
       await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
         isHelpful: increment(-1),
         helpfulBy: helpfulBy.filter(id => id !== userId),
         updatedAt: serverTimestamp(),
       });
       return { added: false, newCount: (review.isHelpful || 1) - 1 };
-    } else {
-      // Add the vote
-      console.log('[ReviewService] Adding helpful vote');
-      await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
-        isHelpful: increment(1),
-        helpfulBy: [...helpfulBy, userId],
-        updatedAt: serverTimestamp(),
-      });
-      return { added: true, newCount: (review.isHelpful || 0) + 1 };
     }
+
+    await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
+      isHelpful: increment(1),
+      helpfulBy: [...helpfulBy, userId],
+      updatedAt: serverTimestamp(),
+    });
+    return { added: true, newCount: (review.isHelpful || 0) + 1 };
   } catch (error) {
     console.error("Error toggling review helpful:", error);
     throw error;
@@ -328,21 +321,17 @@ export async function markReviewHelpful(
 // ========== DELETE OPERATIONS ==========
 
 /**
- * Deletes a review and recalculates provider rating
+ * Deletes a review and recalculates the provider rating.
  */
 export async function deleteReview(reviewId: string): Promise<void> {
   try {
-    // Get current review to find providerId for rating recalculation
     const currentReview = await getReviewById(reviewId);
     if (!currentReview) {
       throw new Error("Review not found");
     }
-
     const providerId = currentReview.providerId as unknown as string;
 
     await deleteDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
-
-    // Recalculate provider rating
     await recalculateProviderRating(providerId);
   } catch (error) {
     console.error("Error deleting review:", error);
@@ -350,37 +339,19 @@ export async function deleteReview(reviewId: string): Promise<void> {
   }
 }
 
-// ========== HELPER FUNCTIONS ==========
-
 /**
- * Recalculates and updates a provider's average rating and review count
- * Called after review create, update, or delete
+ * TEMPORARY: move this aggregation to a trusted backend before production.
  */
 export async function recalculateProviderRating(providerId: string): Promise<void> {
-  console.log('[ReviewService] Recalculating rating for provider:', providerId);
-
-  try {
-    // Get all reviews for this provider
-    const reviews = await getReviewsByProviderId(providerId);
-
-    // Calculate new averages
-    const reviewCount = reviews.length;
-    const averageRating =
-      reviewCount > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount
-        : 0;
-
-    console.log(`[ReviewService] New stats - Reviews: ${reviewCount}, Avg Rating: ${averageRating.toFixed(1)}`);
-
-    // Update provider document
-    await updateDoc(doc(db, COLLECTIONS.PROVIDERS, providerId), {
-      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
-      reviewCount,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error("Error recalculating provider rating:", error);
-    throw error;
-  }
+  const reviews = await getReviewsByProviderId(providerId);
+  const reviewCount = reviews.length;
+  const averageRating = reviewCount
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount
+    : 0;
+  console.log(`[ReviewService] New stats - Reviews: ${reviewCount}, Avg Rating: ${averageRating.toFixed(1)}`);
+  await updateDoc(doc(db, COLLECTIONS.PROVIDERS, providerId), {
+    averageRating: Math.round(averageRating * 10) / 10,
+    reviewCount,
+    updatedAt: serverTimestamp(),
+  });
 }
-

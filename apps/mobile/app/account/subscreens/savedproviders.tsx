@@ -64,7 +64,7 @@ export default function SavedProvidersScreen() {
                     <View style={styles.emptyState}>
                         <Ionicons name="bookmark" size={48} color={theme.tabIconDefault} />
                         <ThemedText style={styles.emptyText}>
-                            You haven't saved any providers yet.
+                            You haven&apos;t saved any providers yet.
                         </ThemedText>
                         <ThemedText style={styles.emptySubtext}>
                             Browse providers and tap the bookmark icon to save them here.

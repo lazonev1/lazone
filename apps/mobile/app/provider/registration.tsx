@@ -18,13 +18,13 @@ function transformProviderViewModelToRegistration(
   provider: ProviderViewModel
 ): Partial<ProviderRegistration> {
   return {
-    businessName: provider.name, // Note: This might need adjustment if businessName is stored separately
+    businessName: provider.businessName || provider.name,
     serviceCategory: provider.categoryName,
-    phone: '', // TODO: Get from user profile
+    phone: provider.phoneNumber || '',
     description: provider.bio,
     location: {
-      country: '', // TODO: Extract from provider location data
-      city: '', // TODO: Extract from provider location data
+      country: provider.locationDetails?.country || 'BF',
+      city: provider.locationDetails?.city || '',
       coordinates: provider.location,
     },
     languages: [], // TODO: Get from provider data if available
@@ -41,17 +41,18 @@ export default function ProviderRegistrationScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { userProfile } = useAuth();
+  const isEditMode = editMode === 'true';
+  const requestedProviderId = Array.isArray(providerId) ? providerId[0] : providerId;
+  const resolvedProviderId = isEditMode
+    ? requestedProviderId || userProfile?._id
+    : undefined;
 
   // Use the provider hook to fetch existing provider data and save functionality
-  const { provider, isLoading, saveProviderProfile } = useProvider(
-    editMode === 'true' && providerId ? String(providerId) : undefined
-  );
+  const { provider, isLoading, saveProviderProfile } = useProvider(resolvedProviderId);
 
   const [step, setStep] = useState<'business-info' | 'service-details'>('business-info');
   const [formData, setFormData] = useState<Partial<ProviderRegistration>>({});
   const [isSaving, setIsSaving] = useState(false);
-
-  const isEditMode = editMode === 'true';
 
   // Populate form data when provider data is loaded
   useEffect(() => {
@@ -80,7 +81,7 @@ export default function ProviderRegistrationScreen() {
       // Call the save function from the hook
       const resultProviderId = await saveProviderProfile(
         userProfile._id,
-        isEditMode && providerId ? String(providerId) : null,
+        isEditMode ? resolvedProviderId || null : null,
         completeData
       );
 

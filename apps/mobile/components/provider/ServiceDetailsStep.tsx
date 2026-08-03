@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Appearance, TouchableOpacity, Alert } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui';
 import { TextBox } from '@/components/ui/TextBox';
@@ -7,7 +7,7 @@ import { PortfolioImagePicker } from '@/components/ui/ImagePicker';  // Updated 
 import { Colors } from '@/constants/Colors';
 import { ServiceItem, PortfolioItem, ProviderRegistration } from '@/types/provider';
 import { CertificationUploader } from './CertificationUploader';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { generateServiceId } from '@/utils/generateId';
 import { validateService, validateCertification } from '@/utils/validation';
 
@@ -31,6 +31,20 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   }]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(initialData?.portfolio || []);
   const [certificates, setCertificates] = useState(initialData?.certifications || []);
+
+  // Keep the second step in sync with the provider profile fetched for edit mode.
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    setServices(initialData.services?.length ? initialData.services : [{
+      id: generateServiceId(),
+      name: '',
+      description: '',
+      price: '',
+    }]);
+    setPortfolio(initialData.portfolio || []);
+    setCertificates(initialData.certifications || []);
+  }, [initialData.services, initialData.portfolio, initialData.certifications, isEditMode]);
 
   const addServiceField = () => {
     setServices([...services, {
@@ -207,7 +221,10 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,

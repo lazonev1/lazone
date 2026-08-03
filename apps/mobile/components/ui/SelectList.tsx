@@ -96,7 +96,10 @@ export function SelectList({ label, value, options, onChange, error, style }: Pr
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     width: '100%',
   },

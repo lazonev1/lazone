@@ -3,7 +3,7 @@ import { useState } from 'react';
 import * as Location from 'expo-location';
 import { Button } from '@lazone/ui';
 import { ThemedText } from '@/components/ThemedText';
-import CountryPicker from 'react-native-country-picker-modal';
+import CountryPicker, { CountryCode } from 'react-native-country-picker-modal';
 import { Colors } from '@/constants/Colors';
 import { TextBox } from '@/components/ui/TextBox';
 
@@ -103,7 +103,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
           withFilter
           withFlag
           withCountryNameButton
-          countryCode={value.country || 'BF'}
+          countryCode={(value.country || 'BF') as CountryCode}
           onSelect={(country) =>
             onChange({ ...value, country: country.cca2 })
           }
@@ -150,11 +150,18 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   container: {
     gap: 16,
   },
   countryPicker: {
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 16,
     marginBottom: 8,
   },
   countryButton: {
@@ -182,5 +189,11 @@ const createStyles = (theme, colorScheme) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 16,
+  },
+  cityInput: {
+    marginTop: 0,
+  },
+  locationButton: {
+    marginLeft: 12,
   },
 });

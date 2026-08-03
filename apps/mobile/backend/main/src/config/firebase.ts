@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+// import { Platform } from 'react-native';
 // Try to initialize React Native auth only when running in RN environment.
 // When running Node scripts (seeders, admin tools) we skip RN-specific auth
 // to avoid requiring AsyncStorage.
@@ -33,9 +34,37 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize services
 export const db = getFirestore(app);
+// EXPO_PUBLIC_USE_FIRESTORE_EMULATOR should be set in mobile/.env.local to enable Firestore emulator connection for development.
+// If not set will default to DEFAULT (live Firestore)
+if (process.env.EXPO_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
+  // Connect to emulator BEFORE any Firestore calls
+  // EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST also must be set in mobile/.env.local file 
+  // and should point to machine's local IP address, e.g. EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST=192.168.1.126, to be available for both real devices and emulators
+  // Using localhost will cause connection issues on real devices and Android emulators, but should work on iOS simulators.
+  // Using 10.0.2.2 will work for Android emulators, but not on iOS simulators or real devices.
+  let emulatorHost = process.env.EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST as string;
+  const trimmedEmulatorHost = emulatorHost && emulatorHost.trim();
+  if (!trimmedEmulatorHost) {
+    console.error(
+      'EXPO_PUBLIC_USE_FIRESTORE_EMULATOR is true, but EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST is not set or is empty. ' +
+      'Refusing to start with production Firestore. Please set EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST in mobile/.env.local.'
+    );
+    throw new Error(
+      'Firebase Firestore emulator configuration error: EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST is required when EXPO_PUBLIC_USE_FIRESTORE_EMULATOR is true.'
+    );
+  }
+  try {
+    connectFirestoreEmulator(db, trimmedEmulatorHost, 8080);
+    console.log('✓ Web SDK connected to Firestore emulator');
+  } catch (e: any) {
+    // Ignore "already called" errors
+    if (!e.message.includes('already called')) {
+      console.log('Emulator connection error:', e.message);
+    }
+  }
+}
+
 export const storage = getStorage(app);
 // Initialize Auth with React Native persistence only when available
 export let auth: any = undefined;

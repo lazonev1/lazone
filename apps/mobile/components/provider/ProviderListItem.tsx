@@ -61,7 +61,10 @@ export default function ProviderListItem({ id, name, description, avatar, rating
   );
 }
 
-const createStyles = (theme, colorScheme) => StyleSheet.create({
+const createStyles = (
+  theme: typeof Colors.light,
+  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     backgroundColor: colorScheme === 'dark' ? '#333' : theme.background,
