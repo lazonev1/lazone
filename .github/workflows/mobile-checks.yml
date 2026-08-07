@@ -22,4 +22,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter ./apps/mobile lint
       - run: pnpm --filter ./apps/mobile typecheck
+      - run: pnpm --filter ./apps/mobile exec firebase emulators:exec --project demo-rules --only firestore,auth "pnpm test:rules"
       - run: node --check apps/mobile/backend/main/src/functions/index.js

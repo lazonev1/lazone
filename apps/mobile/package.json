@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    
+    "test:rules": "node scripts/testFirestoreRules.mjs",
     "serve": "firebase emulators:start --only functions,firestore --import=./emulator-data --export-on-exit",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"

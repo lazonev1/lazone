@@ -41,13 +41,14 @@ completion, payments, and automated verification remain incomplete.
   Deployment remains pending Firebase Storage initialization.
 - [x] Use the explicit Firebase project ID for the Firestore-rules deployment.
 - [x] Resolve TypeScript compilation errors and repair the mobile lint command.
-- [x] Add CI checks for install, type-check, lint, and function syntax.
+- [x] Add CI checks for install, type-check, lint, function syntax, and Firestore
+  security regression tests.
 
 ## Priority 2 — complete the marketplace transaction
 
-- [ ] Implement provider actions for `confirmed → in_progress → completed`.
-- [ ] Enforce booking transitions and participant ownership server-side.
-- [ ] Enable the completed-booking review eligibility check.
+- [x] Implement provider actions for `confirmed → in_progress → completed`.
+- [x] Enforce booking transitions and participant ownership in deployed Firestore rules.
+- [x] Enable the completed-booking review eligibility check.
 - [ ] Decide and implement the payment model: offline confirmation, mobile money,
   card processor, refunds, and payment records tied to bookings.
 - [ ] Replace the mock payment-method wallet with persistent, processor-backed data.
@@ -75,6 +76,8 @@ completion, payments, and automated verification remain incomplete.
 
 - [ ] Add unit tests for services/repositories and integration tests against Firebase
   emulators.
+  - [x] Add authenticated Firestore rules regression coverage for booking
+    transitions and immutable status events.
 - [ ] Add end-to-end tests for signup, booking, provider acceptance/completion,
   messaging, review, and logout.
 - [ ] Validate iOS and Android release builds with real Firebase credentials.
