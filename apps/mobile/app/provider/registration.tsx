@@ -40,7 +40,7 @@ export default function ProviderRegistrationScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { userProfile, refreshUserProfile } = useAuth();
   const isEditMode = editMode === 'true';
   const requestedProviderId = Array.isArray(providerId) ? providerId[0] : providerId;
   const resolvedProviderId = isEditMode
@@ -84,6 +84,13 @@ export default function ProviderRegistrationScreen() {
         isEditMode ? resolvedProviderId || null : null,
         completeData
       );
+
+      // Creating a provider profile promotes the user to the `both` role in
+      // Firestore. Refresh the AuthContext immediately so Business access is
+      // available without requiring the user to sign out and back in.
+      if (!isEditMode) {
+        await refreshUserProfile();
+      }
 
       if (isEditMode) {
         Alert.alert(

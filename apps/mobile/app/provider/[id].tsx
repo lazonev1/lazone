@@ -351,11 +351,7 @@ export default function ProviderProfileScreen() {
                 onPress={() => {
                   if (!requireAuth(currentUserId, 'Please sign in to leave a review.')) return;
 
-                  // TODO: Toggle this to enable/disable review eligibility check
-                  // Set to `true` to enforce booking requirement, `false` to skip for testing
-                  const ENFORCE_BOOKING_CHECK = false;
-
-                  if (ENFORCE_BOOKING_CHECK && !canReview && canReviewReason) {
+                  if (!canReview && canReviewReason) {
                     Alert.alert('Cannot Review', canReviewReason);
                     return;
                   }
