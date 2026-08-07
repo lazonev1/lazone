@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
+import { LoginPrompt } from "@/components/auth/LoginPrompt";
 import { Ionicons } from '@expo/vector-icons';
 
 export default function AccountScreen() {
@@ -22,6 +23,8 @@ export default function AccountScreen() {
   const [businessVisible, setBusinessVisible] = useState(true);
 
   // Show a loading indicator while the initial auth check is happening.
+  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view and manage your account." />; }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -54,13 +57,6 @@ export default function AccountScreen() {
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      Alert.alert("Logout Failed", "An error occurred while logging out.");
-    }
-  };
 
   const handleToggleBusinessVisibility = (value: boolean) => {
     setBusinessVisible(value);

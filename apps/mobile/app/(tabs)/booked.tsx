@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { BookingViewModel } from '@/types/booking';
+import { LoginPrompt } from "@/components/auth/LoginPrompt";
 
 type BookingFilter = 'active' | 'completed' | 'cancelled';
 
@@ -43,6 +44,8 @@ export default function BookedScreen() {
     () => bookings.filter((b) => b.status === 'cancelled'),
     [bookings]
   );
+
+  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view and manage your bookings." />; }
 
   const filteredBookings: BookingViewModel[] =
     activeFilter === 'active' ? activeBookings
