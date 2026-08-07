@@ -14,6 +14,16 @@ export type BookingStatus =
   | 'completed'
   | 'cancelled';
 
+/** An immutable audit event written with every booking-status transition. */
+export interface BookingStatusEvent {
+  id: string;
+  fromStatus: BookingStatus;
+  toStatus: BookingStatus;
+  actorId: string;
+  actorRole: 'requester' | 'provider';
+  occurredAt: string;
+}
+
 /**
  * What the UI displays — resolved names, formatted ISO strings.
  * This is the output of the repository's transform layer.
@@ -38,6 +48,9 @@ export interface BookingViewModel {
   status: BookingStatus;
   createdAt: string; // ISO string
   updatedAt?: string; // ISO string
+  statusHistory: BookingStatusEvent[];
+  /** True when event history could not be read and the UI is showing a fallback. */
+  timelineUnavailable?: boolean;
 }
 
 /**

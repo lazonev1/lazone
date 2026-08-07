@@ -9,7 +9,7 @@ import * as messageRepository from '@/repositories/messageRepository';
 import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
-import { BookingStatus, BookingViewModel } from '@/types/booking';
+import { BookingStatus, BookingStatusEvent, BookingViewModel } from '@/types/booking';
 import { useEffect, useCallback, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import Toast from '@/components/ui/Toast';
@@ -25,16 +25,30 @@ function formatStatus(status: BookingStatus): string {
   return capitalize(status);
 }
 
+function statusEventLabel(event: BookingStatusEvent): string {
+  if (event.toStatus === 'confirmed') return 'Booking Accepted';
+  if (event.toStatus === 'in_progress') return 'Service Started';
+  if (event.toStatus === 'completed') return 'Service Completed';
+  return event.actorRole === 'provider' ? 'Booking Declined' : 'Booking Cancelled';
+}
+
 export default function BookingDetailsScreen() {
-  const { id, role } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const bookingId = id?.toString();
-  const isProvider = role === 'provider';
-  const { booking, isLoading, cancelBooking, refreshBooking } = useBookingDetail(bookingId);
+  const {
+    booking,
+    isLoading,
+    cancelBooking,
+    startBooking,
+    completeBooking,
+    refreshBooking,
+  } = useBookingDetail(bookingId);
   const { toast, showToast, hideToast } = useToast();
   const [actionInFlight, setActionInFlight] = useState(false);
   const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { user } = useAuth();
+  const isProvider = booking?.providerId === user?.uid;
 
   const handleMessage = async (otherUserId: string, otherUserName: string, otherUserAvatar?: string) => {
     if (!user?.uid) return;
@@ -179,6 +193,35 @@ export default function BookingDetailsScreen() {
     );
   };
 
+  const handleProviderStatusChange = (
+    nextStatus: 'in_progress' | 'completed',
+    title: string,
+    message: string,
+    successMessage: string
+  ) => {
+    if (!bookingId) return;
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Confirm',
+        onPress: async () => {
+          setActionInFlight(true);
+          try {
+            if (nextStatus === 'in_progress') await startBooking();
+            else await completeBooking();
+            showToast(successMessage, 'success');
+            await refreshBooking();
+          } catch {
+            showToast('Could not update the booking status', 'error');
+          } finally {
+            setActionInFlight(false);
+          }
+        },
+      },
+    ]);
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -222,6 +265,34 @@ export default function BookingDetailsScreen() {
                 disabled={actionInFlight}
               />
             </>
+          )}
+          {booking.status === 'confirmed' && (
+            <Button
+              label={actionInFlight ? 'Starting...' : 'Start Service'}
+              onPress={() => handleProviderStatusChange(
+                'in_progress',
+                'Start Service',
+                'Confirm that you are starting this service now.',
+                'Service marked as in progress'
+              )}
+              variant="primary"
+              style={styles.actionButton}
+              disabled={actionInFlight}
+            />
+          )}
+          {booking.status === 'in_progress' && (
+            <Button
+              label={actionInFlight ? 'Completing...' : 'Mark Service Complete'}
+              onPress={() => handleProviderStatusChange(
+                'completed',
+                'Complete Service',
+                'Only mark this service complete after the work has been delivered.',
+                'Service marked as complete'
+              )}
+              variant="success"
+              style={styles.actionButton}
+              disabled={actionInFlight}
+            />
           )}
         </View>
       );
@@ -357,7 +428,14 @@ export default function BookingDetailsScreen() {
         {/* Timeline */}
         <View style={styles.section}>
           <ThemedText type="subtitle">Booking Timeline</ThemedText>
-          <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
+          {booking.timelineUnavailable && (
+            <ThemedText style={styles.timelineNotice}>
+              Timeline history is temporarily unavailable. Showing the current status.
+            </ThemedText>
+          )}
+          <ThemedView
+            style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}
+          >
             <View style={styles.timeline}>
               <View style={styles.timelineItem}>
                 <View style={[styles.timelineDot, { backgroundColor: '#4CAF50' }]} />
@@ -368,19 +446,31 @@ export default function BookingDetailsScreen() {
                   </ThemedText>
                 </View>
               </View>
-              {booking.status !== 'pending' && booking.updatedAt && (
+              {booking.statusHistory.length > 0 ? (
+                booking.statusHistory.map((event) => (
+                  <View key={event.id} style={styles.timelineItem}>
+                    <View style={[styles.timelineDot, { backgroundColor: getStatusColor(event.toStatus) }]} />
+                    <View style={styles.timelineContent}>
+                      <ThemedText style={styles.timelineTitle}>{statusEventLabel(event)}</ThemedText>
+                      <ThemedText style={styles.timelineDate}>
+                        {formatDate(event.occurredAt)} {formatTime(event.occurredAt)}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))
+              ) : booking.status !== 'pending' && booking.updatedAt ? (
                 <View style={styles.timelineItem}>
                   <View style={[styles.timelineDot, { backgroundColor: statusColor }]} />
                   <View style={styles.timelineContent}>
                     <ThemedText style={styles.timelineTitle}>
-                      Status Updated to {formatStatus(booking.status)}
+                      Current status: {formatStatus(booking.status)}
                     </ThemedText>
                     <ThemedText style={styles.timelineDate}>
                       {formatDate(booking.updatedAt)} {formatTime(booking.updatedAt)}
                     </ThemedText>
                   </View>
                 </View>
-              )}
+              ) : null}
             </View>
           </ThemedView>
         </View>
@@ -506,6 +596,11 @@ const styles = StyleSheet.create({
   timelineDate: {
     fontSize: 13,
     opacity: 0.7,
+  },
+  timelineNotice: {
+    marginTop: 6,
+    marginBottom: 10,
+    color: '#B26A00',
   },
   bottomButtons: {
     marginTop: 8,

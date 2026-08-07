@@ -15,6 +15,13 @@ service cloud.firestore {
         && (request.auth.uid == booking.requesterId || request.auth.uid == booking.providerId);
     }
 
+    function hasNewLinkedBookingStatusEvent(bookingId) {
+      return request.resource.data.latestTransitionId is string
+        && (!resource.data.keys().hasAll(['latestTransitionId'])
+          || request.resource.data.latestTransitionId != resource.data.latestTransitionId)
+        && existsAfter(/databases/$(database)/documents/bookings/$(bookingId)/events/$(request.resource.data.latestTransitionId));
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isOwner(userId);
@@ -55,16 +62,51 @@ service cloud.firestore {
             request.auth.uid == resource.data.requesterId
             && resource.data.status in ['pending', 'confirmed']
             && request.resource.data.status == 'cancelled'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
           )
           || (
             request.auth.uid == resource.data.providerId
             && resource.data.status == 'pending'
             && request.resource.data.status in ['confirmed', 'cancelled']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'confirmed'
+            && request.resource.data.status == 'in_progress'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'in_progress'
+            && request.resource.data.status == 'completed'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
           )
         );
       allow delete: if false;
+
+      match /events/{eventId} {
+        allow read: if isBookingParticipant(get(/databases/$(database)/documents/bookings/$(bookingId)).data);
+        allow create: if isBookingParticipant(get(/databases/$(database)/documents/bookings/$(bookingId)).data)
+          && request.resource.data.keys().hasOnly(['fromStatus', 'toStatus', 'actorId', 'actorRole', 'occurredAt'])
+          && request.resource.data.keys().hasAll(['fromStatus', 'toStatus', 'actorId', 'actorRole', 'occurredAt'])
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.fromStatus == get(/databases/$(database)/documents/bookings/$(bookingId)).data.status
+          && request.resource.data.toStatus == getAfter(/databases/$(database)/documents/bookings/$(bookingId)).data.status
+          && request.resource.data.occurredAt == request.time
+          && eventId == getAfter(/databases/$(database)/documents/bookings/$(bookingId)).data.latestTransitionId
+          && (
+            (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.requesterId
+              && request.resource.data.actorRole == 'requester')
+            || (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.providerId
+              && request.resource.data.actorRole == 'provider')
+          );
+        allow update, delete: if false;
+      }
     }
 
     match /reviews/{reviewId} {

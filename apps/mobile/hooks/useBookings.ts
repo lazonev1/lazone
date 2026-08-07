@@ -117,6 +117,8 @@ export interface UseBookingDetailResult {
   error: Error | null;
   cancelBooking: () => Promise<void>;
   updateBooking: (input: UpdateBookingInput) => Promise<BookingViewModel>;
+  startBooking: () => Promise<void>;
+  completeBooking: () => Promise<void>;
   refreshBooking: () => Promise<void>;
 }
 
@@ -185,6 +187,33 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
     [bookingId]
   );
 
+  const updateStatus = useCallback(
+    async (status: 'in_progress' | 'completed'): Promise<void> => {
+      if (!bookingId || !booking) throw new Error('No booking loaded');
+
+      const previous = booking;
+      setBooking({ ...booking, status });
+
+      try {
+        if (status === 'in_progress') {
+          await bookingRepo.startBooking(bookingId);
+        } else {
+          await bookingRepo.completeBooking(bookingId);
+        }
+      } catch (err) {
+        console.error(`[useBookingDetail] Error updating status to ${status}:`, err);
+        setBooking(previous);
+        const error = err instanceof Error ? err : new Error('Failed to update booking status');
+        setError(error);
+        throw error;
+      }
+    },
+    [bookingId, booking]
+  );
+
+  const startBooking = useCallback(() => updateStatus('in_progress'), [updateStatus]);
+  const completeBooking = useCallback(() => updateStatus('completed'), [updateStatus]);
+
   const refreshBooking = useCallback(async () => {
     await fetchBooking();
   }, [fetchBooking]);
@@ -195,6 +224,8 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
     error,
     cancelBooking,
     updateBooking,
+    startBooking,
+    completeBooking,
     refreshBooking,
   };
 }
@@ -345,4 +376,3 @@ export function useProviderBookings(providerId?: string): UseProviderBookingsRes
     refreshBookings,
   };
 }
-

@@ -1,6 +1,14 @@
-import { BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
+import {
+  BookingStatusEvent,
+  BookingViewModel,
+  CreateBookingInput,
+  UpdateBookingInput,
+} from '@/types/booking';
 import * as BookingService from '@/backend/main/src/services/bookingService';
-import type { BookingDocument } from '@/backend/main/src/services/bookingService';
+import type {
+  BookingDocument,
+  BookingStatusEventDocument,
+} from '@/backend/main/src/services/bookingService';
 
 /**
  * Booking Repository
@@ -11,7 +19,22 @@ import type { BookingDocument } from '@/backend/main/src/services/bookingService
 
 // ========== Transform ==========
 
-function toViewModel(doc: BookingDocument): BookingViewModel {
+function toStatusEventViewModel(event: BookingStatusEventDocument): BookingStatusEvent {
+  return {
+    id: event._id,
+    fromStatus: event.fromStatus,
+    toStatus: event.toStatus,
+    actorId: event.actorId,
+    actorRole: event.actorRole,
+    occurredAt: event.occurredAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+  };
+}
+
+function toViewModel(
+  doc: BookingDocument,
+  statusHistory: BookingStatusEvent[] = [],
+  timelineUnavailable = false
+): BookingViewModel {
   const bookingDate = doc.bookingDate?.toDate?.() ?? new Date();
   const createdAt = doc.createdAt?.toDate?.() ?? new Date();
   const updatedAt = doc.updatedAt?.toDate?.() ?? null;
@@ -30,6 +53,8 @@ function toViewModel(doc: BookingDocument): BookingViewModel {
     status: doc.status,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt?.toISOString(),
+    statusHistory,
+    timelineUnavailable,
   };
 }
 
@@ -39,7 +64,7 @@ export async function getUserBookings(userId: string): Promise<BookingViewModel[
   console.log('[BookingRepository] Fetching bookings for user:', userId);
 
   const docs = await BookingService.getBookingsByRequesterId(userId);
-  return docs.map(toViewModel);
+  return docs.map((doc) => toViewModel(doc));
 }
 
 export async function getBookingDetail(bookingId: string): Promise<BookingViewModel | null> {
@@ -47,7 +72,16 @@ export async function getBookingDetail(bookingId: string): Promise<BookingViewMo
 
   const doc = await BookingService.getBookingById(bookingId);
   if (!doc) return null;
-  return toViewModel(doc);
+
+  try {
+    const events = await BookingService.getBookingStatusEvents(bookingId);
+    return toViewModel(doc, events.map(toStatusEventViewModel));
+  } catch (error) {
+    // Keep the booking usable if the optional audit subcollection is temporarily
+    // unavailable. The detail screen clearly labels the fallback state.
+    console.warn('[BookingRepository] Timeline unavailable:', error);
+    return toViewModel(doc, [], true);
+  }
 }
 
 // ========== Write ==========
@@ -117,7 +151,7 @@ export async function getProviderBookings(providerId: string): Promise<BookingVi
   console.log('[BookingRepository] Fetching bookings for provider:', providerId);
 
   const docs = await BookingService.getBookingsByProviderId(providerId);
-  return docs.map(toViewModel);
+  return docs.map((doc) => toViewModel(doc));
 }
 
 // ========== Provider-side Status Mutations ==========
@@ -134,3 +168,14 @@ export async function declineBooking(bookingId: string): Promise<void> {
   console.log('[BookingRepository] Booking declined successfully');
 }
 
+export async function startBooking(bookingId: string): Promise<void> {
+  console.log('[BookingRepository] Starting booking:', bookingId);
+  await BookingService.updateBookingStatus(bookingId, 'in_progress');
+  console.log('[BookingRepository] Booking marked in progress successfully');
+}
+
+export async function completeBooking(bookingId: string): Promise<void> {
+  console.log('[BookingRepository] Completing booking:', bookingId);
+  await BookingService.updateBookingStatus(bookingId, 'completed');
+  console.log('[BookingRepository] Booking completed successfully');
+}

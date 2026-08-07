@@ -6,11 +6,13 @@ import {
   query,
   where,
   addDoc,
+  writeBatch,
   updateDoc,
   serverTimestamp,
   Timestamp,
+  orderBy,
 } from 'firebase/firestore';
-import { db, COLLECTIONS } from '../config/firebase';
+import { auth, db, COLLECTIONS } from '../config/firebase';
 import { BookingStatus } from '@/types/booking';
 
 /**
@@ -40,6 +42,16 @@ export interface BookingDocument {
   status: BookingStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  latestTransitionId?: string;
+}
+
+export interface BookingStatusEventDocument {
+  _id: string;
+  fromStatus: BookingStatus;
+  toStatus: BookingStatus;
+  actorId: string;
+  actorRole: 'requester' | 'provider';
+  occurredAt: Timestamp;
 }
 
 // ========== CREATE ==========
@@ -154,6 +166,19 @@ export async function getBookingsByProviderId(providerId: string): Promise<Booki
   }
 }
 
+export async function getBookingStatusEvents(
+  bookingId: string
+): Promise<BookingStatusEventDocument[]> {
+  const eventsQuery = query(
+    collection(db, COLLECTIONS.BOOKINGS, bookingId, 'events'),
+    orderBy('occurredAt', 'asc')
+  );
+  const snapshot = await getDocs(eventsQuery);
+  return snapshot.docs.map(
+    (event) => ({ _id: event.id, ...event.data() }) as BookingStatusEventDocument
+  );
+}
+
 // ========== UPDATE ==========
 
 export async function updateBooking(
@@ -214,7 +239,7 @@ export async function updateBookingStatus(
     const validTransitions: Record<BookingStatus, BookingStatus[]> = {
       pending: ['confirmed', 'cancelled'],
       confirmed: ['in_progress', 'cancelled'],
-      in_progress: ['completed', 'cancelled'],
+      in_progress: ['completed'],
       completed: [], // Terminal state
       cancelled: [], // Terminal state
     };
@@ -226,10 +251,39 @@ export async function updateBookingStatus(
       );
     }
 
-    await updateDoc(doc(db, COLLECTIONS.BOOKINGS, bookingId), {
+    const actorId = auth.currentUser?.uid;
+    if (!actorId) {
+      throw new Error('You must be signed in to update a booking status');
+    }
+
+    const actorRole = actorId === existing.providerId
+      ? 'provider'
+      : actorId === existing.requesterId
+        ? 'requester'
+        : null;
+    if (!actorRole) {
+      throw new Error('Only booking participants can update the booking status');
+    }
+
+    // Keep the booking update and its audit event in one atomic Firestore batch.
+    // Firestore rules link the event ID to the parent update, preventing a status
+    // change without a matching immutable timeline entry.
+    const bookingRef = doc(db, COLLECTIONS.BOOKINGS, bookingId);
+    const eventRef = doc(collection(db, COLLECTIONS.BOOKINGS, bookingId, 'events'));
+    const batch = writeBatch(db);
+    batch.update(bookingRef, {
       status: newStatus,
       updatedAt: serverTimestamp(),
+      latestTransitionId: eventRef.id,
     });
+    batch.set(eventRef, {
+      fromStatus: existing.status,
+      toStatus: newStatus,
+      actorId,
+      actorRole,
+      occurredAt: serverTimestamp(),
+    });
+    await batch.commit();
 
     console.log('[BookingService] Booking status updated successfully');
   } catch (error) {
@@ -268,4 +322,3 @@ export async function hasCompletedBookingWithProvider(
     throw error;
   }
 }
-
