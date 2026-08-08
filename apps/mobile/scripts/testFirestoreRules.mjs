@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { connectFirestoreEmulator, deleteDoc, doc, getFirestore, setDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { deleteApp, initializeApp } from 'firebase/app';
 
 const firebaseConfig = {
@@ -61,6 +61,7 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
 
 const providerClient = createClient(`provider-${runId}`);
 const requesterClient = createClient(`requester-${runId}`);
+const outsiderClient = createClient(`outsider-${runId}`);
 
 try {
   const providerCredential = await createUserWithEmailAndPassword(
@@ -73,8 +74,22 @@ try {
     `requester-${runId}@example.test`,
     'Password123!'
   );
+  await createUserWithEmailAndPassword(
+    outsiderClient.auth,
+    `outsider-${runId}@example.test`,
+    'Password123!'
+  );
   const providerId = providerCredential.user.uid;
   const requesterId = requesterCredential.user.uid;
+
+  await expectAllowed('provider user profile creation', () => setDoc(doc(providerClient.db, 'users', providerId), {
+    firstName: 'Test',
+    lastName: 'Provider',
+  }));
+  await expectAllowed('requester user profile creation', () => setDoc(doc(requesterClient.db, 'users', requesterId), {
+    firstName: 'Test',
+    lastName: 'Requester',
+  }));
 
   await expectAllowed('provider creation', () => setDoc(doc(providerClient.db, 'providers', providerId), {
     firstName: 'Test',
@@ -124,8 +139,81 @@ try {
     providerClient.db, providerBookingRef, 'event-completed', 'in_progress', 'completed', providerId, 'provider'
   ));
 
-  console.log('Firestore booking lifecycle rules passed.');
+  const conversationId = [providerId, requesterId].sort().join('_');
+  const conversationRef = doc(requesterClient.db, 'conversations', conversationId);
+  const missingConversationRef = doc(requesterClient.db, 'conversations', `missing-${runId}`);
+  await expectAllowed('nonexistent conversation lookup', async () => {
+    const snapshot = await getDoc(missingConversationRef);
+    if (snapshot.exists()) throw new Error('expected conversation to be missing');
+  });
+  await expectAllowed('conversation creation', () => runTransaction(
+    requesterClient.db,
+    async (transaction) => {
+      const snapshot = await transaction.get(conversationRef);
+      if (!snapshot.exists()) {
+        const requesterProfile = await transaction.get(doc(requesterClient.db, 'users', requesterId));
+        const providerProfile = await transaction.get(doc(requesterClient.db, 'users', providerId));
+        if (!requesterProfile.exists() || !providerProfile.exists()) {
+          throw new Error('expected both participant profiles to exist');
+        }
+        transaction.set(conversationRef, {
+          participants: [requesterId, providerId],
+          participantDetails: {
+            [requesterId]: { name: 'Test Requester', avatar: '' },
+            [providerId]: { name: 'Test Provider', avatar: '' },
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          lastRead: {},
+          typing: {},
+        });
+      }
+    },
+  ));
+  await expectAllowed('conversation read', () => getDoc(conversationRef));
+  await expectAllowed('conversation list', () => getDocs(query(
+    collection(requesterClient.db, 'conversations'),
+    where('participants', 'array-contains', requesterId),
+  )));
+  await expectDenied('outsider conversation read', () => getDoc(doc(
+    outsiderClient.db,
+    'conversations',
+    conversationId,
+  )));
+  const requesterMessageRef = doc(collection(requesterClient.db, 'conversations', conversationId, 'messages'));
+  const requesterMessageBatch = writeBatch(requesterClient.db);
+  requesterMessageBatch.set(requesterMessageRef, {
+    conversationId,
+    senderId: requesterId,
+    text: 'Hello provider',
+    createdAt: serverTimestamp(),
+  });
+  requesterMessageBatch.update(conversationRef, {
+    lastMessage: requesterMessageRef,
+    updatedAt: serverTimestamp(),
+    [`lastRead.${requesterId}`]: serverTimestamp(),
+  });
+  await expectAllowed('requester sends message', () => requesterMessageBatch.commit());
+
+  const providerConversationRef = doc(providerClient.db, 'conversations', conversationId);
+  const providerMessageRef = doc(collection(providerClient.db, 'conversations', conversationId, 'messages'));
+  const providerMessageBatch = writeBatch(providerClient.db);
+  providerMessageBatch.set(providerMessageRef, {
+    conversationId,
+    senderId: providerId,
+    text: 'Hello requester',
+    createdAt: serverTimestamp(),
+  });
+  providerMessageBatch.update(providerConversationRef, {
+    lastMessage: providerMessageRef,
+    updatedAt: serverTimestamp(),
+    [`lastRead.${providerId}`]: serverTimestamp(),
+  });
+  await expectAllowed('provider sends message', () => providerMessageBatch.commit());
+
+  console.log('Firestore booking and messaging rules passed.');
 } finally {
   await deleteApp(providerClient.app);
   await deleteApp(requesterClient.app);
+  await deleteApp(outsiderClient.app);
 }

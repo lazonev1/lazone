@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   doc,
   DocumentSnapshot,
@@ -10,11 +9,12 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   startAfter,
   Timestamp,
   updateDoc,
   where,
+  runTransaction,
+  writeBatch,
 } from "firebase/firestore";
 import {COLLECTIONS, db} from "../config/firebase";
 import {Message} from "../models/Message";
@@ -75,6 +75,24 @@ export async function sendMessage(
   senderId: string,
   text: string
 ): Promise<Message> {
+  const trimmedText = text.trim();
+  if (!trimmedText) {
+    throw new Error("Message cannot be empty");
+  }
+  if (trimmedText.length > 4000) {
+    throw new Error("Message cannot exceed 4000 characters");
+  }
+
+  const conversationDocRef = doc(
+    db,
+    COLLECTIONS.CONVERSATIONS,
+    conversationId
+  );
+  const conversationSnapshot = await getDoc(conversationDocRef);
+  if (!conversationSnapshot.exists()) {
+    throw new Error("Conversation not found. Reopen the chat and try again.");
+  }
+
   // Reference to the messages subcollection
   const messagesColRef = collection(
     db,
@@ -87,26 +105,21 @@ export async function sendMessage(
   const newMessage: Omit<Message, "_id"> = {
     conversationId,
     senderId,
-    text,
+    text: trimmedText,
     createdAt: serverTimestamp() as Timestamp,
   };
 
-  // Ensure conversation exists before sending
-  await findOrCreateConversation(senderId, conversationId.split('_').find(id => id !== senderId) || '');
-
-  const messageDocRef = await addDoc(messagesColRef, newMessage);
-
-  // Update the conversation: lastMessage, updatedAt, and sender's lastRead
-  const conversationDocRef = doc(
-    db,
-    COLLECTIONS.CONVERSATIONS,
-    conversationId
-  );
-  await updateDoc(conversationDocRef, {
+  // Create the message and update its parent conversation atomically. This
+  // prevents an orphaned message if the conversation update is rejected.
+  const messageDocRef = doc(messagesColRef);
+  const batch = writeBatch(db);
+  batch.set(messageDocRef, newMessage);
+  batch.update(conversationDocRef, {
     lastMessage: messageDocRef,
     updatedAt: serverTimestamp(),
     [`lastRead.${senderId}`]: serverTimestamp(),
   });
+  await batch.commit();
 
   return {
     _id: messageDocRef.id,
@@ -126,6 +139,10 @@ export async function findOrCreateConversation(
   userId1: string,
   userId2: string
 ): Promise<string> {
+  if (!userId1 || !userId2 || userId1 === userId2) {
+    throw new Error("A conversation requires two different users");
+  }
+
   // 1. Create a canonical conversation ID
   const sortedIds = [userId1, userId2].sort();
   const conversationId = sortedIds.join("_");
@@ -135,42 +152,40 @@ export async function findOrCreateConversation(
     COLLECTIONS.CONVERSATIONS,
     conversationId
   );
-  const conversationDoc = await getDoc(conversationDocRef);
+  await runTransaction(db, async (transaction) => {
+    const conversationDoc = await transaction.get(conversationDocRef);
+    if (conversationDoc.exists()) return;
 
-  if (conversationDoc.exists()) {
-    return conversationId;
-  }
+    // Reads stay inside the transaction so an existing conversation can be
+    // returned without depending on either user's profile still existing.
+    const user1Doc = await transaction.get(doc(db, COLLECTIONS.USERS, userId1));
+    const user2Doc = await transaction.get(doc(db, COLLECTIONS.USERS, userId2));
+    if (!user1Doc.exists() || !user2Doc.exists()) {
+      throw new Error("One or both users not found");
+    }
 
-  // 4. If it doesn't exist, fetch participant details for denormalization
-  const user1Doc = await getDoc(doc(db, COLLECTIONS.USERS, userId1));
-  const user2Doc = await getDoc(doc(db, COLLECTIONS.USERS, userId2));
-
-  if (!user1Doc.exists() || !user2Doc.exists()) {
-    throw new Error("One or both users not found");
-  }
-
-  const user1Data = user1Doc.data() as User;
-  const user2Data = user2Doc.data() as User;
-
-  const newConversation: Omit<Conversation, "_id"> = {
-    participants: [userId1, userId2],
-    participantDetails: {
-      [userId1]: {
-        name: `${user1Data.firstName} ${user1Data.lastName}`,
-        avatar: user1Data.avatar || "",
+    const user1Data = user1Doc.data() as User;
+    const user2Data = user2Doc.data() as User;
+    const newConversation: Omit<Conversation, "_id"> = {
+      participants: [userId1, userId2],
+      participantDetails: {
+        [userId1]: {
+          name: `${user1Data.firstName} ${user1Data.lastName}`,
+          avatar: user1Data.avatar || "",
+        },
+        [userId2]: {
+          name: `${user2Data.firstName} ${user2Data.lastName}`,
+          avatar: user2Data.avatar || "",
+        },
       },
-      [userId2]: {
-        name: `${user2Data.firstName} ${user2Data.lastName}`,
-        avatar: user2Data.avatar || "",
-      },
-    },
-    createdAt: serverTimestamp() as Timestamp,
-    updatedAt: serverTimestamp() as Timestamp,
-    lastRead: {},
-    typing: {},
-  };
+      createdAt: serverTimestamp() as Timestamp,
+      updatedAt: serverTimestamp() as Timestamp,
+      lastRead: {},
+      typing: {},
+    };
 
-  await setDoc(conversationDocRef, newConversation);
+    transaction.set(conversationDocRef, newConversation);
+  });
 
   return conversationId;
 }
@@ -253,7 +268,8 @@ export async function setTypingStatus(
 export function subscribeToMessages(
   conversationId: string,
   onMessagesUpdate: (messages: Message[]) => void,
-  messageLimit: number = 50
+  messageLimit: number = 50,
+  onError?: (error: Error) => void
 ) {
   const messagesColRef = collection(
     db,
@@ -274,7 +290,7 @@ export function subscribeToMessages(
       .reverse();
     onMessagesUpdate(messages);
   }, (error) => {
-    // Silently handle permission errors for conversations that don't exist yet
-    console.warn('Messages subscription error (conversation may not exist yet):', error.message);
+    console.warn('Messages subscription error:', error.message);
+    onError?.(error);
   });
 }

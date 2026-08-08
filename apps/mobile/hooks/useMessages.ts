@@ -26,7 +26,7 @@ import {
  * }
  * ```
  */
-export function useMessages(conversationId: string, limit: number = 50) {
+export function useMessages(conversationId?: string, limit: number = 50) {
   const [messages, setMessages] = useState<MessageViewModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,19 +34,27 @@ export function useMessages(conversationId: string, limit: number = 50) {
   // Real-time subscription
   useEffect(() => {
     if (!conversationId) {
+      setMessages([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setError(null);
 
     const unsubscribe = messageRepository.subscribeToMessages(
       conversationId,
       (updatedMessages) => {
         setMessages(updatedMessages);
+        setError(null);
         setLoading(false);
       },
-      limit
+      limit,
+      (subscriptionError) => {
+        setError(subscriptionError.message);
+        setLoading(false);
+      }
     );
 
     return () => {
@@ -56,6 +64,9 @@ export function useMessages(conversationId: string, limit: number = 50) {
 
   const sendMessage = useCallback(
     async (senderId: string, text: string): Promise<void> => {
+      if (!conversationId) {
+        throw new Error("Conversation is unavailable. Reopen the chat and try again.");
+      }
       try {
         await messageRepository.sendMessage(
           conversationId,
