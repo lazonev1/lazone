@@ -19,6 +19,7 @@ type ReviewsComponentProps = {
   onRespondToReview?: (reviewId: string, responseText: string) => Promise<void>;
   onMarkHelpful?: (reviewId: string) => Promise<void>; // Mark review as helpful
   onDeleteReview?: (reviewId: string) => Promise<void>; // Delete review (for review authors)
+  onUpdateReview?: (reviewId: string, data: { rating?: number; comment?: string }) => Promise<void>;
   expandedByDefault?: boolean; // Whether to show all reviews by default
   maxReviewsCollapsed?: number; // How many reviews to show when collapsed
   currentUserId?: string; // Current user ID to check if they voted and prevent self-voting
@@ -35,6 +36,7 @@ export default function ReviewsComponent({
   onRespondToReview,
   onMarkHelpful,
   onDeleteReview,
+  onUpdateReview,
   expandedByDefault = false,
   maxReviewsCollapsed = 2,
   currentUserId
@@ -46,6 +48,10 @@ export default function ReviewsComponent({
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
   const [expanded, setExpanded] = useState(expandedByDefault);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editingRating, setEditingRating] = useState(0);
+  const [editingComment, setEditingComment] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const handleFilterChange = (filter: 'all' | 'recent' | 'highest' | 'lowest') => {
     setActiveFilter(filter);
@@ -68,6 +74,25 @@ export default function ReviewsComponent({
     } catch (error) {
       console.error('Failed to submit response:', error);
       Alert.alert('Error', 'Failed to submit your response. Please try again.');
+    }
+  };
+
+  const startEditing = (review: Review) => {
+    setEditingReviewId(review.id);
+    setEditingRating(review.rating);
+    setEditingComment(review.comment);
+  };
+
+  const saveEdit = async (reviewId: string) => {
+    if (!onUpdateReview || editingRating < 1 || editingComment.length > 500) return;
+    setSavingEdit(true);
+    try {
+      await onUpdateReview(reviewId, { rating: editingRating, comment: editingComment.trim() });
+      setEditingReviewId(null);
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Could not update your review.');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -94,7 +119,7 @@ export default function ReviewsComponent({
         month: 'short',
         day: 'numeric'
       });
-    } catch (error) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -235,13 +260,39 @@ export default function ReviewsComponent({
                         <Ionicons name="trash-outline" size={18} color="#F44336" />
                       </TouchableOpacity>
                     )}
+                    {currentUserId && currentUserId === review.userId && onUpdateReview && (
+                      <TouchableOpacity style={styles.deleteButton} onPress={() => startEditing(review)} accessibilityLabel="Edit review">
+                        <Ionicons name="create-outline" size={18} color={theme.tint} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
                 
                 {review.serviceName && (
                   <ThemedText style={styles.serviceLabel}>{review.serviceName}</ThemedText>
                 )}
-                <ThemedText style={styles.reviewComment}>{review.comment}</ThemedText>
+                {editingReviewId === review.id ? (
+                  <View style={styles.editContainer}>
+                    <View style={styles.starsContainer}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <TouchableOpacity key={star} onPress={() => setEditingRating(star)} style={styles.starEditButton} accessibilityLabel={`${star} stars`}>
+                          <Ionicons name={star <= editingRating ? 'star' : 'star-outline'} size={22} color="#F4B400" />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TextInput
+                      style={[styles.responseInput, { color: theme.text, borderColor: theme.icon }]}
+                      value={editingComment}
+                      onChangeText={setEditingComment}
+                      maxLength={500}
+                      multiline
+                    />
+                    <View style={styles.responseActions}>
+                      <Button label="Cancel" onPress={() => setEditingReviewId(null)} variant="secondary" size="small" style={styles.responseButton} />
+                      <Button label={savingEdit ? 'Saving...' : 'Save'} onPress={() => saveEdit(review.id)} variant="primary" size="small" style={styles.responseButton} disabled={savingEdit || editingRating === 0} />
+                    </View>
+                  </View>
+                ) : <ThemedText style={styles.reviewComment}>{review.comment || 'No written feedback.'}</ThemedText>}
                 
                 {/* Review Images */}
                 {review.images && review.images.length > 0 && (
@@ -266,7 +317,7 @@ export default function ReviewsComponent({
                   <View style={styles.responseContainer}>
                     <View style={styles.responseHeader}>
                       <Ionicons name="chatbox" size={16} color={theme.text} />
-                      <ThemedText style={styles.responseTitle}>Your Response</ThemedText>
+                      <ThemedText style={styles.responseTitle}>Provider response</ThemedText>
                     </View>
                     <ThemedText style={styles.responseText}>{review.response.text}</ThemedText>
                     <ThemedText style={styles.responseDate}>
@@ -285,6 +336,7 @@ export default function ReviewsComponent({
                       value={responseText}
                       onChangeText={setResponseText}
                       multiline
+                      maxLength={500}
                     />
                     <View style={styles.responseActions}>
                       <Button
@@ -325,21 +377,21 @@ export default function ReviewsComponent({
                   <TouchableOpacity
                     style={[
                       styles.helpfulButton,
-                      currentUserId === review.userId && styles.helpfulButtonDisabled
+                      (currentUserId === review.userId || currentUserId === review.providerId) && styles.helpfulButtonDisabled
                     ]}
                     onPress={() => {
-                      // Don't allow users to vote on their own reviews
-                      if (currentUserId === review.userId) return;
+                      // Do not allow authors or the reviewed provider to vote.
+                      if (currentUserId === review.userId || currentUserId === review.providerId) return;
                       if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
                       onMarkHelpful && onMarkHelpful(review.id);
                     }}
-                    disabled={currentUserId === review.userId}
+                    disabled={currentUserId === review.userId || currentUserId === review.providerId}
                   >
                     <Ionicons
                       name={currentUserId && review.helpfulBy?.includes(currentUserId) ? "thumbs-up" : "thumbs-up-outline"}
                       size={18}
                       color={
-                        currentUserId === review.userId
+                        (currentUserId === review.userId || currentUserId === review.providerId)
                           ? theme.icon
                           : (currentUserId && review.helpfulBy?.includes(currentUserId) ? '#0A58A5' : theme.icon)
                       }
@@ -455,6 +507,12 @@ const styles = StyleSheet.create({
   starsContainer: {
     flexDirection: 'row',
     marginVertical: 4,
+  },
+  editContainer: {
+    marginTop: 8,
+  },
+  starEditButton: {
+    padding: 3,
   },
   filterWrapper: {
     backgroundColor: 'transparent',

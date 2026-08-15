@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Review, ReviewStats } from '@/types/provider';
 import {
   getProviderReviews,
-  getUserReviews,
-  canUserReviewProvider,
   addReview,
   updateReview as repoUpdateReview,
   deleteReview as repoDeleteReview,
@@ -17,8 +15,6 @@ export interface UseReviewsResult {
   stats: ReviewStats;
   isLoading: boolean;
   error: Error | null;
-  canReview: boolean;
-  canReviewReason?: string;
   submitReview: (data: {
     rating: number;
     comment: string;
@@ -46,8 +42,6 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [canReview, setCanReview] = useState(false);
-  const [canReviewReason, setCanReviewReason] = useState<string | undefined>();
 
   // Fetch reviews when providerId changes
   const fetchReviews = useCallback(async () => {
@@ -67,30 +61,9 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
     }
   }, [providerId]);
 
-  // Check if user can review
-  const checkCanReview = useCallback(async () => {
-    if (!providerId || !userId) {
-      setCanReview(false);
-      return;
-    }
-
-    try {
-      const result = await canUserReviewProvider(userId, providerId);
-      setCanReview(result.canReview);
-      setCanReviewReason(result.reason);
-    } catch (err) {
-      console.error('Error checking review eligibility:', err);
-      setCanReview(false);
-    }
-  }, [providerId, userId]);
-
   useEffect(() => {
     fetchReviews();
   }, [fetchReviews]);
-
-  useEffect(() => {
-    checkCanReview();
-  }, [checkCanReview]);
 
   // Submit a new review
   const submitReview = useCallback(async (data: {
@@ -109,6 +82,9 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
     setError(null);
 
     try {
+      if (!data.bookingId || !data.serviceId) {
+        throw new Error('Open a completed booking to leave its review');
+      }
       const newReview = await addReview(providerId, {
         requesterId: userId,
         rating: data.rating,
@@ -123,10 +99,6 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
       // Update local state optimistically
       setReviews(prev => [newReview, ...prev]);
       setStats(calculateReviewStats([newReview, ...reviews]));
-
-      // User can no longer review after submitting
-      setCanReview(false);
-      setCanReviewReason('You have already reviewed this provider');
 
       return newReview;
     } catch (err) {
@@ -192,10 +164,6 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
       const remainingReviews = reviews.filter(r => r.id !== reviewId);
       setStats(calculateReviewStats(remainingReviews));
 
-      // User can review again after deleting their review
-      if (userId && providerId) {
-        checkCanReview();
-      }
     } catch (err) {
       // Revert on error
       setReviews(previousReviews);
@@ -203,7 +171,7 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
       setError(error);
       throw error;
     }
-  }, [reviews, userId, providerId, checkCanReview]);
+  }, [reviews]);
 
   // Respond to a review (provider action)
   const respondToReview = useCallback(async (
@@ -271,16 +239,13 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
   // Refresh reviews
   const refreshReviews = useCallback(async (): Promise<void> => {
     await fetchReviews();
-    await checkCanReview();
-  }, [fetchReviews, checkCanReview]);
+  }, [fetchReviews]);
 
   return {
     reviews,
     stats,
     isLoading,
     error,
-    canReview,
-    canReviewReason,
     submitReview,
     updateReview,
     deleteReview,

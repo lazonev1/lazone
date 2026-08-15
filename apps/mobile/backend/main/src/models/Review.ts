@@ -1,4 +1,4 @@
-import { Timestamp, DocumentReference } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 export interface ReviewResponse {
   text: string;
@@ -7,10 +7,11 @@ export interface ReviewResponse {
 
 export interface Review {
   _id: string; // Firestore document ID
-  bookingId: DocumentReference; // Unique ref to Booking
-  providerId: DocumentReference; // Ref to Provider
-  requesterId: DocumentReference; // Ref to User
-  serviceId: DocumentReference; // Ref to Service
+  /** Firestore document IDs are stored as strings in the mobile app. */
+  bookingId: string;
+  providerId: string;
+  requesterId: string;
+  serviceId: string;
   rating: number; // 1-5
   comment: string;
   images: string[]; // URLs

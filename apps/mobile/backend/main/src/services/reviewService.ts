@@ -5,15 +5,13 @@ import {
   getDocs,
   query,
   where,
-  addDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp,
   orderBy,
-  increment,
-  arrayUnion,
+  runTransaction,
 } from "firebase/firestore";
-import { db, COLLECTIONS } from "../config/firebase";
+import { auth, db, COLLECTIONS } from "../config/firebase";
 import { Review } from "../models/Review";
 
 /**
@@ -37,8 +35,8 @@ import { Review } from "../models/Review";
 export async function createReview(reviewData: {
   providerId: string;
   requesterId: string;
-  bookingId?: string;
-  serviceId?: string;
+  bookingId: string;
+  serviceId: string;
   rating: number;
   comment: string;
   images?: string[];
@@ -46,35 +44,62 @@ export async function createReview(reviewData: {
   console.log('[ReviewService] Creating review for provider:', reviewData.providerId);
 
   try {
-    // Validate rating
-    if (reviewData.rating < 1 || reviewData.rating > 5) {
+    const normalizedComment = reviewData.comment.trim();
+    if (!reviewData.bookingId || !reviewData.serviceId) {
+      throw new Error("A review must be linked to a completed booking");
+    }
+    if (!Number.isInteger(reviewData.rating) || reviewData.rating < 1 || reviewData.rating > 5) {
       console.warn('[ReviewService] Invalid rating:', reviewData.rating);
       throw new Error("Rating must be between 1 and 5");
+    }
+    if (normalizedComment.length > 500) {
+      throw new Error("Review comments must be 500 characters or fewer");
+    }
+    if (!auth?.currentUser || auth.currentUser.uid !== reviewData.requesterId) {
+      throw new Error("You must be signed in as the requester to leave this review");
+    }
+
+    const bookingSnapshot = await getDoc(doc(db, COLLECTIONS.BOOKINGS, reviewData.bookingId));
+    if (!bookingSnapshot.exists()) throw new Error("Booking not found");
+    const booking = bookingSnapshot.data();
+    if (
+      booking.status !== "completed" ||
+      booking.requesterId !== reviewData.requesterId ||
+      booking.providerId !== reviewData.providerId ||
+      booking.serviceId !== reviewData.serviceId
+    ) {
+      throw new Error("Reviews are only available for your completed booking");
     }
 
     console.log('[ReviewService] Saving review to Firestore...');
 
-    // Create the review document
-    const reviewDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
-      providerId: reviewData.providerId,
-      requesterId: reviewData.requesterId,
-      bookingId: reviewData.bookingId || null,
-      serviceId: reviewData.serviceId || null,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      images: reviewData.images || [],
-      responses: [],
-      isHelpful: 0,
-      helpfulBy: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    // Use the booking ID as the review ID. This makes the one-review-per-booking
+    // invariant atomic and prevents duplicate reviews during retries or races.
+    const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewData.bookingId);
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(reviewRef);
+      if (existing.exists()) throw new Error("You have already reviewed this booking");
+      transaction.set(reviewRef, {
+        providerId: reviewData.providerId,
+        requesterId: reviewData.requesterId,
+        bookingId: reviewData.bookingId,
+        serviceId: reviewData.serviceId,
+        rating: reviewData.rating,
+        comment: normalizedComment,
+        images: reviewData.images || [],
+        responses: [],
+        isHelpful: 0,
+        helpfulBy: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     });
 
-    console.log('[ReviewService] Review created with ID:', reviewDoc.id);
+    console.log('[ReviewService] Review created with ID:', reviewRef.id);
 
     console.log('[ReviewService] Review creation complete');
     await recalculateProviderRating(reviewData.providerId);
-    return reviewDoc.id;
+    return reviewRef.id;
   } catch (error) {
     console.error("[ReviewService] Error creating review:", error);
     throw error;
@@ -171,54 +196,6 @@ export async function getReviewByBookingId(bookingId: string): Promise<Review | 
   }
 }
 
-/**
- * Checks if a user can review a provider (has completed booking and hasn't reviewed yet)
- */
-export async function canUserReviewProvider(
-  userId: string,
-  providerId: string
-): Promise<{ canReview: boolean; reason?: string }> {
-  try {
-    // Check if user has a completed booking with this provider
-    const bookingsQuery = query(
-      collection(db, COLLECTIONS.BOOKINGS),
-      where("requesterId", "==", userId),
-      where("providerId", "==", providerId),
-      where("status", "==", "completed")
-    );
-
-    const bookingsSnapshot = await getDocs(bookingsQuery);
-
-    if (bookingsSnapshot.empty) {
-      return {
-        canReview: false,
-        reason: "You need to complete a booking with this provider first",
-      };
-    }
-
-    // Check if user already reviewed this provider
-    const existingReviewQuery = query(
-      collection(db, COLLECTIONS.REVIEWS),
-      where("requesterId", "==", userId),
-      where("providerId", "==", providerId)
-    );
-
-    const existingReviewSnapshot = await getDocs(existingReviewQuery);
-
-    if (!existingReviewSnapshot.empty) {
-      return {
-        canReview: false,
-        reason: "You have already reviewed this provider",
-      };
-    }
-
-    return { canReview: true };
-  } catch (error) {
-    console.error("Error checking if user can review:", error);
-    throw error;
-  }
-}
-
 // ========== UPDATE OPERATIONS ==========
 
 /**
@@ -234,8 +211,11 @@ export async function updateReview(
 ): Promise<void> {
   try {
     // Validate rating if provided
-    if (updates.rating !== undefined && (updates.rating < 1 || updates.rating > 5)) {
+    if (updates.rating !== undefined && (!Number.isInteger(updates.rating) || updates.rating < 1 || updates.rating > 5)) {
       throw new Error("Rating must be between 1 and 5");
+    }
+    if (updates.comment !== undefined && updates.comment.trim().length > 500) {
+      throw new Error("Review comments must be 500 characters or fewer");
     }
 
     const currentReview = await getReviewById(reviewId);
@@ -245,6 +225,7 @@ export async function updateReview(
 
     await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
       ...updates,
+      ...(updates.comment !== undefined ? { comment: updates.comment.trim() } : {}),
       updatedAt: serverTimestamp(),
     });
 
@@ -265,12 +246,23 @@ export async function addProviderResponse(
   responseText: string
 ): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
-      responses: arrayUnion({
-        text: responseText,
-        date: new Date(),
-      }),
-      updatedAt: serverTimestamp(),
+    const normalizedResponse = responseText.trim();
+    if (!normalizedResponse || normalizedResponse.length > 500) {
+      throw new Error("Responses must be between 1 and 500 characters");
+    }
+    if (!auth?.currentUser) throw new Error("You must be signed in to respond");
+    const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewId);
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(reviewRef);
+      if (!snapshot.exists()) throw new Error("Review not found");
+      const review = snapshot.data();
+      if (review.providerId !== auth.currentUser.uid) throw new Error("Only the provider can respond");
+      transaction.update(reviewRef, {
+        // A single editable provider response is clearer than an ever-growing
+        // response history and avoids duplicate responses on retries.
+        responses: [{ text: normalizedResponse, date: new Date() }],
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (error) {
     console.error("Error adding provider response:", error);
@@ -289,29 +281,23 @@ export async function markReviewHelpful(
   console.log(`[ReviewService] Toggling helpful vote for review ${reviewId} by user ${userId}`);
 
   try {
-    const review = await getReviewById(reviewId);
-    if (!review) {
-      throw new Error("Review not found");
-    }
-
-    const helpfulBy = review.helpfulBy || [];
-    const hasVoted = helpfulBy.includes(userId);
-
-    if (hasVoted) {
-      await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
-        isHelpful: increment(-1),
-        helpfulBy: helpfulBy.filter(id => id !== userId),
+    if (!auth?.currentUser || auth.currentUser.uid !== userId) throw new Error("You must be signed in to vote");
+    const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewId);
+    return runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(reviewRef);
+      if (!snapshot.exists()) throw new Error("Review not found");
+      const review = snapshot.data();
+      if (review.requesterId === userId) throw new Error("You cannot vote on your own review");
+      const helpfulBy = Array.isArray(review.helpfulBy) ? review.helpfulBy : [];
+      const hasVoted = helpfulBy.includes(userId);
+      const nextHelpfulBy = hasVoted ? helpfulBy.filter((id: string) => id !== userId) : [...helpfulBy, userId];
+      transaction.update(reviewRef, {
+        isHelpful: nextHelpfulBy.length,
+        helpfulBy: nextHelpfulBy,
         updatedAt: serverTimestamp(),
       });
-      return { added: false, newCount: (review.isHelpful || 1) - 1 };
-    }
-
-    await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
-      isHelpful: increment(1),
-      helpfulBy: [...helpfulBy, userId],
-      updatedAt: serverTimestamp(),
+      return { added: !hasVoted, newCount: nextHelpfulBy.length };
     });
-    return { added: true, newCount: (review.isHelpful || 0) + 1 };
   } catch (error) {
     console.error("Error toggling review helpful:", error);
     throw error;

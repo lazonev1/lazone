@@ -235,7 +235,7 @@ async function populateReviews(
       // Fetch requester details for client name
       let clientName = "Anonymous";
       if (review.requesterId) {
-        const requester = await ProviderService.getUserById(review.requesterId.id);
+        const requester = await ProviderService.getUserById(review.requesterId);
         if (requester) {
           clientName = `${requester.firstName} ${requester.lastName}`;
         }
@@ -244,7 +244,7 @@ async function populateReviews(
       // Fetch service name
       let serviceName = "";
       if (review.serviceId) {
-        const services = await ProviderService.getServicesByUserId(review.serviceId.id);
+        const services = await ProviderService.getServicesByUserId(review.serviceId);
         if (services.length > 0) {
           serviceName = services[0].name;
         }
@@ -257,7 +257,7 @@ async function populateReviews(
         rating: review.rating,
         comment: review.comment,
         date: review.createdAt.toDate().toISOString(),
-        serviceId: review.serviceId?.id || "",
+        serviceId: review.serviceId || "",
         serviceName,
         response:
           review.responses && review.responses.length > 0
