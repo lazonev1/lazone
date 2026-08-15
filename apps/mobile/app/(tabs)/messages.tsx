@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { LoginPrompt } from "@/components/auth/LoginPrompt";
 import SearchBar from '@/components/ui/SearchBar';
 
 export default function Messages() {
@@ -28,6 +29,8 @@ export default function Messages() {
       headerShown: false
     });
   }, []);
+
+  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view your messages and chat with providers." />; }
 
   // Filter conversations based on search query
   const filteredConversations = conversations.filter(conversation => {

@@ -111,7 +111,7 @@ function RootLayoutNav() {
         message={bannerConfig.message}
         avatar={bannerConfig.avatar}
         onPress={() => {
-          setBannerConfig(prev => ({ ...prev, visible: false }));
+          setBannerConfig((prev) => ({ ...prev, visible: false }));
           if (bannerConfig.bookingId) {
             router.push({ pathname: '/booking/[id]', params: { id: bannerConfig.bookingId } });
           } else if (bannerConfig.conversationId) {
