@@ -47,6 +47,11 @@ service cloud.firestore {
       allow create: if isAuthenticated()
         && request.resource.data.requesterId == request.auth.uid
         && request.resource.data.status == 'pending'
+        && request.resource.data.checklist is list
+        && request.resource.data.checklist.size() > 0
+        && request.resource.data.checklistTotal == request.resource.data.checklist.size()
+        && request.resource.data.checklistCompletedCount == 0
+        && request.resource.data.checklistProgress is map
         && exists(/databases/$(database)/documents/providers/$(request.resource.data.providerId));
       allow update: if isBookingParticipant(resource.data)
         && (
@@ -55,8 +60,23 @@ service cloud.firestore {
             && resource.data.status == 'pending'
             && request.resource.data.status == 'pending'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'serviceId', 'serviceName', 'bookingDate', 'price', 'notes', 'updatedAt'
+              'serviceId', 'serviceName', 'bookingDate', 'price', 'notes', 'checklist', 'checklistTotal', 'checklistCompletedCount', 'checklistProgress', 'updatedAt'
             ])
+            && request.resource.data.checklist is list
+            && request.resource.data.checklist.size() > 0
+            && request.resource.data.checklistTotal == request.resource.data.checklist.size()
+            && request.resource.data.checklistCompletedCount == 0
+            && request.resource.data.checklistProgress is map
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'in_progress'
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.keys().hasAll(['checklistProgress', 'checklistCompletedCount'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['checklistProgress', 'checklistCompletedCount', 'updatedAt'])
+            && request.resource.data.checklistProgress is map
+            && request.resource.data.checklistCompletedCount >= 0
+            && request.resource.data.checklistCompletedCount <= resource.data.checklistTotal
           )
           || (
             request.auth.uid == resource.data.requesterId
@@ -82,8 +102,27 @@ service cloud.firestore {
           || (
             request.auth.uid == resource.data.providerId
             && resource.data.status == 'in_progress'
+            && request.resource.data.status == 'awaiting_confirmation'
+            && request.resource.data.keys().hasAll(['requesterChangeRequest'])
+            && request.resource.data.requesterChangeRequest == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requesterChangeRequest', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.requesterId
+            && resource.data.status == 'awaiting_confirmation'
             && request.resource.data.status == 'completed'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.requesterId
+            && resource.data.status == 'awaiting_confirmation'
+            && request.resource.data.status == 'in_progress'
+            && request.resource.data.keys().hasAll(['requesterChangeRequest'])
+            && request.resource.data.requesterChangeRequest is string
+            && request.resource.data.requesterChangeRequest.size() > 0
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requesterChangeRequest', 'updatedAt', 'latestTransitionId'])
             && hasNewLinkedBookingStatusEvent(bookingId)
           )
         );
@@ -111,9 +150,74 @@ service cloud.firestore {
 
     match /reviews/{reviewId} {
       allow read: if true;
-      // TODO(security): move provider responses and helpful-vote mutations to
-      // trusted backend code, then restrict reviewer edits to their own content.
-      allow create, update, delete: if isAuthenticated();
+      // A review is an immutable, booking-scoped trust signal. New reviews use
+      // the booking ID as their document ID, making duplicate submission races
+      // impossible and allowing rules to enforce one review per booking.
+      allow create: if isAuthenticated()
+        && reviewId == request.resource.data.bookingId
+        && request.resource.data.keys().hasOnly([
+          'bookingId', 'providerId', 'requesterId', 'serviceId', 'rating', 'comment',
+          'images', 'responses', 'isHelpful', 'helpfulBy', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.bookingId is string
+        && request.resource.data.providerId is string
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.serviceId is string
+        && request.resource.data.rating in [1, 2, 3, 4, 5]
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 500
+        && request.resource.data.images is list
+        && request.resource.data.images.size() <= 5
+        && request.resource.data.responses is list
+        && request.resource.data.responses.size() == 0
+        && request.resource.data.isHelpful == 0
+        && request.resource.data.helpfulBy is list
+        && request.resource.data.helpfulBy.size() == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed'
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.requesterId == request.auth.uid
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.providerId == request.resource.data.providerId
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.serviceId == request.resource.data.serviceId;
+
+      // The requester may edit only their rating/comment/photos. Booking
+      // ownership and the provider's response can never be changed by them.
+      allow update: if isAuthenticated() && (
+        (
+          request.auth.uid == resource.data.requesterId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'images', 'updatedAt'])
+          && request.resource.data.rating in [1, 2, 3, 4, 5]
+          && request.resource.data.comment is string
+          && request.resource.data.comment.size() <= 500
+          && request.resource.data.images is list
+          && request.resource.data.images.size() <= 5
+          && request.resource.data.updatedAt == request.time
+        )
+        || (
+          request.auth.uid == resource.data.providerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responses', 'updatedAt'])
+          && request.resource.data.responses is list
+          && request.resource.data.responses.size() == 1
+          && request.resource.data.responses[0].text is string
+          && request.resource.data.responses[0].text.size() > 0
+          && request.resource.data.responses[0].text.size() <= 500
+          && request.resource.data.responses[0].date is timestamp
+          && request.resource.data.updatedAt == request.time
+        )
+        || (
+          request.auth.uid != resource.data.requesterId
+          && request.auth.uid != resource.data.providerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHelpful', 'helpfulBy', 'updatedAt'])
+          && request.resource.data.helpfulBy is list
+          && request.resource.data.isHelpful == request.resource.data.helpfulBy.size()
+          && request.resource.data.isHelpful >= 0
+          && request.resource.data.isHelpful <= 1000
+          && request.resource.data.updatedAt == request.time
+        )
+      );
+
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.requesterId;
     }
 
     match /portfolios/{portfolioId} {

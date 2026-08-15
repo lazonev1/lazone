@@ -41,13 +41,14 @@ async function expectDenied(label, operation) {
   throw new Error(`${label} should be denied`);
 }
 
-async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStatus, actorId, actorRole) {
+async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStatus, actorId, actorRole, extraFields = {}) {
   const eventRef = doc(db, 'bookings', bookingRef.id, 'events', eventId);
   const batch = writeBatch(db);
   batch.update(bookingRef, {
     status: toStatus,
     latestTransitionId: eventId,
     updatedAt: serverTimestamp(),
+    ...extraFields,
   });
   batch.set(eventRef, {
     fromStatus,
@@ -74,13 +75,14 @@ try {
     `requester-${runId}@example.test`,
     'Password123!'
   );
-  await createUserWithEmailAndPassword(
+  const outsiderCredential = await createUserWithEmailAndPassword(
     outsiderClient.auth,
     `outsider-${runId}@example.test`,
     'Password123!'
   );
   const providerId = providerCredential.user.uid;
   const requesterId = requesterCredential.user.uid;
+  const outsiderId = outsiderCredential.user.uid;
 
   await expectAllowed('provider user profile creation', () => setDoc(doc(providerClient.db, 'users', providerId), {
     firstName: 'Test',
@@ -110,6 +112,12 @@ try {
     price: 1000,
     notes: null,
     status: 'pending',
+    checklist: [
+      { id: 'item-1', description: 'Complete the requested work', completed: false },
+    ],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'item-1': false },
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }));
@@ -135,8 +143,80 @@ try {
   await expectDenied('event update', () => updateDoc(startedEventRef, { toStatus: 'completed' }));
   await expectDenied('event delete', () => deleteDoc(startedEventRef));
 
-  await expectAllowed('provider completes service', () => writeStatusTransition(
+  await expectDenied('provider cannot complete directly', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-completed', 'in_progress', 'completed', providerId, 'provider'
+  ));
+
+  await expectAllowed('provider completes checklist', () => updateDoc(providerBookingRef, {
+    checklistProgress: { 'item-1': true },
+    checklistCompletedCount: 1,
+    updatedAt: serverTimestamp(),
+  }));
+  await expectAllowed('provider submits completion for confirmation', () => writeStatusTransition(
+    providerClient.db, providerBookingRef, 'event-submitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
+  ));
+  await expectDenied('provider cannot confirm their own completion', () => writeStatusTransition(
+    providerClient.db, providerBookingRef, 'event-provider-completed', 'awaiting_confirmation', 'completed', providerId, 'provider'
+  ));
+  await expectAllowed('requester requests changes', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-changes', 'awaiting_confirmation', 'in_progress', requesterId, 'requester', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectAllowed('provider resubmits completion', () => writeStatusTransition(
+    providerClient.db, providerBookingRef, 'event-resubmitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
+  ));
+  await expectAllowed('requester confirms completion', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-completed', 'awaiting_confirmation', 'completed', requesterId, 'requester'
+  ));
+
+  const reviewRef = doc(requesterClient.db, 'reviews', bookingId);
+  const reviewData = {
+    bookingId,
+    providerId,
+    requesterId,
+    serviceId: 'service-1',
+    rating: 5,
+    comment: 'Everything requested was completed.',
+    images: [],
+    responses: [],
+    isHelpful: 0,
+    helpfulBy: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  await expectAllowed('requester creates booking review', () => setDoc(reviewRef, reviewData));
+  await expectDenied('outsider cannot create a booking review', () => setDoc(
+    doc(outsiderClient.db, 'reviews', `different-${bookingId}`),
+    { ...reviewData, requesterId: outsiderId },
+  ));
+  await expectDenied('provider cannot edit the requester rating', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { rating: 1, updatedAt: serverTimestamp() },
+  ));
+  await expectAllowed('provider adds one response', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'Thank you for the feedback.', date: new Date() }], updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('requester cannot impersonate provider response', () => updateDoc(
+    reviewRef,
+    { responses: [{ text: 'Forged response', date: new Date() }], updatedAt: serverTimestamp() },
+  ));
+  await expectAllowed('outsider casts one helpful vote', () => updateDoc(
+    doc(outsiderClient.db, 'reviews', bookingId),
+    { isHelpful: 1, helpfulBy: [outsiderId], updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('review author cannot vote on own review', () => updateDoc(
+    reviewRef,
+    { isHelpful: 0, helpfulBy: [], updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('reviewed provider cannot vote on the review', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { isHelpful: 2, helpfulBy: [outsiderId, providerId], updatedAt: serverTimestamp() },
+  ));
+  await expectAllowed('requester edits review content', () => updateDoc(
+    reviewRef,
+    { rating: 4, comment: 'Updated feedback.', updatedAt: serverTimestamp() },
   ));
 
   const conversationId = [providerId, requesterId].sort().join('_');
