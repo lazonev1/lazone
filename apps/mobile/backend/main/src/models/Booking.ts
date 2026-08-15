@@ -5,7 +5,8 @@ export type BookingStatus =
   | "confirmed"
   | "cancelled"
   | "completed"
-  | "in_progress";
+  | "in_progress"
+  | "awaiting_confirmation";
 
 export interface Booking {
   _id: string; // Firestore document ID

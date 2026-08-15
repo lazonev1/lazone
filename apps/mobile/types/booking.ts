@@ -11,8 +11,15 @@ export type BookingStatus =
   | 'pending'
   | 'confirmed'
   | 'in_progress'
+  | 'awaiting_confirmation'
   | 'completed'
   | 'cancelled';
+
+export interface BookingChecklistItem {
+  id: string;
+  description: string;
+  completed: boolean;
+}
 
 /** An immutable audit event written with every booking-status transition. */
 export interface BookingStatusEvent {
@@ -44,6 +51,10 @@ export interface BookingViewModel {
   bookingDate: string; // ISO string
   price: number;
   notes?: string;
+  checklist: BookingChecklistItem[];
+  checklistTotal: number;
+  checklistCompletedCount: number;
+  requesterChangeRequest?: string;
   // Tracking
   status: BookingStatus;
   createdAt: string; // ISO string
@@ -65,6 +76,7 @@ export interface CreateBookingInput {
   bookingDate: Date;
   price: number;
   notes?: string;
+  checklist: BookingChecklistItem[];
 }
 
 /**
@@ -77,4 +89,5 @@ export interface UpdateBookingInput {
   bookingDate?: Date;
   price?: number;
   notes?: string;
+  checklist?: BookingChecklistItem[];
 }

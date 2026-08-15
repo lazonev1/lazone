@@ -59,6 +59,7 @@ export default function NewBookingScreen() {
         pathname: '/booking/success',
         params: {
           bookingId: newBooking.id,
+          providerId: provider.id,
           providerName: provider.name,
         },
       });

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
+import { BookingChecklistItem, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
 import * as bookingRepo from '@/repositories/bookingRepository';
 
 /**
@@ -119,6 +119,10 @@ export interface UseBookingDetailResult {
   updateBooking: (input: UpdateBookingInput) => Promise<BookingViewModel>;
   startBooking: () => Promise<void>;
   completeBooking: () => Promise<void>;
+  updateChecklist: (checklist: BookingChecklistItem[]) => Promise<void>;
+  submitForConfirmation: () => Promise<void>;
+  confirmCompletion: () => Promise<void>;
+  requestChanges: (reason: string) => Promise<void>;
   refreshBooking: () => Promise<void>;
 }
 
@@ -188,7 +192,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
   );
 
   const updateStatus = useCallback(
-    async (status: 'in_progress' | 'completed'): Promise<void> => {
+    async (status: 'in_progress' | 'awaiting_confirmation' | 'completed'): Promise<void> => {
       if (!bookingId || !booking) throw new Error('No booking loaded');
 
       const previous = booking;
@@ -197,8 +201,10 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
       try {
         if (status === 'in_progress') {
           await bookingRepo.startBooking(bookingId);
+        } else if (status === 'awaiting_confirmation') {
+          await bookingRepo.submitBookingForConfirmation(bookingId);
         } else {
-          await bookingRepo.completeBooking(bookingId);
+          await bookingRepo.confirmBookingCompletion(bookingId);
         }
       } catch (err) {
         console.error(`[useBookingDetail] Error updating status to ${status}:`, err);
@@ -212,7 +218,21 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
   );
 
   const startBooking = useCallback(() => updateStatus('in_progress'), [updateStatus]);
-  const completeBooking = useCallback(() => updateStatus('completed'), [updateStatus]);
+  const completeBooking = useCallback(() => updateStatus('awaiting_confirmation'), [updateStatus]);
+  const submitForConfirmation = completeBooking;
+  const confirmCompletion = useCallback(() => updateStatus('completed'), [updateStatus]);
+
+  const requestChanges = useCallback(async (reason: string) => {
+    if (!bookingId) throw new Error('No booking loaded');
+    await bookingRepo.requestBookingChanges(bookingId, reason);
+    await fetchBooking();
+  }, [bookingId, fetchBooking]);
+
+  const updateChecklist = useCallback(async (checklist: BookingChecklistItem[]) => {
+    if (!bookingId) throw new Error('No booking loaded');
+    await bookingRepo.updateBookingChecklist(bookingId, checklist);
+    await fetchBooking();
+  }, [bookingId, fetchBooking]);
 
   const refreshBooking = useCallback(async () => {
     await fetchBooking();
@@ -226,6 +246,10 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
     updateBooking,
     startBooking,
     completeBooking,
+    updateChecklist,
+    submitForConfirmation,
+    confirmCompletion,
+    requestChanges,
     refreshBooking,
   };
 }
@@ -299,7 +323,7 @@ export function useProviderBookings(providerId?: string): UseProviderBookingsRes
   );
 
   const upcomingBookings = useMemo(
-    () => allBookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress'),
+    () => allBookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'awaiting_confirmation'),
     [allBookings]
   );
 

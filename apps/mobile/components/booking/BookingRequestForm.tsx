@@ -1,5 +1,5 @@
-import { View, StyleSheet, TouchableWithoutFeedback, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Appearance } from 'react-native';
-import { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Appearance } from 'react-native';
+import { useRef, useState } from 'react';
 import { ServiceItem } from '@/types/provider';
 import { CreateBookingInput } from '@/types/booking';
 import { Button } from '@lazone/ui';
@@ -21,6 +21,7 @@ interface Props {
     scheduledDate?: Date;
     price?: string;
     description?: string;
+    checklist?: string[];
   };
 }
 
@@ -33,9 +34,11 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
   const [date, setDate] = useState(initialValues?.scheduledDate || new Date());
   const [price, setPrice] = useState(initialValues?.price || '');
   const [description, setDescription] = useState(initialValues?.description || '');
+  const [checklist, setChecklist] = useState<string[]>(initialValues?.checklist?.length ? initialValues.checklist : ['']);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Auto-fill price when a service is selected
   const handleServiceChange = (serviceId: string) => {
@@ -51,6 +54,7 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
     if (!selectedService) newErrors.service = 'Please select a service';
     if (!date) newErrors.date = 'Please select a date';
     if (!price) newErrors.price = 'Please enter your proposed price';
+    if (checklist.some((item) => !item.trim())) newErrors.checklist = 'Add a description for each checklist item';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -69,18 +73,32 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
       bookingDate: date,
       price: Number(price),
       notes: description || undefined,
+      checklist: checklist.map((description, index) => ({ id: `item-${index + 1}`, description: description.trim(), completed: false })),
     };
 
     onSubmit(input);
   };
 
+  const addChecklistItem = () => {
+    setChecklist((items) => [...items, '']);
+    // Keep the newly-created field reachable while the keyboard is open.
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })));
+  };
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         style={{ flex: 1, backgroundColor: theme.background }}
       >
-        <ScrollView style={styles.container}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          nestedScrollEnabled
+        >
           <View style={styles.form}>
             <SelectList
               label="Select Service *"
@@ -159,6 +177,24 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
               error={errors.price}
             />
 
+            <View style={styles.checklistSection}>
+              <ThemedText style={styles.label}>Request Checklist *</ThemedText>
+              <ThemedText style={styles.helper}>List the specific outcomes the provider must complete.</ThemedText>
+              {checklist.map((item, index) => (
+                <View key={index} style={styles.checklistRow}>
+                  <TextBox
+                    value={item}
+                    onChangeText={(value) => setChecklist((items) => items.map((current, i) => i === index ? value : current))}
+                    onFocus={index > 0 ? () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50) : undefined}
+                    placeholder={`Item ${index + 1}`}
+                  />
+                  {checklist.length > 1 && <TouchableOpacity onPress={() => setChecklist((items) => items.filter((_, i) => i !== index))}><ThemedText style={styles.remove}>Remove</ThemedText></TouchableOpacity>}
+                </View>
+              ))}
+              {errors.checklist && <ThemedText style={styles.error}>{errors.checklist}</ThemedText>}
+              <TouchableOpacity onPress={addChecklistItem}><ThemedText style={styles.add}>+ Add checklist item</ThemedText></TouchableOpacity>
+            </View>
+
             <TextBox
               label="Additional Details (Optional)"
               value={description}
@@ -187,7 +223,6 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -195,8 +230,11 @@ const createStyles = (theme: typeof Colors.light, colorScheme: string | null | u
   container: {
     padding: 16,
   },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   form: {
-    flex: 1,
     gap: 20,
   },
   dateSection: {
@@ -242,4 +280,9 @@ const createStyles = (theme: typeof Colors.light, colorScheme: string | null | u
     fontWeight: '600',
     color: colorScheme === 'dark' ? '#fff' : '#000',
   },
+  checklistSection: { gap: 8 },
+  helper: { opacity: 0.65, marginBottom: 4 },
+  checklistRow: { gap: 4 },
+  add: { color: theme.tint, fontWeight: '600' },
+  remove: { color: '#FF3B30', alignSelf: 'flex-end' },
 });

@@ -3,6 +3,7 @@ import {
   BookingViewModel,
   CreateBookingInput,
   UpdateBookingInput,
+  BookingChecklistItem,
 } from '@/types/booking';
 import * as BookingService from '@/backend/main/src/services/bookingService';
 import type {
@@ -38,6 +39,12 @@ function toViewModel(
   const bookingDate = doc.bookingDate?.toDate?.() ?? new Date();
   const createdAt = doc.createdAt?.toDate?.() ?? new Date();
   const updatedAt = doc.updatedAt?.toDate?.() ?? null;
+  const checklist = doc.checklist ?? [];
+  const checklistProgress = doc.checklistProgress ?? {};
+  const resolvedChecklist = checklist.map((item) => ({
+    ...item,
+    completed: checklistProgress[item.id] ?? item.completed,
+  }));
 
   return {
     id: doc._id,
@@ -55,6 +62,11 @@ function toViewModel(
     updatedAt: updatedAt?.toISOString(),
     statusHistory,
     timelineUnavailable,
+    checklist: resolvedChecklist,
+    // Derive progress from the item data rather than trusting a client-written counter.
+    checklistTotal: resolvedChecklist.length,
+    checklistCompletedCount: resolvedChecklist.filter((item) => item.completed).length,
+    requesterChangeRequest: doc.requesterChangeRequest,
   };
 }
 
@@ -103,6 +115,7 @@ export async function createBooking(
     bookingDate: input.bookingDate,
     price: input.price,
     notes: input.notes,
+    checklist: input.checklist,
   });
 
   // Fetch the created document to get server timestamps
@@ -127,6 +140,7 @@ export async function updateBooking(
     bookingDate: input.bookingDate,
     price: input.price,
     notes: input.notes,
+    checklist: input.checklist,
   });
 
   // Fetch updated document
@@ -137,6 +151,22 @@ export async function updateBooking(
 
   console.log('[BookingRepository] Booking updated successfully');
   return toViewModel(updated);
+}
+
+export async function updateBookingChecklist(bookingId: string, checklist: BookingChecklistItem[]): Promise<void> {
+  await BookingService.updateBookingChecklist(bookingId, checklist);
+}
+
+export async function submitBookingForConfirmation(bookingId: string): Promise<void> {
+  await BookingService.updateBookingStatus(bookingId, 'awaiting_confirmation');
+}
+
+export async function confirmBookingCompletion(bookingId: string): Promise<void> {
+  await BookingService.updateBookingStatus(bookingId, 'completed');
+}
+
+export async function requestBookingChanges(bookingId: string, reason: string): Promise<void> {
+  await BookingService.updateBookingStatus(bookingId, 'in_progress', { changeRequest: reason });
 }
 
 export async function cancelBooking(bookingId: string): Promise<void> {
@@ -175,7 +205,7 @@ export async function startBooking(bookingId: string): Promise<void> {
 }
 
 export async function completeBooking(bookingId: string): Promise<void> {
-  console.log('[BookingRepository] Completing booking:', bookingId);
-  await BookingService.updateBookingStatus(bookingId, 'completed');
-  console.log('[BookingRepository] Booking completed successfully');
+  // Backwards-compatible name: providers submit delivery for requester review;
+  // only the requester can perform the final completion transition.
+  await submitBookingForConfirmation(bookingId);
 }
