@@ -1,6 +1,6 @@
 # LaZone release-readiness checklist
 
-Last reviewed: 2026-08-07
+Last reviewed: 2026-08-15
 
 ## Release status
 
@@ -30,11 +30,18 @@ Use this document as follows:
 ### Booking lifecycle
 
 - [x] Provider actions support `pending → confirmed → in_progress → completed`.
+- [x] Booking requests capture acceptance criteria; providers submit delivery for
+  requester review, requesters can confirm or request changes, and only requester
+  confirmation transitions the booking to `completed`.
 - [x] Booking participants and allowed status transitions are enforced by
   deployed Firestore rules.
 - [x] Status transitions write immutable audit events and the booking timeline
   displays the complete history.
-- [x] Review eligibility requires a completed booking.
+- [x] Review eligibility requires the requester to open a completed booking;
+  each booking can receive one review, with optional 500-character feedback.
+- [x] Review submission has a dedicated booking-scoped screen, requester-only
+  editing, provider response, one-user helpful voting, and deep-linked status
+  notifications.
 
 ### Requester/provider messaging
 
@@ -96,7 +103,9 @@ Use this document as follows:
 - [ ] Add review image upload, abuse reporting, moderation, and dispute handling.
 - [ ] Make notification preferences server-enforced. Current direct-token message
   notifications bypass topic preferences.
-- [ ] Add booking, payment, and reminder notification producers where required.
+- [ ] Deploy and verify booking status, payment, and reminder notification
+  producers in the production Firebase project (booking-status code is ready;
+  Functions deployment is intentionally still pending).
 
 ### Priority 5 — release operations and quality
 
