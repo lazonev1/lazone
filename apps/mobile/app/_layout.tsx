@@ -33,6 +33,7 @@ function RootLayoutNav() {
     title: string;
     message: string;
     conversationId?: string;
+    bookingId?: string;
     avatar?: string;
   }>({
     visible: false,
@@ -47,6 +48,7 @@ function RootLayoutNav() {
         title: data.title,
         message: data.message,
         conversationId: data.conversationId,
+        bookingId: data.bookingId,
         avatar: data.avatar,
       });
     });
@@ -110,7 +112,9 @@ function RootLayoutNav() {
         avatar={bannerConfig.avatar}
         onPress={() => {
           setBannerConfig(prev => ({ ...prev, visible: false }));
-          if (bannerConfig.conversationId) {
+          if (bannerConfig.bookingId) {
+            router.push({ pathname: '/booking/[id]', params: { id: bannerConfig.bookingId } });
+          } else if (bannerConfig.conversationId) {
             router.push({
               pathname: '/messages/[id]',
               params: {
