@@ -89,6 +89,14 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   const validateAll = () => {
     let isValid = true;
 
+    if (services.length === 0) {
+      Alert.alert(
+        'Add a service',
+        'Add at least one service so customers know what they can book.'
+      );
+      return false;
+    }
+
     // Validate all services
     const updatedServices = services.map(service => {
       const validation = validateService(service);
@@ -116,12 +124,13 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
       });
       setCertificates(updatedCerts);
 
-      if (!isValid) {
-        Alert.alert(
-          'Incomplete Information',
-          'Please fill in all fields marked in red.'
-        );
-      }
+    }
+
+    if (!isValid) {
+      Alert.alert(
+        'Incomplete Information',
+        'Please complete at least one service and fill in all fields marked in red.'
+      );
     }
 
     return isValid;

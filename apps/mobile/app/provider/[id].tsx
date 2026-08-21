@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth';
 import { requireAuth } from '@/utils/auth';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
+import * as messageRepository from '@/repositories/messageRepository';
 
 export default function ProviderProfileScreen() {
   const colorScheme = Appearance.getColorScheme();
@@ -42,6 +43,7 @@ export default function ProviderProfileScreen() {
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [testimonialsExpanded] = useState(false);
+  const [isMessaging, setIsMessaging] = useState(false);
   const [mainTabsPosition, setMainTabsPosition] = useState(0);
 
   const stickyHeaderOpacity = scrollY.interpolate({
@@ -133,6 +135,8 @@ export default function ProviderProfileScreen() {
     );
   }
 
+  const hasBookableServices = provider.services.length > 0;
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
@@ -186,21 +190,34 @@ export default function ProviderProfileScreen() {
 
         <View style={styles.actionsRow}>
           <Button
-            label="Message"
-            onPress={() => {
+            label={isMessaging ? 'Opening…' : 'Message'}
+            disabled={isMessaging}
+            onPress={async () => {
               if (!requireAuth(currentUserId, 'Please sign in to message this provider.')) return;
-              // Compute canonical conversation ID without creating a Firestore document.
-              // The conversation will only be created when the first message is sent.
-              const sortedIds = [currentUserId, String(provider.id)].sort();
-              const conversationId = sortedIds.join('_');
-              router.push({
-                pathname: '/messages/[id]',
-                params: {
-                  id: conversationId,
-                  name: provider.name,
-                  avatar: typeof provider.avatar === 'string' ? provider.avatar : '',
-                },
-              });
+
+              setIsMessaging(true);
+              try {
+                // Create the conversation before navigating. The messages screen
+                // subscribes to a nested collection, which Firestore correctly
+                // rejects when the parent conversation does not exist.
+                const conversationId = await messageRepository.findOrCreateConversation(
+                  currentUserId!,
+                  String(provider.id),
+                );
+                router.push({
+                  pathname: '/messages/[id]',
+                  params: {
+                    id: conversationId,
+                    name: provider.name,
+                    avatar: typeof provider.avatar === 'string' ? provider.avatar : '',
+                  },
+                });
+              } catch (error) {
+                console.error('[ProviderProfile] Unable to open conversation:', error);
+                showToast('Unable to start this conversation. Please try again.', 'error');
+              } finally {
+                setIsMessaging(false);
+              }
             }}
             variant="primary"
             size="small"
@@ -333,13 +350,20 @@ export default function ProviderProfileScreen() {
           <ThemedText type="subtitle">Pricing Estimate</ThemedText>
           <ThemedText>{provider.pricing}</ThemedText>
           <Button
-            label="Book Now"
+            label={hasBookableServices ? 'Book Now' : 'Booking unavailable'}
+            disabled={!hasBookableServices}
             onPress={() => {
+              if (!hasBookableServices) return;
               router.push(`/booking/new?providerId=${provider.id}`);
             }}
             variant="primary"
             style={styles.quoteButton}
           />
+          {!hasBookableServices && (
+            <ThemedText style={styles.bookingUnavailableText}>
+              This provider is setting up their services. Booking will be available once a service is listed.
+            </ThemedText>
+          )}
         </View>
       </ScrollView>
 
@@ -431,6 +455,12 @@ function createStyles(theme: any, colorScheme: any) {
     },
     quoteButton: {
       marginTop: 16,
+    },
+    bookingUnavailableText: {
+      marginTop: 10,
+      color: theme.icon,
+      fontSize: 13,
+      lineHeight: 18,
     },
     spacer: { height: 12 },
     nameRow: {

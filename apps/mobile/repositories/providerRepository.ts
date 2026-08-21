@@ -386,6 +386,26 @@ export async function createOrUpdateProviderProfile(
   registrationData: ProviderRegistration
 ): Promise<string> {
   try {
+    // A provider without a published service cannot receive a booking. Keep
+    // this invariant at the repository boundary as well as in the form and
+    // Firestore rules so imports or future clients cannot create a dead-end
+    // provider profile.
+    const submittedServices = registrationData.services || [];
+    const services = submittedServices.map((service) => ({
+        id: service.id,
+        name: service.name?.trim() || '',
+        description: service.description?.trim() || '',
+        price: service.price?.trim() || '',
+        availability: service.availability || null,
+      }));
+
+    if (
+      services.length === 0
+      || services.some((service) => !service.name || !/^\d+$/.test(service.price))
+    ) {
+      throw new Error('At least one complete service with a name and price is required.');
+    }
+
     if (providerId) {
       // UPDATE MODE: Only update provider-specific fields
       const providerData: any = {
@@ -395,15 +415,7 @@ export async function createOrUpdateProviderProfile(
         bio: registrationData.description,
         remoteService: registrationData.remoteService ?? false,
         // Embed services directly on the provider document (atomic save)
-        services: (registrationData.services || [])
-          .filter((s) => s.name.trim())
-          .map((s) => ({
-            id: s.id,
-            name: s.name,
-            description: s.description,
-            price: s.price,
-            availability: s.availability || null,
-          })),
+        services,
       };
 
       // Only add location if coordinates are provided
@@ -455,15 +467,7 @@ export async function createOrUpdateProviderProfile(
         reviewCount: 0,
 
         // Embed services directly on the provider document (atomic save)
-        services: (registrationData.services || [])
-          .filter((s) => s.name.trim())
-          .map((s) => ({
-            id: s.id,
-            name: s.name,
-            description: s.description,
-            price: s.price,
-            availability: s.availability || null,
-          })),
+        services,
       };
 
       // Only add avatar if it exists

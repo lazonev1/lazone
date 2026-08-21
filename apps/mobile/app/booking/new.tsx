@@ -10,6 +10,7 @@ import { CreateBookingInput } from '@/types/booking';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
+import { Button } from '@lazone/ui';
 
 export default function NewBookingScreen() {
   const params = useLocalSearchParams();
@@ -39,6 +40,19 @@ export default function NewBookingScreen() {
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: 'Book a Service' }} />
         <ThemedText>Provider not found</ThemedText>
+      </View>
+    );
+  }
+
+  if (provider.services.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.background, padding: 24 }]}>
+        <Stack.Screen options={{ title: 'Booking unavailable' }} />
+        <ThemedText style={styles.unavailableTitle}>Booking unavailable</ThemedText>
+        <ThemedText style={styles.unavailableText}>
+          This provider has not published a service yet. Please check back later or choose another provider.
+        </ThemedText>
+        <Button label="Back to provider" onPress={() => router.back()} variant="primary" />
       </View>
     );
   }
@@ -115,5 +129,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     opacity: 0.7,
+  },
+  unavailableTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  unavailableText: {
+    textAlign: 'center',
+    opacity: 0.7,
+    marginBottom: 20,
+    lineHeight: 20,
   },
 });

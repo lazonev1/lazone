@@ -96,7 +96,18 @@ try {
   await expectAllowed('provider creation', () => setDoc(doc(providerClient.db, 'providers', providerId), {
     firstName: 'Test',
     lastName: 'Provider',
+    services: [{ id: 'service-1', name: 'Test Service', price: '1000' }],
   }));
+
+  await expectDenied('provider without services', () => setDoc(doc(outsiderClient.db, 'providers', outsiderId), {
+    firstName: 'Empty',
+    lastName: 'Provider',
+    services: [],
+  }));
+  await expectDenied('non-owner cannot edit provider services', () => updateDoc(
+    doc(outsiderClient.db, 'providers', providerId),
+    { services: [{ id: 'attacker-service', name: 'Unauthorized service', price: '1' }] },
+  ));
 
   const bookingId = `booking-${runId}`;
   const requesterBookingRef = doc(requesterClient.db, 'bookings', bookingId);
