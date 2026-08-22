@@ -5,6 +5,7 @@ import EditableField from './EditableField';
 import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
 	visible: boolean;
@@ -25,6 +26,7 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 	const [saving, setSaving] = useState(false);
 
 	const { updateProfile } = useAuth();
+	const { t } = useTranslation(['account', 'common']);
 	const colorScheme = Appearance.getColorScheme();
 	const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -40,17 +42,17 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 
 	const handleSave = () => {
 		if (!firstName.trim() || !lastName.trim()) {
-			Alert.alert('Missing Info', 'First name and last name are required.');
+			Alert.alert(t('info.editPopup.missingInfoTitle'), t('info.editPopup.missingInfoMessage'));
 			return;
 		}
 
 		Alert.alert(
-			'Confirm Changes',
-			'Are you sure you want to update your information?',
+			t('info.editPopup.confirmTitle'),
+			t('info.editPopup.confirmMessage'),
 			[
-				{ text: 'Cancel', style: 'cancel' },
+				{ text: t('common:actions.cancel'), style: 'cancel' },
 				{
-					text: 'Update',
+					text: t('info.editPopup.update'),
 					onPress: async () => {
 						setSaving(true);
 						try {
@@ -59,10 +61,10 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 								lastName: lastName.trim(),
 								phoneNumber: phone.trim(),
 							});
-							Alert.alert('Success', 'Your information has been updated.');
+							Alert.alert(t('common:alerts.success'), t('info.editPopup.successMessage'));
 							onClose();
 						} catch (err) {
-							Alert.alert('Error', 'Could not save your info. Please try again.');
+							Alert.alert(t('common:alerts.error'), t('info.editPopup.errorMessage'));
 						}
 						setSaving(false);
 					},
@@ -72,34 +74,34 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 	};
 
 	return (
-		<BottomPopup visible={visible} onClose={onClose} title="Edit Information">
+		<BottomPopup visible={visible} onClose={onClose} title={t('info.editPopup.title')}>
 			<ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 					<EditableField
-						label="First Name"
+						label={t('info.editPopup.firstName')}
 						value={firstName}
 						onChangeText={setFirstName}
-						placeholder="Enter your first name"
+						placeholder={t('info.editPopup.firstNamePlaceholder')}
 					/>
 					<EditableField
-						label="Last Name"
+						label={t('info.editPopup.lastName')}
 						value={lastName}
 						onChangeText={setLastName}
-						placeholder="Enter your last name"
+						placeholder={t('info.editPopup.lastNamePlaceholder')}
 					/>
 					<EditableField
-						label="Email"
+						label={t('info.editPopup.email')}
 						value={email}
 						onChangeText={setEmail}
 						keyboardType="email-address"
-						placeholder="Enter your email address"
+						placeholder={t('info.editPopup.emailPlaceholder')}
 						autoCapitalize="none"
 					/>
 					<EditableField
-						label="Phone"
+						label={t('info.editPopup.phone')}
 						value={phone}
 						onChangeText={setPhone}
 						keyboardType="phone-pad"
-						placeholder="Enter your phone number"
+						placeholder={t('info.editPopup.phonePlaceholder')}
 					/>
 
 					<View style={styles.buttonContainer}>
@@ -108,10 +110,10 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 						) : (
 							<View style={styles.buttonRow}>
 								<View style={styles.buttonWrapper}>
-									<Button label="Cancel" onPress={onClose} variant="secondary" />
+									<Button label={t('common:actions.cancel')} onPress={onClose} variant="secondary" />
 								</View>
 								<View style={styles.buttonWrapper}>
-									<Button label="Save" onPress={handleSave} variant="primary" />
+									<Button label={t('common:actions.save')} onPress={handleSave} variant="primary" />
 								</View>
 							</View>
 						)}

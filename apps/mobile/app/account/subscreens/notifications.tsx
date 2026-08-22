@@ -11,9 +11,11 @@ import {
   updateNotificationTopicSetting,
 } from '@/services/notifications/pushNotifications';
 import { NotificationSettings, NotificationTopicKey } from '@/services/notifications/topics';
+import { useTranslation } from 'react-i18next';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const { t } = useTranslation('account');
   const { user } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -30,8 +32,8 @@ export default function NotificationsScreen() {
   });
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Notifications' });
-  }, [navigation]);
+    navigation.setOptions({ title: t('notifications.title') });
+  }, [navigation, t]);
 
   useEffect(() => {
     const userId = user?.uid;
@@ -107,13 +109,13 @@ export default function NotificationsScreen() {
               style={styles.rowIcon}
             />
             <View style={styles.rowText}>
-              <ThemedText type="defaultSemiBold">All Notifications</ThemedText>
+              <ThemedText type="defaultSemiBold">{t('notifications.allTitle')}</ThemedText>
               <ThemedText style={styles.description}>
                 {allState === 'on'
-                  ? 'All notifications are enabled'
+                  ? t('notifications.allEnabled')
                   : allState === 'off'
-                    ? 'All notifications are disabled'
-                    : 'Some notifications are enabled'}
+                    ? t('notifications.allDisabled')
+                    : t('notifications.someEnabled')}
               </ThemedText>
             </View>
             {allState === 'mixed' ? (
@@ -135,8 +137,8 @@ export default function NotificationsScreen() {
         <View style={styles.card}>
           <NotificationRow
             icon="chatbubble-ellipses-outline"
-            title="New Messages"
-            description="Get notified when you receive new messages"
+            title={t('notifications.messages.title')}
+            description={t('notifications.messages.description')}
             isEnabled={settings.messages}
             onToggle={() => toggle('messages')}
             colorScheme={colorScheme}
@@ -145,8 +147,8 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
           <NotificationRow
             icon="calendar-outline"
-            title="Booking Updates"
-            description="Status changes for your bookings"
+            title={t('notifications.bookings.title')}
+            description={t('notifications.bookings.description')}
             isEnabled={settings.bookings}
             onToggle={() => toggle('bookings')}
             colorScheme={colorScheme}
@@ -155,8 +157,8 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
           <NotificationRow
             icon="alarm-outline"
-            title="Appointment Reminders"
-            description="Reminders before your scheduled appointments"
+            title={t('notifications.reminders.title')}
+            description={t('notifications.reminders.description')}
             isEnabled={settings.reminders}
             onToggle={() => toggle('reminders')}
             colorScheme={colorScheme}
@@ -165,8 +167,8 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
           <NotificationRow
             icon="wallet-outline"
-            title="Payment Confirmations"
-            description="Receive updates on payment status"
+            title={t('notifications.payments.title')}
+            description={t('notifications.payments.description')}
             isEnabled={settings.payments}
             onToggle={() => toggle('payments')}
             colorScheme={colorScheme}
@@ -175,8 +177,8 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
           <NotificationRow
             icon="gift-outline"
-            title="Offers & Promotions"
-            description="News about discounts and special offers"
+            title={t('notifications.promotions.title')}
+            description={t('notifications.promotions.description')}
             isEnabled={settings.promotions}
             onToggle={() => toggle('promotions')}
             colorScheme={colorScheme}
@@ -185,8 +187,8 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
           <NotificationRow
             icon="information-circle-outline"
-            title="Service Updates"
-            description="Important updates about LaZone platform"
+            title={t('notifications.updates.title')}
+            description={t('notifications.updates.description')}
             isEnabled={settings.updates}
             onToggle={() => toggle('updates')}
             colorScheme={colorScheme}

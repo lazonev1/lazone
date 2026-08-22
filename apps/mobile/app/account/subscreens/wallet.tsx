@@ -5,7 +5,8 @@ import { PaymentMethodCard } from '@/components/account/PaymentCard';
 import { PaymentMethod } from '@/types/user'
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { WALLET_SETTINGS_ITEMS } from '@/constants/account';
+import { getWalletSettingsItems } from '@/constants/account';
+import { useTranslation } from 'react-i18next';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomPopup } from '@/components/account/BottomPopup';
@@ -15,6 +16,8 @@ import { MenuSection } from '@/components/ui/MenuSection';
 
 export default function WalletScreen() {
   const navigation = useNavigation();
+  const { t } = useTranslation('account');
+  const walletSettingsItems = getWalletSettingsItems();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme)
@@ -43,8 +46,8 @@ export default function WalletScreen() {
 
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Wallet' });
-  }, []);
+    navigation.setOptions({ title: t('wallet.title') });
+  }, [navigation, t]);
   // This is a mock method simulating how we can add a mobile payment method
   const addPaymentMethod = (mobileNumber: string,) => {
     const methodInfo = getMethodInfo(mobileNumber);
@@ -81,8 +84,8 @@ export default function WalletScreen() {
           />
         ))}
         <MenuSection
-          title='Settings'
-          items={WALLET_SETTINGS_ITEMS.settings.map(item => ({
+          title={t('menu.settings')}
+          items={walletSettingsItems.settings.map(item => ({
             ...item,
             onPress: item.id === 'security'
               ? () => setSecurityPopupVisible(true)
@@ -90,7 +93,7 @@ export default function WalletScreen() {
           }))}
 
           onPress={(route) => {
-            const securityItem = WALLET_SETTINGS_ITEMS.settings.find(
+            const securityItem = walletSettingsItems.settings.find(
               item => item.route === route && item.id === 'security'
             );
 
@@ -105,15 +108,15 @@ export default function WalletScreen() {
         <BottomPopup
           visible={securityPopupVisible}
           onClose={() => setSecurityPopupVisible(false)}
-          title="Security Information"
+          title={t('wallet.securityTitle')}
         >
           <View>
             <View style={styles.securityItem}>
               <Ionicons name="shield-checkmark" size={24} color="#e1a100" style={styles.securityIcon} />
               <View>
-                <ThemedText type="defaultSemiBold">End-to-End Encryption</ThemedText>
+                <ThemedText type="defaultSemiBold">{t('wallet.encryption')}</ThemedText>
                 <ThemedText style={styles.securityText}>
-                  We use the latest, cutting edge, top-notch encryption algorithms to securly store your information.
+                  {t('wallet.encryptionText')}
                 </ThemedText>
               </View>
             </View>
@@ -121,9 +124,9 @@ export default function WalletScreen() {
             <View style={styles.securityItem}>
               <Ionicons name="lock-closed" size={24} color="#e1a100" style={styles.securityIcon} />
               <View>
-                <ThemedText type="defaultSemiBold">Secure Transactions</ThemedText>
+                <ThemedText type="defaultSemiBold">{t('wallet.secureTransactions')}</ThemedText>
                 <ThemedText style={styles.securityText}>
-                  All transactions are processed through secure channels using industry standards security algorithms.
+                  {t('wallet.secureTransactionsText')}
                 </ThemedText>
               </View>
             </View>

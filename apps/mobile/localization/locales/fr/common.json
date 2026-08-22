@@ -17,7 +17,8 @@
   "auth": {
     "signInRequiredTitle": "Connexion requise",
     "signInRequiredMessage": "Veuillez vous connecter pour continuer.",
-    "signIn": "Se connecter"
+    "signIn": "Se connecter",
+    "goToLogin": "Aller à la connexion"
   },
   "validation": {
     "required": "Ce champ est obligatoire",

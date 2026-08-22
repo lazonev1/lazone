@@ -9,9 +9,11 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 export default function AccountInfoScreen() {
 	const { user, userProfile, logout } = useAuth();
+	const { t } = useTranslation(['account', 'common']);
 	const [editPopupVisible, setEditPopupVisible] = useState(false);
 	const navigation = useNavigation();
 
@@ -27,8 +29,8 @@ export default function AccountInfoScreen() {
 	const avatar = userProfile?.avatar ?? null;
 
 	useEffect(() => {
-		navigation.setOptions({ title: 'Account Info' });
-	}, []);
+		navigation.setOptions({ title: t('info.title') });
+	}, [navigation, t]);
 
 	if (!user) { return null; }
 
@@ -39,29 +41,29 @@ export default function AccountInfoScreen() {
 			<ProfileAvatar uri={avatar} onChange={() => setEditPopupVisible(true)} />
 
 			<View style={styles.infoSection}>
-				<InfoRow label="Name" value={fullName} placeholder="No name provided" theme={theme} />
+				<InfoRow label={t('info.name')} value={fullName} placeholder={t('info.noName')} theme={theme} />
 				<View style={styles.divider} />
-				<InfoRow label="Email" value={email} placeholder="No email on file" theme={theme} />
+				<InfoRow label={t('info.email')} value={email} placeholder={t('info.noEmail')} theme={theme} />
 				<View style={styles.divider} />
-				<InfoRow label="Phone" value={phone} placeholder="No phone number on file" theme={theme} />
+				<InfoRow label={t('info.phone')} value={phone} placeholder={t('info.noPhone')} theme={theme} />
 			</View>
 
 			<View style={styles.buttonContainer}>
 				<Button
-					label="Edit Information"
+					label={t('info.editInformation')}
 					onPress={() => setEditPopupVisible(true)}
 					variant="primary"
 				/>
 			</View>
 
-			<ThemedText type="subtitle" style={styles.sectionTitle}>Account Management</ThemedText>
+			<ThemedText type="subtitle" style={styles.sectionTitle}>{t('info.accountManagement')}</ThemedText>
 
 			<ThemedView style={styles.managementSection}>
 				<Pressable
 					style={styles.row}
 					onPress={() => Alert.alert('TODO', 'Handle deactivate')}
 				>
-					<ThemedText>Deactivate and deletion</ThemedText>
+					<ThemedText>{t('info.deactivate')}</ThemedText>
 					<ThemedText style={styles.arrow}>›</ThemedText>
 				</Pressable>
 
@@ -71,7 +73,7 @@ export default function AccountInfoScreen() {
 					style={styles.row}
 					onPress={() => Alert.alert('TODO', 'Handle change password')}
 				>
-					<ThemedText>Change Password</ThemedText>
+					<ThemedText>{t('info.changePassword')}</ThemedText>
 					<ThemedText style={styles.arrow}>›</ThemedText>
 				</Pressable>
 			</ThemedView>
@@ -80,11 +82,11 @@ export default function AccountInfoScreen() {
 				style={styles.logout}
 				onPress={() => {
 					Alert.alert(
-						'Logout',
-						'Are you sure you want to logout?',
+						t('info.logoutTitle'),
+						t('info.logoutMessage'),
 						[
-							{ text: 'Cancel', style: 'cancel' },
-							{ text: 'Logout', style: 'destructive', onPress: () => {
+							{ text: t('common:actions.cancel'), style: 'cancel' },
+							{ text: t('info.logout'), style: 'destructive', onPress: () => {
 								logout();
 								router.replace("/(tabs)");
 							} },
@@ -92,7 +94,7 @@ export default function AccountInfoScreen() {
 					);
 				}}
 			>
-				<ThemedText style={styles.logoutText}>⎋ Logout</ThemedText>
+				<ThemedText style={styles.logoutText}>⎋ {t('info.logout')}</ThemedText>
 			</Pressable>
 
 			<EditInfoPopup

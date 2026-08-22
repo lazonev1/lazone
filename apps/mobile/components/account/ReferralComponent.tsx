@@ -20,6 +20,7 @@ import {
   ReferralSummary,
   ReferralStatus,
 } from '@/types/referral';
+import { useTranslation } from 'react-i18next';
 
 // ── Props ──
 
@@ -34,12 +35,12 @@ type ReferralComponentProps = {
   referralCode: string;
 };
 
-// ── Status config ──
+// ── Status config ── (labels resolved via t('refer.status.<key>') at render time)
 
-const STATUS_CONFIG: Record<ReferralStatus, { color: string; icon: string; label: string }> = {
-  signed_up: { color: '#2196F3', icon: 'person-add-outline', label: 'Signed Up' },
-  completed: { color: '#0A58A5', icon: 'checkmark-circle-outline', label: 'Completed' },
-  rewarded: { color: '#4CAF50', icon: 'gift-outline', label: 'Rewarded' },
+const STATUS_CONFIG: Record<ReferralStatus, { color: string; icon: string }> = {
+  signed_up: { color: '#2196F3', icon: 'person-add-outline' },
+  completed: { color: '#0A58A5', icon: 'checkmark-circle-outline' },
+  rewarded: { color: '#4CAF50', icon: 'gift-outline' },
 };
 
 // ── Component ──
@@ -56,6 +57,8 @@ export default function ReferralComponent({
 }: ReferralComponentProps) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { t, i18n } = useTranslation(['account', 'common']);
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
 
   const formatCurrency = (amount: number, currency: string = 'XOF') => {
     const value = amount / 100;
@@ -65,13 +68,13 @@ export default function ReferralComponent({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString(dateLocale, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
       });
     } catch {
-      return 'Invalid date';
+      return '';
     }
   };
 
@@ -104,7 +107,7 @@ export default function ReferralComponent({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Join LaZone — the #1 service marketplace! Use my referral code ${referralCode} when you sign up and we both get rewarded. Download now: https://lazone.app/refer?code=${referralCode}`,
+        message: t('refer.shareMessage', { code: referralCode }),
       });
     } catch {
       // user cancelled or other error — silently ignore
@@ -115,7 +118,7 @@ export default function ReferralComponent({
     return (<>
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('common:states.loading')}</ThemedText>
       </View>
     </>);
   }
@@ -134,14 +137,14 @@ export default function ReferralComponent({
         <View style={styles.heroIconContainer}>
           <Ionicons name="gift-outline" size={40} color="#0A58A5" />
         </View>
-        <ThemedText style={styles.heroTitle}>Refer Friends, Get Rewarded</ThemedText>
+        <ThemedText style={styles.heroTitle}>{t('refer.heroTitle')}</ThemedText>
         <ThemedText style={styles.heroSubtitle}>
-          Share your code and earn rewards when friends join and use LaZone.
+          {t('refer.heroSubtitle')}
         </ThemedText>
 
         {/* Code display */}
         <View style={[styles.codeContainer, { borderColor: theme.tint + '40' }]}>
-          <ThemedText style={styles.codeLabel}>Your referral code</ThemedText>
+          <ThemedText style={styles.codeLabel}>{t('refer.codeLabel')}</ThemedText>
           <ThemedText style={[styles.codeText, { color: theme.tint }]}>
             {referralCode || '------'}
           </ThemedText>
@@ -155,7 +158,7 @@ export default function ReferralComponent({
             activeOpacity={0.7}
           >
             <Ionicons name="copy-outline" size={18} color="#0A58A5" />
-            <ThemedText style={styles.copyButtonText}>Copy</ThemedText>
+            <ThemedText style={styles.copyButtonText}>{t('refer.copy')}</ThemedText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -164,7 +167,7 @@ export default function ReferralComponent({
             activeOpacity={0.7}
           >
             <Ionicons name="share-social-outline" size={18} color="#fff" />
-            <ThemedText style={styles.shareButtonText}>Share Referral</ThemedText>
+            <ThemedText style={styles.shareButtonText}>{t('refer.share')}</ThemedText>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -174,19 +177,19 @@ export default function ReferralComponent({
         <View style={styles.statsRow}>
           <ThemedView style={styles.statCard}>
             <ThemedText style={styles.statValue}>{summary.totalReferred}</ThemedText>
-            <ThemedText style={styles.statLabel}>Referred</ThemedText>
+            <ThemedText style={styles.statLabel}>{t('refer.referred')}</ThemedText>
           </ThemedView>
           <ThemedView style={styles.statCard}>
             <ThemedText style={[styles.statValue, { color: '#0A58A5' }]}>
               {summary.totalCompleted}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>Completed</ThemedText>
+            <ThemedText style={styles.statLabel}>{t('refer.completed')}</ThemedText>
           </ThemedView>
           <ThemedView style={styles.statCard}>
             <ThemedText style={[styles.statValue, { color: '#4CAF50' }]}>
               {summary.totalRewarded}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>Rewarded</ThemedText>
+            <ThemedText style={styles.statLabel}>{t('refer.rewarded')}</ThemedText>
           </ThemedView>
         </View>
       )}
@@ -199,25 +202,25 @@ export default function ReferralComponent({
             <ThemedText style={styles.rewardAmount}>
               {formatCurrency(summary.totalRewardsEarned, summary.currency)}
             </ThemedText>
-            <ThemedText style={styles.rewardLabel}>Total rewards earned</ThemedText>
+            <ThemedText style={styles.rewardLabel}>{t('refer.totalRewards')}</ThemedText>
           </View>
         </ThemedView>
       )}
 
       {/* ── How it works ── */}
       <ThemedView style={styles.howItWorksCard}>
-        <ThemedText style={styles.sectionTitle}>How it works</ThemedText>
+        <ThemedText style={styles.sectionTitle}>{t('refer.howItWorks')}</ThemedText>
         {[
-          { icon: 'paper-plane-outline' as const, step: '1', text: 'Share your code with friends via SMS, WhatsApp, or any app' },
-          { icon: 'person-add-outline' as const, step: '2', text: 'Your friend signs up on LaZone using your code' },
-          { icon: 'gift-outline' as const, step: '3', text: 'You both get rewarded after their first completed service' },
+          { icon: 'paper-plane-outline' as const, step: '1', text: t('refer.step1') },
+          { icon: 'person-add-outline' as const, step: '2', text: t('refer.step2') },
+          { icon: 'gift-outline' as const, step: '3', text: t('refer.step3') },
         ].map((item) => (
           <View key={item.step} style={styles.stepRow}>
             <View style={styles.stepIconCircle}>
               <Ionicons name={item.icon} size={18} color="#0A58A5" />
             </View>
             <View style={styles.stepContent}>
-              <ThemedText style={styles.stepNumber}>Step {item.step}</ThemedText>
+              <ThemedText style={styles.stepNumber}>{t('refer.step', { number: item.step })}</ThemedText>
               <ThemedText style={styles.stepText}>{item.text}</ThemedText>
             </View>
           </View>
@@ -233,10 +236,10 @@ export default function ReferralComponent({
         >
           {(
             [
-              { id: 'all', label: 'All' },
-              { id: 'signed_up', label: 'Signed Up' },
-              { id: 'completed', label: 'Completed' },
-              { id: 'rewarded', label: 'Rewarded' },
+              { id: 'all', label: t('refer.filterAll') },
+              { id: 'signed_up', label: t('refer.status.signed_up') },
+              { id: 'completed', label: t('refer.status.completed') },
+              { id: 'rewarded', label: t('refer.status.rewarded') },
             ] as { id: ReferralStatus | 'all'; label: string }[]
           ).map((item) => (
             <TouchableOpacity
@@ -262,14 +265,14 @@ export default function ReferralComponent({
 
       {/* ── Referral List ── */}
       <View style={styles.listContainer}>
-        <ThemedText style={styles.sectionTitle}>Your Referrals</ThemedText>
+        <ThemedText style={styles.sectionTitle}>{t('refer.yourReferrals')}</ThemedText>
 
         {referrals.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={theme.icon} />
-            <ThemedText style={styles.emptyStateTitle}>No Referrals Yet</ThemedText>
+            <ThemedText style={styles.emptyStateTitle}>{t('refer.emptyTitle')}</ThemedText>
             <ThemedText style={styles.emptyStateText}>
-              Share your referral code to start inviting friends!
+              {t('refer.emptyMessage')}
             </ThemedText>
           </View>
         ) : (
@@ -310,7 +313,7 @@ export default function ReferralComponent({
                       <ThemedText
                         style={[styles.statusBadgeText, { color: statusCfg.color }]}
                       >
-                        {statusCfg.label}
+                        {t(`refer.status.${referral.status}`)}
                       </ThemedText>
                     </View>
                     {referral.status === 'rewarded' && referral.rewardAmount > 0 && (
@@ -331,7 +334,7 @@ export default function ReferralComponent({
       {showCopiedToast && (
         <Animated.View style={[styles.copiedToast, { opacity: toastOpacity }]}>
           <Ionicons name="checkmark-circle" size={18} color="#fff" />
-          <ThemedText style={styles.copiedToastText}>Copied!</ThemedText>
+          <ThemedText style={styles.copiedToastText}>{t('refer.copied')}</ThemedText>
         </Animated.View>
       )}
   </>);

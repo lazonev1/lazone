@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Button } from '@lazone/ui';
+import { useTranslation } from 'react-i18next';
 
 interface LoginPromptProps {
   title: string;
@@ -11,6 +12,7 @@ interface LoginPromptProps {
 
 export function LoginPrompt({ title, message }: LoginPromptProps) {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const colorScheme = useColorScheme() ?? 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -19,7 +21,7 @@ export function LoginPrompt({ title, message }: LoginPromptProps) {
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.message, { color: theme.icon }]}>{message}</Text>
       <Button
-        label="Go to Login"
+        label={t('auth.goToLogin')}
         onPress={() => router.push('/(auth)/login')}
         style={styles.button}
       />

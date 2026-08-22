@@ -17,7 +17,8 @@
   "auth": {
     "signInRequiredTitle": "Sign in required",
     "signInRequiredMessage": "Please sign in to continue.",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "goToLogin": "Go to Login"
   },
   "validation": {
     "required": "This field is required",

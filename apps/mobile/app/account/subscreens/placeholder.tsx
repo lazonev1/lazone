@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Ionicons } from '@expo/vector-icons';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Generic placeholder screen for routes that are planned but not yet implemented.
@@ -14,14 +15,15 @@ import { Colors } from '@/constants/Colors';
 export default function PlaceholderScreen() {
   const params = useLocalSearchParams<{ title?: string }>();
   const navigation = useNavigation();
+  const { t } = useTranslation('account');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-  const title = params.title ?? 'Coming Soon';
+  const title = params.title ?? t('placeholder.comingSoon');
 
   useEffect(() => {
     navigation.setOptions({ title });
-  }, [title]);
+  }, [navigation, title]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -31,7 +33,7 @@ export default function PlaceholderScreen() {
           {title}
         </ThemedText>
         <ThemedText style={styles.subtitle}>
-          This feature is under construction. Check back soon!
+          {t('placeholder.underConstruction')}
         </ThemedText>
       </ThemedView>
     </SafeAreaView>
