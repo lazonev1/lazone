@@ -6,6 +6,7 @@ import {
   ConversationViewModel,
   ConversationListItem,
 } from "@/types/message";
+import i18n from "@/localization";
 
 /**
  * Hook for real-time messages in a conversation.
@@ -65,7 +66,7 @@ export function useMessages(conversationId?: string, limit: number = 50) {
   const sendMessage = useCallback(
     async (senderId: string, text: string): Promise<void> => {
       if (!conversationId) {
-        throw new Error("Conversation is unavailable. Reopen the chat and try again.");
+        throw new Error(i18n.t("messages:errors.conversationUnavailable"));
       }
       try {
         await messageRepository.sendMessage(
@@ -76,7 +77,7 @@ export function useMessages(conversationId?: string, limit: number = 50) {
         // No need to manually add — onSnapshot will pick it up
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to send message";
+          err instanceof Error ? err.message : i18n.t("messages:errors.sendFailed");
         setError(message);
         throw err;
       }
@@ -244,7 +245,7 @@ export function useConversation(userId1: string, userId2: string) {
         setConversationId(id);
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to find conversation";
+          err instanceof Error ? err.message : i18n.t("messages:errors.findConversationFailed");
         setError(message);
         console.error("useConversation error:", err);
       } finally {

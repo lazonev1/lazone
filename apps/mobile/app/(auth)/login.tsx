@@ -21,7 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/auth';
-import strings from '@/strings';
+import { useTranslation } from 'react-i18next';
 import EditableField from '@/components/account/EditableField';
 import { ThemedText } from '@/components/ThemedText';
 import CheckBox from '@/components/ui/CheckBox';
@@ -41,6 +41,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login, signup } = useAuth();
+  const { t } = useTranslation(['auth', 'common']);
 
   // ── Signup-only state ──
   const [fullName, setFullName] = useState('');
@@ -68,14 +69,14 @@ export default function LoginScreen() {
   // ── Handlers ──
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+      Alert.alert(t('common:alerts.error'), t('login.errors.missingFields'));
       return;
     }
     setIsLoading(true);
     try {
       await login(email, password);
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Please check your credentials.');
+      Alert.alert(t('login.errors.loginFailedTitle'), error.message || t('login.errors.loginFailedMessage'));
     } finally {
       setIsLoading(false);
     }
@@ -83,18 +84,18 @@ export default function LoginScreen() {
 
   const handleSignup = async () => {
     if (!termsAgreed) {
-      Alert.alert('Agreement Required', 'Please agree to the Terms and Privacy Policy.');
+      Alert.alert(t('signup.errors.agreementTitle'), t('signup.errors.agreementMessage'));
       return;
     }
     if (!fullName || !email || !password) {
-      Alert.alert('Missing Information', 'Please fill out all required fields.');
+      Alert.alert(t('signup.errors.missingTitle'), t('signup.errors.missingMessage'));
       return;
     }
     setIsLoading(true);
     try {
       await signup(fullName, email, password, phone);
     } catch (error: any) {
-      Alert.alert('Signup Failed', error.message || 'Please try again later.');
+      Alert.alert(t('signup.errors.signupFailedTitle'), error.message || t('signup.errors.signupFailedMessage'));
     } finally {
       setIsLoading(false);
     }
@@ -102,8 +103,8 @@ export default function LoginScreen() {
 
   // ── Derived values ──
   const isLogin = mode === 'login';
-  const title = isLogin ? strings.auth.login.title : strings.auth.signup.title;
-  const subtitle = isLogin ? strings.auth.login.subtitle : strings.auth.signup.subtitle;
+  const title = isLogin ? t('login.title') : t('signup.title');
+  const subtitle = isLogin ? t('login.subtitle') : t('signup.subtitle');
 
   return (
     <View style={styles.screen}>
@@ -138,7 +139,7 @@ export default function LoginScreen() {
                   isLogin && styles.toggleLabelActive,
                 ]}
               >
-                {strings.auth.login.tabLogin}
+                {t('tabs.login')}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
@@ -152,7 +153,7 @@ export default function LoginScreen() {
                   !isLogin && styles.toggleLabelActive,
                 ]}
               >
-                {strings.auth.login.tabSignup}
+                {t('tabs.signup')}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -180,7 +181,7 @@ export default function LoginScreen() {
                 exiting={FadeOutUp.duration(200)}
               >
                 <EditableField
-                  placeholder={strings.auth.signup.fullName}
+                  placeholder={t('signup.fullName')}
                   value={fullName}
                   onChangeText={setFullName}
                   autoCapitalize="words"
@@ -193,8 +194,8 @@ export default function LoginScreen() {
             <EditableField
               placeholder={
                 isLogin
-                  ? strings.auth.login.emailPhone
-                  : strings.auth.signup.emailAddress
+                  ? t('login.emailPhone')
+                  : t('signup.emailAddress')
               }
               value={email}
               onChangeText={setEmail}
@@ -210,7 +211,7 @@ export default function LoginScreen() {
                 exiting={FadeOutUp.duration(200)}
               >
                 <EditableField
-                  placeholder={strings.auth.signup.phoneNumber}
+                  placeholder={t('signup.phoneNumber')}
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
@@ -221,7 +222,7 @@ export default function LoginScreen() {
             {/* Password with eye toggle */}
             <View style={styles.passwordContainer}>
               <EditableField
-                placeholder={strings.auth.login.password}
+                placeholder={t('login.password')}
                 secureTextEntry={!isPasswordVisible}
                 value={password}
                 onChangeText={setPassword}
@@ -257,17 +258,17 @@ export default function LoginScreen() {
                     setChecked={() => setRememberMe((v) => !v)}
                   />
                   <ThemedText style={styles.smallText}>
-                    {strings.auth.login.rememberMe}
+                    {t('login.rememberMe')}
                   </ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() =>
-                    Alert.alert('Reset Password', 'A reset link will be sent to your email.')
+                    Alert.alert(t('login.resetTitle'), t('login.resetMessage'))
                   }
                   activeOpacity={0.7}
                 >
                   <ThemedText style={styles.forgotText}>
-                    {strings.auth.login.forgotPassword}
+                    {t('login.forgotPassword')}
                   </ThemedText>
                 </TouchableOpacity>
               </Animated.View>
@@ -285,7 +286,7 @@ export default function LoginScreen() {
                   setChecked={() => setTermsAgreed((v) => !v)}
                 />
                 <ThemedText style={styles.termsText}>
-                  {strings.auth.signup.agreement}
+                  {t('signup.agreement')}
                 </ThemedText>
               </Animated.View>
             )}
@@ -302,15 +303,15 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                   <ThemedText style={styles.primaryButtonText}>
                     {isLogin
-                      ? strings.auth.login.loggingIn
-                      : strings.auth.signup.signingUp}
+                      ? t('login.loggingIn')
+                      : t('signup.signingUp')}
                   </ThemedText>
                 </View>
               ) : (
                 <ThemedText style={styles.primaryButtonText}>
                   {isLogin
-                    ? strings.auth.login.loginButton
-                    : strings.auth.signup.signUpButton}
+                    ? t('login.loginButton')
+                    : t('signup.signUpButton')}
                 </ThemedText>
               )}
             </TouchableOpacity>
@@ -320,7 +321,7 @@ export default function LoginScreen() {
           <View style={styles.bottomZone}>
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <ThemedText style={styles.dividerText}>or</ThemedText>
+              <ThemedText style={styles.dividerText}>{t('or')}</ThemedText>
               <View style={styles.dividerLine} />
             </View>
 
@@ -331,12 +332,12 @@ export default function LoginScreen() {
             >
               <Ionicons name="compass-outline" size={20} color="#fcbd02" />
               <ThemedText style={styles.ghostButtonText}>
-                {strings.auth.login.browseFirst}
+                {t('login.browseFirst')}
               </ThemedText>
             </TouchableOpacity>
 
             <ThemedText style={styles.motto}>
-              {strings.branding.motto}
+              {t('motto')}
             </ThemedText>
           </View>
         </ScrollView>

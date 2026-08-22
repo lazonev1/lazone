@@ -1,4 +1,28 @@
 {
   "title": "Messages",
-  "empty": "Aucun message pour le moment"
+  "list": {
+    "loginTitle": "Bon retour !",
+    "loginMessage": "Connectez-vous pour voir vos messages et discuter avec les prestataires.",
+    "searchPlaceholder": "Rechercher des messages",
+    "noResults": "Aucun message correspondant à « {{query}} »",
+    "empty": "Vos messages apparaîtront ici."
+  },
+  "chat": {
+    "loading": "Chargement de la conversation...",
+    "defaultTitle": "Conversation",
+    "loadError": "Impossible de charger les messages. Rouvrez cette discussion pour vous reconnecter.",
+    "inputPlaceholder": "Message",
+    "comingSoon": "Bientôt disponible",
+    "sendFailed": "Impossible d'envoyer le message. Veuillez réessayer.",
+    "voiceNote": "🎤 Note vocale ({{duration}})",
+    "voiceSaveFailed": "Impossible d'enregistrer la note vocale. Veuillez réessayer.",
+    "voiceStartFailed": "Impossible de démarrer l'enregistrement vocal.",
+    "micPermissionTitle": "Autorisation micro requise",
+    "micPermissionMessage": "Veuillez autoriser l'accès au micro pour enregistrer des notes vocales."
+  },
+  "errors": {
+    "conversationUnavailable": "La conversation est indisponible. Rouvrez la discussion et réessayez.",
+    "sendFailed": "Impossible d'envoyer le message",
+    "findConversationFailed": "Conversation introuvable"
+  }
 }

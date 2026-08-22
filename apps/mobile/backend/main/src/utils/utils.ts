@@ -21,6 +21,8 @@ export function formatMessageTime(isoString: string): string {
 }
 
 export function formatDateDivider(isoString: string): string {
+  // Lazy require keeps this module importable outside the app (i18n pulls in react-native deps).
+  const i18n = require('@/localization').default;
   const date = new Date(isoString);
   const now = new Date();
 
@@ -28,13 +30,13 @@ export function formatDateDivider(isoString: string): string {
   const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
   if (startOfDate === startOfToday) {
-    return 'Today';
+    return i18n.t('common:dates.today');
   }
 
   const startOfYesterday = startOfToday - 86400000;
   if (startOfDate === startOfYesterday) {
-    return 'Yesterday';
+    return i18n.t('common:dates.yesterday');
   }
 
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  return date.toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', day: 'numeric' });
 }

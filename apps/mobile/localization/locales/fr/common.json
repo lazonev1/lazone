@@ -27,6 +27,10 @@
     "dateFormat": "La date doit être au format MM/AAAA",
     "dateFormatShort": "Format MM/AAAA"
   },
+  "dates": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier"
+  },
   "states": {
     "loading": "Chargement…",
     "error": "Une erreur est survenue",
