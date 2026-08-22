@@ -8,5 +8,105 @@
   },
   "success": {
     "title": "Réservation confirmée"
+  },
+  "status": {
+    "pending": "En attente",
+    "confirmed": "Acceptée",
+    "in_progress": "En cours",
+    "awaiting_confirmation": "En attente de confirmation",
+    "completed": "Terminée",
+    "cancelled": "Annulée"
+  },
+  "details": {
+    "title": "Détails de la réservation",
+    "loading": "Chargement de la réservation...",
+    "notFound": "Réservation introuvable",
+    "goBack": "Retour",
+    "banner": "Réservation : {{status}}",
+    "ref": "Réf : #{{ref}}",
+    "dateNotSet": "Date non définie",
+    "invalidDate": "Date invalide",
+    "service": "Service",
+    "price": "Prix",
+    "dateTime": "Date et heure",
+    "clientInformation": "Informations du client",
+    "providerInformation": "Informations du prestataire",
+    "viewProfile": "Voir le profil",
+    "message": "Message",
+    "requestChecklist": "Liste des demandes",
+    "reviewChecklistNotice": "Vérifiez les résultats demandés. La progression du prestataire est affichée à titre indicatif ; utilisez les actions ci-dessous pour confirmer ou demander des modifications.",
+    "changesRequested": "Modifications demandées : {{reason}}",
+    "additionalDetails": "Détails supplémentaires",
+    "timelineTitle": "Historique de la réservation",
+    "timelineUnavailable": "L'historique est temporairement indisponible. Affichage du statut actuel.",
+    "created": "Réservation créée",
+    "currentStatus": "Statut actuel : {{status}}",
+    "timelineEvents": {
+      "accepted": "Réservation acceptée",
+      "workResumed": "Modifications demandées — Travail repris",
+      "started": "Service commencé",
+      "completionSubmitted": "Travail soumis pour vérification",
+      "completed": "Service terminé",
+      "declined": "Réservation refusée",
+      "cancelled": "Réservation annulée"
+    },
+    "actions": {
+      "acceptBooking": "Accepter la réservation",
+      "accepting": "Acceptation...",
+      "decline": "Refuser",
+      "declining": "Refus...",
+      "startService": "Commencer le service",
+      "starting": "Démarrage...",
+      "submitForConfirmation": "Soumettre pour confirmation",
+      "submitting": "Envoi...",
+      "editBooking": "Modifier la réservation",
+      "cancelBooking": "Annuler la réservation",
+      "confirmWorkCompleted": "Confirmer le travail terminé",
+      "requestChanges": "Demander des modifications",
+      "sending": "Envoi...",
+      "leaveReview": "Laisser un avis"
+    },
+    "changeRequest": {
+      "label": "Besoin de modifications ?",
+      "placeholder": "Décrivez ce qui manque encore"
+    },
+    "notices": {
+      "awaitingRequesterReview": "Soumis pour vérification par le demandeur. Vous serez notifié lorsqu'il confirmera ou demandera des modifications.",
+      "providerSubmitted": "Le prestataire a soumis ce travail pour votre vérification. Vérifiez chaque résultat demandé avant de confirmer."
+    },
+    "alerts": {
+      "cancelTitle": "Annuler la réservation",
+      "cancelMessage": "Voulez-vous vraiment annuler cette réservation ? Cette action est irréversible.",
+      "keepBooking": "Conserver la réservation",
+      "cannotEditTitle": "Modification impossible",
+      "cannotEditMessage": "Seules les réservations en attente peuvent être modifiées.",
+      "declineTitle": "Refuser la demande",
+      "declineMessage": "Voulez-vous vraiment refuser cette demande de {{name}} ?",
+      "startTitle": "Commencer le service",
+      "startMessage": "Confirmez que vous commencez ce service maintenant.",
+      "submitTitle": "Soumettre pour confirmation",
+      "submitMessage": "Le demandeur vérifiera la liste et confirmera le travail livré.",
+      "confirmCompletionTitle": "Confirmer le travail terminé",
+      "confirmCompletionMessage": "Confirmez que le prestataire a livré tout ce que vous avez demandé. La réservation passera au statut Terminée.",
+      "notYet": "Pas encore"
+    },
+    "toasts": {
+      "conversationFailed": "Impossible d'ouvrir la conversation",
+      "cancelled": "Réservation annulée",
+      "cancelFailed": "Impossible d'annuler la réservation",
+      "accepted": "Réservation acceptée",
+      "acceptFailed": "Impossible d'accepter la réservation",
+      "declined": "Demande refusée",
+      "declineFailed": "Impossible de refuser la demande",
+      "statusUpdateFailed": "Impossible de mettre à jour le statut de la réservation",
+      "checklistUpdateFailed": "Impossible de mettre à jour la liste",
+      "serviceInProgress": "Service marqué comme en cours",
+      "workSubmitted": "Travail soumis pour confirmation du demandeur",
+      "completionConfirmed": "Travail confirmé",
+      "completionFailed": "Impossible de confirmer le travail",
+      "changesRequested": "Modifications demandées au prestataire",
+      "changeRequestFailed": "Impossible de demander des modifications",
+      "describeChanges": "Veuillez décrire ce qu'il reste à faire"
+    }
   }
 }

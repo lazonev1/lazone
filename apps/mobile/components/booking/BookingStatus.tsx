@@ -1,16 +1,13 @@
 import { StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ThemedText } from '@/components/ThemedText';
 import { BookingStatus as StatusType } from '@/types/booking';
+import i18n from '@/localization';
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
+// For non-component callers; components should prefer useTranslation so they
+// re-render on language change.
 export function getStatusLabel(status: StatusType): string {
-  if (status === 'confirmed') return 'Accepted';
-  if (status === 'in_progress') return 'In Progress';
-  if (status === 'awaiting_confirmation') return 'Awaiting Confirmation';
-  return capitalize(status);
+  return i18n.t(`booking:status.${status}`);
 }
 
 type Props = {
@@ -18,9 +15,10 @@ type Props = {
 };
 
 export function BookingStatus({ status }: Props) {
+  const { t } = useTranslation('booking');
   return (
     <ThemedText style={[styles.status, { color: getStatusColor(status) }]}>
-      {getStatusLabel(status)}
+      {t(`status.${status}`)}
     </ThemedText>
   );
 }
