@@ -6,6 +6,7 @@ import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { validateCertification } from '@/utils/validation';
 import { Certification } from '@/types/provider';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   certificates: Certification[];
@@ -16,6 +17,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+  const { t } = useTranslation(['provider', 'common']);
 
   const addNewCertification = () => {
     const newCert: Certification = {
@@ -67,11 +69,11 @@ export function CertificationUploader({ certificates, onChange }: Props) {
         );
 
         onChange(updatedCerts);
-        Alert.alert('Success', `Document "${document.name}" uploaded successfully`);
+        Alert.alert(t('common:alerts.success'), t('registration.certifications.uploadSuccessMessage', { name: document.name }));
       }
     } catch (err) {
       console.error('Error picking document:', err);
-      Alert.alert('Error', 'Could not upload the document. Please try again.');
+      Alert.alert(t('common:alerts.error'), t('registration.certifications.uploadFailed'));
     }
   };
 
@@ -83,7 +85,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
         <Ionicons name="document-text" size={20} color="#4CAF50" />
         <View style={styles.documentInfo}>
           <ThemedText style={styles.documentName}>
-            Document uploaded successfully
+            {t('registration.certifications.documentUploaded')}
           </ThemedText>
           {cert.documentName && (
             <ThemedText style={styles.documentSubtext}>
@@ -108,10 +110,10 @@ export function CertificationUploader({ certificates, onChange }: Props) {
             color={theme.text} 
           />
           <ThemedText style={styles.emptyStateText}>
-            Add your first certification
+            {t('registration.certifications.emptyTitle')}
           </ThemedText>
           <ThemedText style={styles.emptyStateSubtext}>
-            Include professional certificates, awards, or recognitions
+            {t('registration.certifications.emptySubtitle')}
           </ThemedText>
         </TouchableOpacity>
       ) : (
@@ -138,29 +140,29 @@ export function CertificationUploader({ certificates, onChange }: Props) {
               </View>
 
               <TextBox
-                label="Certificate Name *"
+                label={t('registration.certifications.certificateName')}
                 value={cert.name}
                 onChangeText={(text) => updateCertificate(index, 'name', text)}
-                placeholder="e.g., Professional Electrician Certification"
+                placeholder={t('registration.certifications.certificateNamePlaceholder')}
                 error={cert.errors?.name}
               />
 
               <View style={styles.row}>
                 <View style={styles.flex1}>
                   <TextBox
-                    label="Issuing Organization *"
+                    label={t('registration.certifications.issuer')}
                     value={cert.issuer}
                     onChangeText={(text) => updateCertificate(index, 'issuer', text)}
-                    placeholder="e.g., IEEE"
+                    placeholder={t('registration.certifications.issuerPlaceholder')}
                     error={cert.errors?.issuer}
                   />
                 </View>
                 <View style={styles.flex1}>
                   <TextBox
-                    label="Issue Date (MM/YYYY) *"
+                    label={t('registration.certifications.issueDate')}
                     value={cert.date}
                     onChangeText={(text) => updateCertificate(index, 'date', text)}
-                    placeholder="MM/YYYY"
+                    placeholder={t('registration.certifications.issueDatePlaceholder')}
                     error={cert.errors?.date}
                   />
                 </View>
@@ -183,7 +185,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
                   styles.uploadText,
                   cert.errors?.document && styles.errorText
                 ]}>
-                  {cert.document ? "Replace Document" : "Upload Document *"}
+                  {cert.document ? t('registration.certifications.replaceDocument') : t('registration.certifications.uploadDocument')}
                 </ThemedText>
               </TouchableOpacity>
 
@@ -197,7 +199,7 @@ export function CertificationUploader({ certificates, onChange }: Props) {
           >
             <Ionicons name="add" size={20} color={theme.text} />
             <ThemedText style={styles.addButtonText}>
-              Add Another Certification
+              {t('registration.certifications.addAnother')}
             </ThemedText>
           </TouchableOpacity>
         </>

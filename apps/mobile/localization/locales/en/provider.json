@@ -1,6 +1,76 @@
 {
   "registration": {
-    "title": "Become a provider"
+    "title": "Become a Provider",
+    "editTitle": "Edit Provider Profile",
+    "loadingProvider": "Loading provider data...",
+    "updatingTitle": "Updating Profile",
+    "creatingTitle": "Creating Profile",
+    "updatingMessage": "Updating your provider profile...",
+    "creatingMessage": "Creating your provider profile...",
+    "alerts": {
+      "loginRequired": "You must be logged in to create or update a provider profile.",
+      "updatedTitle": "Profile Updated",
+      "updatedMessage": "Your provider profile has been updated successfully.",
+      "createdTitle": "Profile Created",
+      "createdMessage": "Your provider profile has been created successfully!",
+      "updateFailed": "Failed to update provider profile. Please try again.",
+      "createFailed": "Failed to create provider profile. Please try again."
+    },
+    "businessInfo": {
+      "title": "Business Information",
+      "editTitle": "Edit Business Information",
+      "subtitle": "Tell us about your business to get started",
+      "editSubtitle": "Update your business details below",
+      "businessName": "Business Name",
+      "businessNamePlaceholder": "Enter your business name",
+      "serviceCategory": "Service Category",
+      "description": "Business Description",
+      "descriptionPlaceholder": "Describe your services and expertise...",
+      "remoteService": "I offer remote services",
+      "continue": "Continue",
+      "continueToServices": "Continue to Services",
+      "fillRequired": "Please fill in all required fields correctly."
+    },
+    "services": {
+      "title": "Services Offered",
+      "serviceNumber": "Service {{number}}",
+      "name": "Service Name",
+      "namePlaceholder": "e.g., Basic Electrical Installation",
+      "description": "Description (Optional)",
+      "descriptionPlaceholder": "Describe what's included in this service...",
+      "price": "Price (CFA)",
+      "pricePlaceholder": "e.g., 25000",
+      "addService": "Add Service",
+      "addServiceTitle": "Add a service",
+      "addServiceMessage": "Add at least one service so customers know what they can book.",
+      "incompleteTitle": "Incomplete Information",
+      "incompleteMessage": "Please complete at least one service and fill in all fields marked in red.",
+      "saveChanges": "Save Changes",
+      "completeRegistration": "Complete Registration"
+    },
+    "portfolio": {
+      "title": "Portfolio",
+      "subtitle": "Add photos of your previous work to showcase your expertise",
+      "captionPlaceholder": "Describe this work (optional)"
+    },
+    "certifications": {
+      "title": "Certifications & Recognition",
+      "subtitle": "Add any relevant certifications or professional recognition",
+      "emptyTitle": "Add your first certification",
+      "emptySubtitle": "Include professional certificates, awards, or recognitions",
+      "certificateName": "Certificate Name *",
+      "certificateNamePlaceholder": "e.g., Professional Electrician Certification",
+      "issuer": "Issuing Organization *",
+      "issuerPlaceholder": "e.g., IEEE",
+      "issueDate": "Issue Date (MM/YYYY) *",
+      "issueDatePlaceholder": "MM/YYYY",
+      "uploadDocument": "Upload Document *",
+      "replaceDocument": "Replace Document",
+      "documentUploaded": "Document uploaded successfully",
+      "uploadSuccessMessage": "Document \"{{name}}\" uploaded successfully",
+      "uploadFailed": "Could not upload the document. Please try again.",
+      "addAnother": "Add Another Certification"
+    }
   },
   "reviews": {
     "title": "Reviews"

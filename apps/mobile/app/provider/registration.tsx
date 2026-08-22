@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProvider } from '@/hooks/useProvider';
 import { useAuth } from '@/contexts/auth';
 import { ThemedText } from '@/components/ThemedText';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Helper function to transform ProviderViewModel to ProviderRegistration format
@@ -40,6 +41,7 @@ export default function ProviderRegistrationScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
+  const { t } = useTranslation(['provider', 'common']);
   const { userProfile, refreshUserProfile } = useAuth();
   const isEditMode = editMode === 'true';
   const requestedProviderId = Array.isArray(providerId) ? providerId[0] : providerId;
@@ -71,7 +73,7 @@ export default function ProviderRegistrationScreen() {
     
     // Validate user is authenticated
     if (!userProfile) {
-      Alert.alert('Error', 'You must be logged in to create or update a provider profile.');
+      Alert.alert(t('common:alerts.error'), t('registration.alerts.loginRequired'));
       return;
     }
 
@@ -94,22 +96,22 @@ export default function ProviderRegistrationScreen() {
 
       if (isEditMode) {
         Alert.alert(
-          'Profile Updated',
-          'Your provider profile has been updated successfully.',
-          [{ text: 'OK', onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
+          t('registration.alerts.updatedTitle'),
+          t('registration.alerts.updatedMessage'),
+          [{ text: t('common:actions.ok'), onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
         );
       } else {
         Alert.alert(
-          'Profile Created',
-          'Your provider profile has been created successfully!',
-          [{ text: 'OK', onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
+          t('registration.alerts.createdTitle'),
+          t('registration.alerts.createdMessage'),
+          [{ text: t('common:actions.ok'), onPress: () => router.push(`/provider/preview?id=${resultProviderId}` as any) }]
         );
       }
     } catch (error) {
       console.error('Error saving provider profile:', error);
       Alert.alert(
-        'Error',
-        `Failed to ${isEditMode ? 'update' : 'create'} provider profile. Please try again.`
+        t('common:alerts.error'),
+        isEditMode ? t('registration.alerts.updateFailed') : t('registration.alerts.createFailed')
       );
     } finally {
       setIsSaving(false);
@@ -130,13 +132,13 @@ export default function ProviderRegistrationScreen() {
       <>
         <Stack.Screen
           options={{
-            title: 'Edit Provider Profile',
-            headerBackTitle: 'Back',
+            title: t('registration.editTitle'),
+            headerBackTitle: t('common:actions.back'),
           }}
         />
         <View style={[styles.container, styles.centerContent]}>
           <ActivityIndicator size="large" color={theme.tint} />
-          <ThemedText style={{ marginTop: 16 }}>Loading provider data...</ThemedText>
+          <ThemedText style={{ marginTop: 16 }}>{t('registration.loadingProvider')}</ThemedText>
         </View>
       </>
     );
@@ -148,14 +150,14 @@ export default function ProviderRegistrationScreen() {
       <>
         <Stack.Screen
           options={{
-            title: isEditMode ? 'Updating Profile' : 'Creating Profile',
-            headerBackTitle: 'Back',
+            title: isEditMode ? t('registration.updatingTitle') : t('registration.creatingTitle'),
+            headerBackTitle: t('common:actions.back'),
           }}
         />
         <View style={[styles.container, styles.centerContent]}>
           <ActivityIndicator size="large" color={theme.tint} />
           <ThemedText style={{ marginTop: 16 }}>
-            {isEditMode ? 'Updating your provider profile...' : 'Creating your provider profile...'}
+            {isEditMode ? t('registration.updatingMessage') : t('registration.creatingMessage')}
           </ThemedText>
         </View>
       </>
@@ -166,8 +168,8 @@ export default function ProviderRegistrationScreen() {
     <>
       <Stack.Screen 
         options={{
-          title: isEditMode ? 'Edit Provider Profile' : 'Become a Provider',
-          headerBackTitle: 'Back',
+          title: isEditMode ? t('registration.editTitle') : t('registration.title'),
+          headerBackTitle: t('common:actions.back'),
           headerLeft: () => (
             <Pressable 
               onPress={() => handleBackPress() || router.back()}

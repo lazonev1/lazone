@@ -10,6 +10,17 @@
     "next": "Next",
     "done": "Done"
   },
+  "alerts": {
+    "error": "Error",
+    "success": "Success"
+  },
+  "validation": {
+    "required": "This field is required",
+    "requiredShort": "Required",
+    "invalidPrice": "Please enter a valid price",
+    "dateFormat": "Date must be in MM/YYYY format",
+    "dateFormatShort": "Use MM/YYYY format"
+  },
   "states": {
     "loading": "Loading…",
     "error": "Something went wrong",

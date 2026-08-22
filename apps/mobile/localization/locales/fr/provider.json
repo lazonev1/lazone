@@ -1,6 +1,76 @@
 {
   "registration": {
-    "title": "Devenir prestataire"
+    "title": "Devenir prestataire",
+    "editTitle": "Modifier le profil prestataire",
+    "loadingProvider": "Chargement des données du prestataire...",
+    "updatingTitle": "Mise à jour du profil",
+    "creatingTitle": "Création du profil",
+    "updatingMessage": "Mise à jour de votre profil prestataire...",
+    "creatingMessage": "Création de votre profil prestataire...",
+    "alerts": {
+      "loginRequired": "Vous devez être connecté pour créer ou mettre à jour un profil prestataire.",
+      "updatedTitle": "Profil mis à jour",
+      "updatedMessage": "Votre profil prestataire a été mis à jour avec succès.",
+      "createdTitle": "Profil créé",
+      "createdMessage": "Votre profil prestataire a été créé avec succès !",
+      "updateFailed": "Impossible de mettre à jour le profil prestataire. Veuillez réessayer.",
+      "createFailed": "Impossible de créer le profil prestataire. Veuillez réessayer."
+    },
+    "businessInfo": {
+      "title": "Informations sur l'entreprise",
+      "editTitle": "Modifier les informations de l'entreprise",
+      "subtitle": "Parlez-nous de votre entreprise pour commencer",
+      "editSubtitle": "Mettez à jour les informations de votre entreprise ci-dessous",
+      "businessName": "Nom de l'entreprise",
+      "businessNamePlaceholder": "Saisissez le nom de votre entreprise",
+      "serviceCategory": "Catégorie de service",
+      "description": "Description de l'entreprise",
+      "descriptionPlaceholder": "Décrivez vos services et votre expertise...",
+      "remoteService": "Je propose des services à distance",
+      "continue": "Continuer",
+      "continueToServices": "Continuer vers les services",
+      "fillRequired": "Veuillez remplir correctement tous les champs obligatoires."
+    },
+    "services": {
+      "title": "Services proposés",
+      "serviceNumber": "Service {{number}}",
+      "name": "Nom du service",
+      "namePlaceholder": "ex. : Installation électrique de base",
+      "description": "Description (facultatif)",
+      "descriptionPlaceholder": "Décrivez ce qui est inclus dans ce service...",
+      "price": "Prix (CFA)",
+      "pricePlaceholder": "ex. : 25000",
+      "addService": "Ajouter un service",
+      "addServiceTitle": "Ajoutez un service",
+      "addServiceMessage": "Ajoutez au moins un service pour que les clients sachent ce qu'ils peuvent réserver.",
+      "incompleteTitle": "Informations incomplètes",
+      "incompleteMessage": "Veuillez compléter au moins un service et remplir tous les champs marqués en rouge.",
+      "saveChanges": "Enregistrer les modifications",
+      "completeRegistration": "Terminer l'inscription"
+    },
+    "portfolio": {
+      "title": "Portfolio",
+      "subtitle": "Ajoutez des photos de vos travaux précédents pour mettre en valeur votre expertise",
+      "captionPlaceholder": "Décrivez ce travail (facultatif)"
+    },
+    "certifications": {
+      "title": "Certifications et distinctions",
+      "subtitle": "Ajoutez vos certifications ou distinctions professionnelles pertinentes",
+      "emptyTitle": "Ajoutez votre première certification",
+      "emptySubtitle": "Incluez des certificats professionnels, prix ou distinctions",
+      "certificateName": "Nom du certificat *",
+      "certificateNamePlaceholder": "ex. : Certification d'électricien professionnel",
+      "issuer": "Organisme émetteur *",
+      "issuerPlaceholder": "ex. : IEEE",
+      "issueDate": "Date d'obtention (MM/AAAA) *",
+      "issueDatePlaceholder": "MM/AAAA",
+      "uploadDocument": "Téléverser un document *",
+      "replaceDocument": "Remplacer le document",
+      "documentUploaded": "Document téléversé avec succès",
+      "uploadSuccessMessage": "Document « {{name}} » téléversé avec succès",
+      "uploadFailed": "Impossible de téléverser le document. Veuillez réessayer.",
+      "addAnother": "Ajouter une autre certification"
+    }
   },
   "reviews": {
     "title": "Avis"

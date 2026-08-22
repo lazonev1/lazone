@@ -10,6 +10,17 @@
     "next": "Suivant",
     "done": "Terminé"
   },
+  "alerts": {
+    "error": "Erreur",
+    "success": "Succès"
+  },
+  "validation": {
+    "required": "Ce champ est obligatoire",
+    "requiredShort": "Obligatoire",
+    "invalidPrice": "Veuillez saisir un prix valide",
+    "dateFormat": "La date doit être au format MM/AAAA",
+    "dateFormatShort": "Format MM/AAAA"
+  },
   "states": {
     "loading": "Chargement…",
     "error": "Une erreur est survenue",
