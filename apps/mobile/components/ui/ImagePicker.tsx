@@ -6,6 +6,7 @@ import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { TextBox } from './TextBox';
 import type { PortfolioItem } from '@/types/provider';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   images: PortfolioItem[];
@@ -15,13 +16,15 @@ type Props = {
   captionPlaceholder?: string;
 };
 
-export function PortfolioImagePicker({  
+export function PortfolioImagePicker({
   images,
   onChange,
   maxImages = 6,
   allowCaptions = false,
-  captionPlaceholder = "Add a caption..."
+  captionPlaceholder
 }: Props) {
+  const { t } = useTranslation('common');
+  captionPlaceholder = captionPlaceholder ?? t('media.captionPlaceholder');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -31,7 +34,7 @@ export function PortfolioImagePicker({
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        alert('Permission to access camera roll is required!');
+        alert(t('media.cameraRollPermission'));
         return;
       }
 
@@ -96,7 +99,7 @@ export function PortfolioImagePicker({
             onPress={pickImage}
           >
             <Ionicons name="add" size={32} color={theme.text} />
-            <ThemedText style={styles.addText}>Add Photo</ThemedText>
+            <ThemedText style={styles.addText}>{t('media.addPhoto')}</ThemedText>
           </TouchableOpacity>
         )}
       </View>

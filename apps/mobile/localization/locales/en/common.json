@@ -6,6 +6,7 @@
     "save": "Save",
     "confirm": "Confirm",
     "retry": "Retry",
+    "submit": "Submit",
     "back": "Back",
     "next": "Next",
     "done": "Done"
@@ -26,6 +27,24 @@
     "invalidPrice": "Please enter a valid price",
     "dateFormat": "Date must be in MM/YYYY format",
     "dateFormatShort": "Use MM/YYYY format"
+  },
+  "location": {
+    "country": "Country",
+    "cityRegion": "City/Region",
+    "cityPlaceholder": "Enter your city or region",
+    "coordinates": "Coordinates",
+    "getLocation": "Get Location",
+    "getting": "Getting...",
+    "permissionTitle": "Location Permission Required",
+    "permissionMessage": "Please enable location access in your settings to use this feature.",
+    "openSettings": "Open Settings",
+    "accessRequired": "Location access is required",
+    "unableToGet": "Unable to get location. Please try again."
+  },
+  "media": {
+    "addPhoto": "Add Photo",
+    "captionPlaceholder": "Add a caption...",
+    "cameraRollPermission": "Permission to access camera roll is required!"
   },
   "dates": {
     "today": "Today",

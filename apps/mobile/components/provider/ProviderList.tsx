@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import ProviderListItem from '@/components/provider/ProviderListItem';
 import { ProviderViewModel } from '@/types/provider';
 import { Colors } from '@/constants/Colors';
+import { useTranslation } from 'react-i18next';
 
 interface ProviderListProps {
   providers: ProviderViewModel[];
@@ -29,10 +30,11 @@ export function ProviderList({
   onEndReached,
   hasMore = false,
   ListHeaderComponent,
-  emptyMessage = "No providers found",
+  emptyMessage,
   contentContainerStyle,
 }: ProviderListProps) {
   const router = useRouter();
+  const { t } = useTranslation('explore');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -64,7 +66,7 @@ export function ProviderList({
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.tint} />
-          <ThemedText style={styles.loadingText}>Loading providers...</ThemedText>
+          <ThemedText style={styles.loadingText}>{t('list.loading')}</ThemedText>
         </View>
       );
     }
@@ -72,7 +74,7 @@ export function ProviderList({
     if (error) {
       return (
         <View style={styles.centerContainer}>
-          <ThemedText style={styles.errorText}>Failed to load providers</ThemedText>
+          <ThemedText style={styles.errorText}>{t('list.loadFailed')}</ThemedText>
           <ThemedText style={styles.errorSubtext}>{error.message}</ThemedText>
         </View>
       );
@@ -80,7 +82,7 @@ export function ProviderList({
 
     return (
       <View style={styles.centerContainer}>
-        <ThemedText style={styles.emptyText}>{emptyMessage}</ThemedText>
+        <ThemedText style={styles.emptyText}>{emptyMessage ?? t('list.empty')}</ThemedText>
       </View>
     );
   };

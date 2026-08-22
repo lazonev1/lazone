@@ -1,6 +1,73 @@
 {
-  "searchPlaceholder": "Rechercher des services",
-  "results": {
-    "title": "Résultats de recherche"
+  "searchPlaceholder": "Rechercher des services...",
+  "home": {
+    "popularServices": "Services populaires",
+    "exploreWork": "Découvrez de beaux travaux",
+    "noProviders": "Aucun prestataire disponible pour le moment"
+  },
+  "category": {
+    "notFound": "Catégorie introuvable",
+    "empty": "Aucun prestataire trouvé dans {{category}}"
+  },
+  "search": {
+    "title": "Recherche",
+    "filters": "Filtres",
+    "hide": "Masquer",
+    "distance": "Distance : {{km}} km",
+    "minRating": "Note minimale : {{rating}}⭐",
+    "maxPrice": "Prix maximum : {{price}} CFA",
+    "remoteOnly": "Services à distance uniquement",
+    "searching": "Recherche...",
+    "found_one": "{{count}} résultat trouvé",
+    "found_other": "{{count}} résultats trouvés",
+    "noMatch": "Aucun prestataire correspondant à « {{query}} »",
+    "noneWithin": "Aucun prestataire dans un rayon de {{km}} km"
+  },
+  "list": {
+    "loading": "Chargement des prestataires...",
+    "loadFailed": "Impossible de charger les prestataires",
+    "empty": "Aucun prestataire trouvé"
+  },
+  "categories": {
+    "beauty": {
+      "name": "Beauté et bien-être",
+      "description": "Coiffure, maquillage, spa et services de bien-être"
+    },
+    "home": {
+      "name": "Services à domicile",
+      "description": "Plomberie, électricité, ménage et réparations"
+    },
+    "tech": {
+      "name": "Technologie",
+      "description": "Support informatique, développement et services tech"
+    },
+    "health": {
+      "name": "Santé",
+      "description": "Services médicaux et liés à la santé"
+    },
+    "education": {
+      "name": "Éducation",
+      "description": "Tutorat, cours et formations"
+    },
+    "events": {
+      "name": "Événements",
+      "description": "Traiteur, photographie et organisation d'événements"
+    },
+    "automotive": {
+      "name": "Automobile",
+      "description": "Réparation, entretien et nettoyage de voitures"
+    },
+    "legal": {
+      "name": "Services juridiques",
+      "description": "Conseils juridiques et documentation"
+    },
+    "creative": {
+      "name": "Créativité et design",
+      "description": "Design graphique, art et services créatifs"
+    },
+    "fitness": {
+      "name": "Fitness",
+      "description": "Coaching sportif et entraînement personnel"
+    }
   }
 }

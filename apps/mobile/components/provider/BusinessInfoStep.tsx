@@ -18,9 +18,6 @@ interface Props {
   isEditMode?: boolean;
 }
 
-// Use centralized categories
-const SERVICE_CATEGORIES = getCategoryOptions();
-
 function getInitialFormData(initialData: Partial<ProviderRegistration>) {
   return {
     ...initialData,
@@ -40,6 +37,8 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
   const { t } = useTranslation('provider');
+  // Centralized categories — resolved at render time so labels follow the active language
+  const serviceCategories = getCategoryOptions();
 
   // The provider record is fetched asynchronously when editing. Sync the saved
   // values once it arrives so the inputs show the current profile details.
@@ -95,7 +94,7 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
           <SelectList
             label={t('registration.businessInfo.serviceCategory')}
             value={formData.serviceCategory}
-            options={SERVICE_CATEGORIES}
+            options={serviceCategories}
             onChange={(selectedCategory) => handleFieldChange('serviceCategory', selectedCategory)}
             error={errors.serviceCategory}
             style={styles.input}

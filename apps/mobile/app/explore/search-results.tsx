@@ -11,8 +11,10 @@ import Slider from '@react-native-community/slider';
 import { SearchFilters, DEFAULT_FILTERS, FILTER_RANGES } from '@/types/filters';
 import SearchBar from '@/components/ui/SearchBar';
 import CheckBox from '@/components/ui/CheckBox';
+import { useTranslation } from 'react-i18next';
 
 export default function SearchResultsScreen() {
+  const { t } = useTranslation('explore');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme);
@@ -20,8 +22,8 @@ export default function SearchResultsScreen() {
 
   const navigation = useNavigation();
   useEffect(() => {
-    navigation.setOptions({ title: 'Search' });
-  }, [navigation]);
+    navigation.setOptions({ title: t('search.title') });
+  }, [navigation, t]);
 
   // Get user's current location for distance calculation
   const { location: userLocation } = useLocation();
@@ -81,7 +83,7 @@ export default function SearchResultsScreen() {
         onChangeText={(value) => updateFilter('query', value)}
         showFilterButton={true}
         onFilterPress={() => setShowFilters(!showFilters)}
-        filterButtonText={showFilters ? 'Hide' : 'Filters'}
+        filterButtonText={showFilters ? t('search.hide') : t('search.filters')}
       />
 
       {/* Filters Section */}
@@ -89,7 +91,7 @@ export default function SearchResultsScreen() {
         <View style={styles.filtersContainer}>
           {/* Distance Filter */}
           <View style={styles.filterItem}>
-            <ThemedText>Distance: {filters.radius}km</ThemedText>
+            <ThemedText>{t('search.distance', { km: filters.radius })}</ThemedText>
             <Slider
               value={filters.radius}
               onValueChange={(value) => updateFilter('radius', Math.round(value))}
@@ -101,7 +103,7 @@ export default function SearchResultsScreen() {
 
           {/* Rating Filter */}
           <View style={styles.filterItem}>
-            <ThemedText>Minimum Rating: {filters.minRating.toFixed(1)}⭐</ThemedText>
+            <ThemedText>{t('search.minRating', { rating: filters.minRating.toFixed(1) })}</ThemedText>
             <Slider
               value={filters.minRating}
               onValueChange={(value) => updateFilter('minRating', value)}
@@ -113,7 +115,7 @@ export default function SearchResultsScreen() {
 
           {/* Price Filter */}
           <View style={styles.filterItem}>
-            <ThemedText>Maximum Price: {filters.maxPrice}CFA</ThemedText>
+            <ThemedText>{t('search.maxPrice', { price: filters.maxPrice })}</ThemedText>
             <Slider
               value={filters.maxPrice}
               onValueChange={(value) => updateFilter('maxPrice', value)}
@@ -130,7 +132,7 @@ export default function SearchResultsScreen() {
               color={filters.remoteOnly ? '#0A58A5' : undefined}
             />
             <ThemedText style={{ marginLeft: 8 }}>
-              Remote Services Only
+              {t('search.remoteOnly')}
             </ThemedText>
           </View>
         </View>
@@ -139,7 +141,7 @@ export default function SearchResultsScreen() {
       {/* Results Header */}
       <View style={styles.resultsHeader}>
         <ThemedText type="subtitle">
-          {providersLoading ? 'Searching...' : `Found ${providers.length} results`}
+          {providersLoading ? t('search.searching') : t('search.found', { count: providers.length })}
         </ThemedText>
       </View>
 
@@ -152,8 +154,8 @@ export default function SearchResultsScreen() {
         hasMore={displayedCount < providers.length}
         emptyMessage={
           filters.query
-            ? `No providers found matching "${filters.query}"`
-            : `No providers found within ${filters.radius}km`
+            ? t('search.noMatch', { query: filters.query })
+            : t('search.noneWithin', { km: filters.radius })
         }
       />
     </SafeAreaView>

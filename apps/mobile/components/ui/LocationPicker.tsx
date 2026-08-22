@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import CountryPicker, { CountryCode } from 'react-native-country-picker-modal';
 import { Colors } from '@/constants/Colors';
 import { TextBox } from '@/components/ui/TextBox';
+import { useTranslation } from 'react-i18next';
 
 type LocationData = {
   country: string;
@@ -24,6 +25,7 @@ type Props = {
 };
 
 export function LocationPicker({ value = { country: '', city: '' }, onChange, countryError, cityError }: Props) {
+  const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState<string>('');
   const colorScheme = Appearance.getColorScheme();
@@ -38,15 +40,15 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       if (currentStatus === 'denied') {
         // If previously denied, show dialog to open settings
         Alert.alert(
-          'Location Permission Required',
-          'Please enable location access in your settings to use this feature.',
+          t('location.permissionTitle'),
+          t('location.permissionMessage'),
           [
             {
-              text: 'Open Settings',
+              text: t('location.openSettings'),
               onPress: () => Linking.openSettings(),
             },
             {
-              text: 'Cancel',
+              text: t('actions.cancel'),
               style: 'cancel',
             },
           ]
@@ -72,7 +74,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       const permissionGranted = await requestLocationPermission();
 
       if (!permissionGranted) {
-        setLocationError('Location access is required');
+        setLocationError(t('location.accessRequired'));
         return;
       }
 
@@ -89,7 +91,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       });
     } catch (error) {
       console.error('Error getting location:', error);
-      setLocationError('Unable to get location. Please try again.');
+      setLocationError(t('location.unableToGet'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,7 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
   return (
     <View style={styles.container}>
       <View style={styles.countryPicker}>
-        <ThemedText style={styles.label}>Country</ThemedText>
+        <ThemedText style={styles.label}>{t('location.country')}</ThemedText>
         <CountryPicker
           withFilter
           withFlag
@@ -117,18 +119,18 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       </View>
 
       <TextBox
-        label="City/Region"
+        label={t('location.cityRegion')}
         value={value.city}
         onChangeText={(city) => onChange({ ...value, city })}
-        placeholder="Enter your city or region"
+        placeholder={t('location.cityPlaceholder')}
         style={styles.cityInput}
         error={cityError}
       />
 
       <View style={styles.locationHeader}>
-        <ThemedText style={styles.coordinatesLabel}>Coordinates</ThemedText>
+        <ThemedText style={styles.coordinatesLabel}>{t('location.coordinates')}</ThemedText>
         <Button
-          label={loading ? "Getting..." : "Get Location"}
+          label={loading ? t('location.getting') : t('location.getLocation')}
           onPress={getCurrentLocation}
           variant="secondary"
           size="small"

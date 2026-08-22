@@ -1,6 +1,73 @@
 {
-  "searchPlaceholder": "Search services",
-  "results": {
-    "title": "Search results"
+  "searchPlaceholder": "Search for services...",
+  "home": {
+    "popularServices": "Popular Services",
+    "exploreWork": "Explore beautiful work",
+    "noProviders": "No providers available yet"
+  },
+  "category": {
+    "notFound": "Category not found",
+    "empty": "No providers found in {{category}}"
+  },
+  "search": {
+    "title": "Search",
+    "filters": "Filters",
+    "hide": "Hide",
+    "distance": "Distance: {{km}}km",
+    "minRating": "Minimum Rating: {{rating}}⭐",
+    "maxPrice": "Maximum Price: {{price}}CFA",
+    "remoteOnly": "Remote Services Only",
+    "searching": "Searching...",
+    "found_one": "Found {{count}} result",
+    "found_other": "Found {{count}} results",
+    "noMatch": "No providers found matching \"{{query}}\"",
+    "noneWithin": "No providers found within {{km}}km"
+  },
+  "list": {
+    "loading": "Loading providers...",
+    "loadFailed": "Failed to load providers",
+    "empty": "No providers found"
+  },
+  "categories": {
+    "beauty": {
+      "name": "Beauty & Wellness",
+      "description": "Hair, makeup, spa and wellness services"
+    },
+    "home": {
+      "name": "Home Services",
+      "description": "Plumbing, electrical, cleaning and repairs"
+    },
+    "tech": {
+      "name": "Technology",
+      "description": "IT support, development and tech services"
+    },
+    "health": {
+      "name": "Healthcare",
+      "description": "Medical and health-related services"
+    },
+    "education": {
+      "name": "Education",
+      "description": "Tutoring, courses and training"
+    },
+    "events": {
+      "name": "Events",
+      "description": "Catering, photography and event planning"
+    },
+    "automotive": {
+      "name": "Automotive",
+      "description": "Car repair, detailing and maintenance"
+    },
+    "legal": {
+      "name": "Legal Services",
+      "description": "Legal advice and documentation"
+    },
+    "creative": {
+      "name": "Creative & Design",
+      "description": "Graphic design, art and creative services"
+    },
+    "fitness": {
+      "name": "Fitness",
+      "description": "Personal training and fitness coaching"
+    }
   }
 }
