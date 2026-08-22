@@ -72,7 +72,111 @@
       "addAnother": "Ajouter une autre certification"
     }
   },
+  "profile": {
+    "loading": "Chargement des détails du prestataire...",
+    "loadFailed": "Impossible de charger le prestataire",
+    "notFound": "Prestataire introuvable",
+    "goBack": "Retour",
+    "about": "À propos",
+    "portfolio": "Portfolio",
+    "reviews": "Avis",
+    "ratingSummary": "⭐ {{rating}} | {{count}} avis",
+    "message": "Message",
+    "opening": "Ouverture…",
+    "follow": "Suivre",
+    "serviceShowcase": "Vitrine des services",
+    "showLess": "Voir moins",
+    "seeMore": "Voir plus",
+    "noPortfolio": "Aucun élément de portfolio pour le moment",
+    "noServices": "Aucun service répertorié pour le moment",
+    "viewAll": "Tout voir",
+    "pricingEstimate": "Estimation des prix",
+    "bookNow": "Réserver",
+    "bookingUnavailable": "Réservation indisponible",
+    "bookingUnavailableNotice": "Ce prestataire configure ses services. La réservation sera disponible dès qu'un service sera répertorié.",
+    "signInToSave": "Veuillez vous connecter pour enregistrer des prestataires.",
+    "signInToMessage": "Veuillez vous connecter pour envoyer un message à ce prestataire.",
+    "conversationFailed": "Impossible de démarrer cette conversation. Veuillez réessayer."
+  },
+  "preview": {
+    "loading": "Chargement de votre profil prestataire…",
+    "unavailableTitle": "Profil prestataire indisponible",
+    "unavailableMessage": "Créez votre profil prestataire avant de le consulter.",
+    "editProfile": "Modifier le profil",
+    "clientReviews": "Avis des clients",
+    "permissionRequired": "Désolé, nous avons besoin de l'accès à votre galerie pour continuer !",
+    "imagePickError": "Une erreur est survenue lors de la sélection de l'image."
+  },
   "reviews": {
-    "title": "Avis"
+    "title": "Avis",
+    "loading": "Chargement des avis...",
+    "count_one": "{{count}} avis",
+    "count_other": "{{count}} avis",
+    "starsLabel_one": "{{count}} étoile",
+    "starsLabel_other": "{{count}} étoiles",
+    "filters": {
+      "all": "Tous les avis",
+      "recent": "Plus récents",
+      "highest": "Mieux notés",
+      "lowest": "Moins bien notés"
+    },
+    "emptyTitle": "Aucun avis pour le moment",
+    "emptyMessage": "Les avis laissés par les clients pour vos services apparaîtront ici.",
+    "invalidDate": "Date invalide",
+    "deleteTitle": "Supprimer l'avis",
+    "deleteMessage": "Voulez-vous vraiment supprimer votre avis ? Cette action est irréversible.",
+    "delete": "Supprimer",
+    "editReview": "Modifier l'avis",
+    "noWrittenFeedback": "Aucun commentaire écrit.",
+    "providerResponse": "Réponse du prestataire",
+    "writeResponse": "Rédigez votre réponse...",
+    "submit": "Envoyer",
+    "saving": "Enregistrement...",
+    "respondToReview": "Répondre à l'avis",
+    "showLess": "Voir moins",
+    "showMore": "Voir plus ({{count}} de plus)",
+    "submitResponseFailed": "Impossible d'envoyer votre réponse. Veuillez réessayer.",
+    "updateFailed": "Impossible de mettre à jour votre avis.",
+    "signInToVote": "Veuillez vous connecter pour voter.",
+    "toasts": {
+      "responseSubmitted": "Réponse envoyée",
+      "responseFailed": "Impossible d'envoyer la réponse",
+      "reviewUpdated": "Avis mis à jour",
+      "reviewUpdateFailed": "Impossible de mettre à jour l'avis",
+      "voteFailed": "Impossible de mettre à jour le vote",
+      "reviewDeleted": "Avis supprimé",
+      "reviewDeleteFailed": "Impossible de supprimer l'avis"
+    }
+  },
+  "business": {
+    "title": "Entreprise",
+    "startTitle": "Lancez votre activité sur LaZone",
+    "startSubtitle": "Inscrivez-vous comme prestataire de services pour gérer les réservations, suivre vos revenus et développer votre clientèle.",
+    "metrics": {
+      "profileViews": "Vues du profil",
+      "earnings": "Revenus",
+      "avgRating": "Note moyenne",
+      "completed": "Terminées"
+    },
+    "incomingRequests": "Demandes reçues",
+    "noPendingRequests": "Aucune demande en attente",
+    "decline": "Refuser",
+    "accept": "Accepter",
+    "upcomingBookings": "Réservations à venir",
+    "noUpcoming": "Aucune réservation à venir",
+    "recentEarnings": "Revenus récents",
+    "noCompleted": "Aucune réservation terminée pour le moment",
+    "manage": "Gérer",
+    "quickActions": {
+      "portfolio": "Portfolio",
+      "servicesPricing": "Services et tarifs",
+      "reviews": "Avis",
+      "publicProfile": "Profil public"
+    },
+    "declineTitle": "Refuser la demande",
+    "declineMessage": "Voulez-vous vraiment refuser la demande de {{name}} ?",
+    "justNow": "À l'instant",
+    "hoursAgo": "il y a {{count}} h",
+    "daysAgo": "il y a {{count}} j"
   }
 }

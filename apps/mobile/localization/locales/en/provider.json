@@ -72,7 +72,111 @@
       "addAnother": "Add Another Certification"
     }
   },
+  "profile": {
+    "loading": "Loading provider details...",
+    "loadFailed": "Failed to load provider",
+    "notFound": "Provider not found",
+    "goBack": "Go Back",
+    "about": "About",
+    "portfolio": "Portfolio",
+    "reviews": "Reviews",
+    "ratingSummary": "⭐ {{rating}} | {{count}} Reviews",
+    "message": "Message",
+    "opening": "Opening…",
+    "follow": "Follow",
+    "serviceShowcase": "Service Showcase",
+    "showLess": "Show Less",
+    "seeMore": "See More",
+    "noPortfolio": "No portfolio items yet",
+    "noServices": "No services listed yet",
+    "viewAll": "View All",
+    "pricingEstimate": "Pricing Estimate",
+    "bookNow": "Book Now",
+    "bookingUnavailable": "Booking unavailable",
+    "bookingUnavailableNotice": "This provider is setting up their services. Booking will be available once a service is listed.",
+    "signInToSave": "Please sign in to save providers.",
+    "signInToMessage": "Please sign in to message this provider.",
+    "conversationFailed": "Unable to start this conversation. Please try again."
+  },
+  "preview": {
+    "loading": "Loading your provider profile…",
+    "unavailableTitle": "Provider profile unavailable",
+    "unavailableMessage": "Create your provider profile before viewing it.",
+    "editProfile": "Edit Profile",
+    "clientReviews": "Client Reviews",
+    "permissionRequired": "Sorry, we need camera roll permissions to make this work!",
+    "imagePickError": "An error occurred while picking an image."
+  },
   "reviews": {
-    "title": "Reviews"
+    "title": "Reviews",
+    "loading": "Loading reviews...",
+    "count_one": "{{count}} review",
+    "count_other": "{{count}} reviews",
+    "starsLabel_one": "{{count}} star",
+    "starsLabel_other": "{{count}} stars",
+    "filters": {
+      "all": "All Reviews",
+      "recent": "Most Recent",
+      "highest": "Highest Rated",
+      "lowest": "Lowest Rated"
+    },
+    "emptyTitle": "No Reviews Yet",
+    "emptyMessage": "When clients leave reviews for your services, they will appear here.",
+    "invalidDate": "Invalid date",
+    "deleteTitle": "Delete Review",
+    "deleteMessage": "Are you sure you want to delete your review? This action cannot be undone.",
+    "delete": "Delete",
+    "editReview": "Edit review",
+    "noWrittenFeedback": "No written feedback.",
+    "providerResponse": "Provider response",
+    "writeResponse": "Write your response...",
+    "submit": "Submit",
+    "saving": "Saving...",
+    "respondToReview": "Respond to review",
+    "showLess": "Show Less",
+    "showMore": "Show More ({{count}} more)",
+    "submitResponseFailed": "Failed to submit your response. Please try again.",
+    "updateFailed": "Could not update your review.",
+    "signInToVote": "Please sign in to vote.",
+    "toasts": {
+      "responseSubmitted": "Response submitted",
+      "responseFailed": "Failed to submit response",
+      "reviewUpdated": "Review updated",
+      "reviewUpdateFailed": "Failed to update review",
+      "voteFailed": "Failed to update vote",
+      "reviewDeleted": "Review deleted",
+      "reviewDeleteFailed": "Failed to delete review"
+    }
+  },
+  "business": {
+    "title": "Business",
+    "startTitle": "Start your business on LaZone",
+    "startSubtitle": "Register as a service provider to manage bookings, track earnings, and grow your client base.",
+    "metrics": {
+      "profileViews": "Profile Views",
+      "earnings": "Earnings",
+      "avgRating": "Avg Rating",
+      "completed": "Completed"
+    },
+    "incomingRequests": "Incoming Requests",
+    "noPendingRequests": "No pending requests",
+    "decline": "Decline",
+    "accept": "Accept",
+    "upcomingBookings": "Upcoming Bookings",
+    "noUpcoming": "No upcoming bookings",
+    "recentEarnings": "Recent Earnings",
+    "noCompleted": "No completed bookings yet",
+    "manage": "Manage",
+    "quickActions": {
+      "portfolio": "Portfolio",
+      "servicesPricing": "Services & Pricing",
+      "reviews": "Reviews",
+      "publicProfile": "Public Profile"
+    },
+    "declineTitle": "Decline Request",
+    "declineMessage": "Are you sure you want to decline the request from {{name}}?",
+    "justNow": "Just now",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }

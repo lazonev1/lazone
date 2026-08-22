@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { Review, ReviewStats } from '@/types/provider';
 import { requireAuth } from '@/utils/auth';
+import { useTranslation } from 'react-i18next';
 
 type ReviewsComponentProps = {
   reviews: Review[];
@@ -43,7 +44,9 @@ export default function ReviewsComponent({
 }: ReviewsComponentProps) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  
+  const { t, i18n } = useTranslation(['provider', 'common']);
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'highest' | 'lowest'>('all');
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
@@ -73,7 +76,7 @@ export default function ReviewsComponent({
       setResponseText('');
     } catch (error) {
       console.error('Failed to submit response:', error);
-      Alert.alert('Error', 'Failed to submit your response. Please try again.');
+      Alert.alert(t('common:alerts.error'), t('reviews.submitResponseFailed'));
     }
   };
 
@@ -90,7 +93,7 @@ export default function ReviewsComponent({
       await onUpdateReview(reviewId, { rating: editingRating, comment: editingComment.trim() });
       setEditingReviewId(null);
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Could not update your review.');
+      Alert.alert(t('common:alerts.error'), error instanceof Error ? error.message : t('reviews.updateFailed'));
     } finally {
       setSavingEdit(false);
     }
@@ -114,13 +117,13 @@ export default function ReviewsComponent({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString(dateLocale, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       });
     } catch {
-      return 'Invalid date';
+      return t('reviews.invalidDate');
     }
   };
 
@@ -131,7 +134,7 @@ export default function ReviewsComponent({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={styles.loadingText}>Loading reviews...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('reviews.loading')}</ThemedText>
       </View>
     );
   }
@@ -148,7 +151,7 @@ export default function ReviewsComponent({
               </ThemedText>
               {renderStarRating(stats.averageRating, 24)}
               <ThemedText style={styles.totalReviewsText}>
-                {stats.totalReviews} {stats.totalReviews === 1 ? 'review' : 'reviews'}
+                {t('reviews.count', { count: stats.totalReviews })}
               </ThemedText>
             </View>
             
@@ -187,10 +190,10 @@ export default function ReviewsComponent({
             contentContainerStyle={styles.filterContent}
           >
             {[
-              { id: 'all', label: 'All Reviews' },
-              { id: 'recent', label: 'Most Recent' },
-              { id: 'highest', label: 'Highest Rated' },
-              { id: 'lowest', label: 'Lowest Rated' }
+              { id: 'all', label: t('reviews.filters.all') },
+              { id: 'recent', label: t('reviews.filters.recent') },
+              { id: 'highest', label: t('reviews.filters.highest') },
+              { id: 'lowest', label: t('reviews.filters.lowest') }
             ].map(filter => (
               <TouchableOpacity
                 key={filter.id}
@@ -217,9 +220,9 @@ export default function ReviewsComponent({
         {reviews.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="star-outline" size={48} color={theme.icon} />
-            <ThemedText style={styles.emptyStateTitle}>No Reviews Yet</ThemedText>
+            <ThemedText style={styles.emptyStateTitle}>{t('reviews.emptyTitle')}</ThemedText>
             <ThemedText style={styles.emptyStateText}>
-              When clients leave reviews for your services, they will appear here.
+              {t('reviews.emptyMessage')}
             </ThemedText>
           </View>
         ) : (
@@ -244,12 +247,12 @@ export default function ReviewsComponent({
                         style={styles.deleteButton}
                         onPress={() => {
                           Alert.alert(
-                            'Delete Review',
-                            'Are you sure you want to delete your review? This action cannot be undone.',
+                            t('reviews.deleteTitle'),
+                            t('reviews.deleteMessage'),
                             [
-                              { text: 'Cancel', style: 'cancel' },
+                              { text: t('common:actions.cancel'), style: 'cancel' },
                               {
-                                text: 'Delete',
+                                text: t('reviews.delete'),
                                 style: 'destructive',
                                 onPress: () => onDeleteReview(review.id),
                               },
@@ -261,7 +264,7 @@ export default function ReviewsComponent({
                       </TouchableOpacity>
                     )}
                     {currentUserId && currentUserId === review.userId && onUpdateReview && (
-                      <TouchableOpacity style={styles.deleteButton} onPress={() => startEditing(review)} accessibilityLabel="Edit review">
+                      <TouchableOpacity style={styles.deleteButton} onPress={() => startEditing(review)} accessibilityLabel={t('reviews.editReview')}>
                         <Ionicons name="create-outline" size={18} color={theme.tint} />
                       </TouchableOpacity>
                     )}
@@ -275,7 +278,7 @@ export default function ReviewsComponent({
                   <View style={styles.editContainer}>
                     <View style={styles.starsContainer}>
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <TouchableOpacity key={star} onPress={() => setEditingRating(star)} style={styles.starEditButton} accessibilityLabel={`${star} stars`}>
+                        <TouchableOpacity key={star} onPress={() => setEditingRating(star)} style={styles.starEditButton} accessibilityLabel={t('reviews.starsLabel', { count: star })}>
                           <Ionicons name={star <= editingRating ? 'star' : 'star-outline'} size={22} color="#F4B400" />
                         </TouchableOpacity>
                       ))}
@@ -288,11 +291,11 @@ export default function ReviewsComponent({
                       multiline
                     />
                     <View style={styles.responseActions}>
-                      <Button label="Cancel" onPress={() => setEditingReviewId(null)} variant="secondary" size="small" style={styles.responseButton} />
-                      <Button label={savingEdit ? 'Saving...' : 'Save'} onPress={() => saveEdit(review.id)} variant="primary" size="small" style={styles.responseButton} disabled={savingEdit || editingRating === 0} />
+                      <Button label={t('common:actions.cancel')} onPress={() => setEditingReviewId(null)} variant="secondary" size="small" style={styles.responseButton} />
+                      <Button label={savingEdit ? t('reviews.saving') : t('common:actions.save')} onPress={() => saveEdit(review.id)} variant="primary" size="small" style={styles.responseButton} disabled={savingEdit || editingRating === 0} />
                     </View>
                   </View>
-                ) : <ThemedText style={styles.reviewComment}>{review.comment || 'No written feedback.'}</ThemedText>}
+                ) : <ThemedText style={styles.reviewComment}>{review.comment || t('reviews.noWrittenFeedback')}</ThemedText>}
                 
                 {/* Review Images */}
                 {review.images && review.images.length > 0 && (
@@ -317,7 +320,7 @@ export default function ReviewsComponent({
                   <View style={styles.responseContainer}>
                     <View style={styles.responseHeader}>
                       <Ionicons name="chatbox" size={16} color={theme.text} />
-                      <ThemedText style={styles.responseTitle}>Provider response</ThemedText>
+                      <ThemedText style={styles.responseTitle}>{t('reviews.providerResponse')}</ThemedText>
                     </View>
                     <ThemedText style={styles.responseText}>{review.response.text}</ThemedText>
                     <ThemedText style={styles.responseDate}>
@@ -331,7 +334,7 @@ export default function ReviewsComponent({
                   <View style={styles.responseInputContainer}>
                     <TextInput
                       style={[styles.responseInput, { color: theme.text, borderColor: theme.icon }]}
-                      placeholder="Write your response..."
+                      placeholder={t('reviews.writeResponse')}
                       placeholderTextColor={theme.icon}
                       value={responseText}
                       onChangeText={setResponseText}
@@ -340,7 +343,7 @@ export default function ReviewsComponent({
                     />
                     <View style={styles.responseActions}>
                       <Button
-                        label="Cancel"
+                        label={t('common:actions.cancel')}
                         onPress={() => {
                           setRespondingTo(null);
                           setResponseText('');
@@ -350,7 +353,7 @@ export default function ReviewsComponent({
                         style={styles.responseButton}
                       />
                       <Button
-                        label="Submit"
+                        label={t('reviews.submit')}
                         onPress={() => handleSubmitResponse(review.id)}
                         variant="primary"
                         size="small"
@@ -369,7 +372,7 @@ export default function ReviewsComponent({
                       onPress={() => setRespondingTo(review.id)}
                     >
                       <Ionicons name="chatbox-outline" size={18} color={theme.tint} />
-                      <ThemedText style={styles.respondButtonText}>Respond to review</ThemedText>
+                      <ThemedText style={styles.respondButtonText}>{t('reviews.respondToReview')}</ThemedText>
                     </TouchableOpacity>
                   )}
 
@@ -382,7 +385,7 @@ export default function ReviewsComponent({
                     onPress={() => {
                       // Do not allow authors or the reviewed provider to vote.
                       if (currentUserId === review.userId || currentUserId === review.providerId) return;
-                      if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
+                      if (!requireAuth(currentUserId, t('reviews.signInToVote'))) return;
                       onMarkHelpful && onMarkHelpful(review.id);
                     }}
                     disabled={currentUserId === review.userId || currentUserId === review.providerId}
@@ -411,7 +414,7 @@ export default function ReviewsComponent({
                 onPress={() => setExpanded(!expanded)}
               >
                 <ThemedText style={styles.toggleButtonText}>
-                  {expanded ? 'Show Less' : `Show More (${reviews.length - maxReviewsCollapsed} more)`}
+                  {expanded ? t('reviews.showLess') : t('reviews.showMore', { count: reviews.length - maxReviewsCollapsed })}
                 </ThemedText>
                 <Ionicons 
                   name={expanded ? "chevron-up" : "chevron-down"} 

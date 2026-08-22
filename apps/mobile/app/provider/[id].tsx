@@ -16,8 +16,10 @@ import { requireAuth } from '@/utils/auth';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import * as messageRepository from '@/repositories/messageRepository';
+import { useTranslation } from 'react-i18next';
 
 export default function ProviderProfileScreen() {
+  const { t } = useTranslation('provider');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
@@ -80,7 +82,7 @@ export default function ProviderProfileScreen() {
   const currentUserId = user?.uid;
 
   const handleBookmarkPress = async () => {
-    if (!requireAuth(currentUserId, 'Please sign in to save providers.')) return;
+    if (!requireAuth(currentUserId, t('profile.signInToSave'))) return;
     toggleBookmark(providerId);
   };
 
@@ -100,9 +102,9 @@ export default function ProviderProfileScreen() {
   const handleRespondToReview = async (reviewId: string, responseText: string) => {
     try {
       await respondToReview(reviewId, responseText);
-      showToast('Response submitted', 'success');
+      showToast(t('reviews.toasts.responseSubmitted'), 'success');
     } catch {
-      showToast('Failed to submit response', 'error');
+      showToast(t('reviews.toasts.responseFailed'), 'error');
     }
   };
 
@@ -111,7 +113,7 @@ export default function ProviderProfileScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={styles.loadingText}>Loading provider details...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('profile.loading')}</ThemedText>
       </SafeAreaView>
     );
   }
@@ -122,10 +124,10 @@ export default function ProviderProfileScreen() {
       <SafeAreaView style={styles.loadingContainer}>
         <Ionicons name="alert-circle-outline" size={64} color={theme.icon} />
         <ThemedText style={styles.errorText}>
-          {providerError ? 'Failed to load provider' : 'Provider not found'}
+          {providerError ? t('profile.loadFailed') : t('profile.notFound')}
         </ThemedText>
         <Button
-          label="Go Back"
+          label={t('profile.goBack')}
           onPress={() => router.back()}
           variant="primary"
           size="small"
@@ -141,13 +143,13 @@ export default function ProviderProfileScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
         <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
-          <Text style={styles.tabText}>About</Text>
+          <Text style={styles.tabText}>{t('profile.about')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
-          <Text style={styles.tabText}>Portfolio</Text>
+          <Text style={styles.tabText}>{t('profile.portfolio')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
-          <Text style={styles.tabText}>Reviews</Text>
+          <Text style={styles.tabText}>{t('profile.reviews')}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -184,16 +186,16 @@ export default function ProviderProfileScreen() {
               </TouchableOpacity>
             </View>
             <ThemedText>{provider.profession}</ThemedText>
-            <ThemedText style={styles.rating}>⭐ {provider.rating} | {provider.reviews} Reviews</ThemedText>
+            <ThemedText style={styles.rating}>{t('profile.ratingSummary', { rating: provider.rating, count: provider.reviews })}</ThemedText>
           </View>
         </ThemedView>
 
         <View style={styles.actionsRow}>
           <Button
-            label={isMessaging ? 'Opening…' : 'Message'}
+            label={isMessaging ? t('profile.opening') : t('profile.message')}
             disabled={isMessaging}
             onPress={async () => {
-              if (!requireAuth(currentUserId, 'Please sign in to message this provider.')) return;
+              if (!requireAuth(currentUserId, t('profile.signInToMessage'))) return;
 
               setIsMessaging(true);
               try {
@@ -214,7 +216,7 @@ export default function ProviderProfileScreen() {
                 });
               } catch (error) {
                 console.error('[ProviderProfile] Unable to open conversation:', error);
-                showToast('Unable to start this conversation. Please try again.', 'error');
+                showToast(t('profile.conversationFailed'), 'error');
               } finally {
                 setIsMessaging(false);
               }
@@ -224,7 +226,7 @@ export default function ProviderProfileScreen() {
             style={styles.actionButton}
           />
           <Button
-            label="Follow"
+            label={t('profile.follow')}
             onPress={() => {}}
             variant="primary"
             size="small"
@@ -236,23 +238,23 @@ export default function ProviderProfileScreen() {
 
         <View style={styles.tabsRow} onLayout={onMainTabsLayout}>
           <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
-            <Text style={styles.tabText}>About</Text>
+            <Text style={styles.tabText}>{t('profile.about')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
-            <Text style={styles.tabText}>Portfolio</Text>
+            <Text style={styles.tabText}>{t('profile.portfolio')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
-            <Text style={styles.tabText}>Reviews</Text>
+            <Text style={styles.tabText}>{t('profile.reviews')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section} ref={aboutRef}>
-          <ThemedText type="subtitle">About</ThemedText>
+          <ThemedText type="subtitle">{t('profile.about')}</ThemedText>
           <ThemedText>{provider.bio}</ThemedText>
         </View>
 
         <View style={styles.section} ref={portfolioRef}>
-          <ThemedText type="subtitle">Portfolio</ThemedText>
+          <ThemedText type="subtitle">{t('profile.portfolio')}</ThemedText>
           {provider.portfolio && provider.portfolio.length > 0 ? (
             <>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
@@ -268,17 +270,17 @@ export default function ProviderProfileScreen() {
               </ScrollView>
               {provider.portfolio.length > 1 && (
                 <Pressable onPress={() => setPortfolioExpanded(!portfolioExpanded)}>
-                  <ThemedText style={styles.toggle}>{portfolioExpanded ? 'Show Less' : 'See More'}</ThemedText>
+                  <ThemedText style={styles.toggle}>{portfolioExpanded ? t('profile.showLess') : t('profile.seeMore')}</ThemedText>
                 </Pressable>
               )}
             </>
           ) : (
-            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>No portfolio items yet</ThemedText>
+            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>{t('profile.noPortfolio')}</ThemedText>
           )}
         </View>
 
         <View style={styles.section}>
-          <ThemedText type="subtitle">Service Showcase</ThemedText>
+          <ThemedText type="subtitle">{t('profile.serviceShowcase')}</ThemedText>
           {provider.services && provider.services.length > 0 ? (
             <>
               {(servicesExpanded ? provider.services : provider.services.slice(0, 1)).map((service, i) => (
@@ -290,24 +292,24 @@ export default function ProviderProfileScreen() {
               ))}
               {provider.services.length > 1 && (
                 <Pressable onPress={() => setServicesExpanded(!servicesExpanded)}>
-                  <ThemedText style={styles.toggle}>{servicesExpanded ? 'Show Less' : 'See More'}</ThemedText>
+                  <ThemedText style={styles.toggle}>{servicesExpanded ? t('profile.showLess') : t('profile.seeMore')}</ThemedText>
                 </Pressable>
               )}
             </>
           ) : (
-            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>No services listed yet</ThemedText>
+            <ThemedText style={{ marginTop: 10, opacity: 0.7 }}>{t('profile.noServices')}</ThemedText>
           )}
         </View>
 
         <View style={styles.section} ref={testimonialRef}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Reviews</ThemedText>
+            <ThemedText type="subtitle">{t('profile.reviews')}</ThemedText>
             <View style={styles.reviewActions}>
               <TouchableOpacity
                 onPress={() => router.push(`/provider/reviews?id=${providerId}`)}
                 style={styles.viewAllButton}
               >
-                <ThemedText style={styles.viewAllText}>View All</ThemedText>
+                <ThemedText style={styles.viewAllText}>{t('profile.viewAll')}</ThemedText>
                 <Ionicons name="chevron-forward" size={16} color="#0A58A5" />
               </TouchableOpacity>
             </View>
@@ -325,32 +327,32 @@ export default function ProviderProfileScreen() {
             onRespondToReview={handleRespondToReview}
             onUpdateReview={async (reviewId, data) => {
               await updateReview(reviewId, data);
-              showToast('Review updated', 'success');
+              showToast(t('reviews.toasts.reviewUpdated'), 'success');
             }}
             onMarkHelpful={async (reviewId) => {
-              if (!requireAuth(currentUserId, 'Please sign in to vote.')) return;
+              if (!requireAuth(currentUserId, t('reviews.signInToVote'))) return;
               try {
                 await markHelpful(reviewId);
               } catch {
-                showToast('Failed to update vote', 'error');
+                showToast(t('reviews.toasts.voteFailed'), 'error');
               }
             }}
             onDeleteReview={async (reviewId) => {
               try {
                 await deleteReview(reviewId);
-                showToast('Review deleted', 'success');
+                showToast(t('reviews.toasts.reviewDeleted'), 'success');
               } catch {
-                showToast('Failed to delete review', 'error');
+                showToast(t('reviews.toasts.reviewDeleteFailed'), 'error');
               }
             }}
           />
         </View>
 
         <View style={styles.section}>
-          <ThemedText type="subtitle">Pricing Estimate</ThemedText>
+          <ThemedText type="subtitle">{t('profile.pricingEstimate')}</ThemedText>
           <ThemedText>{provider.pricing}</ThemedText>
           <Button
-            label={hasBookableServices ? 'Book Now' : 'Booking unavailable'}
+            label={hasBookableServices ? t('profile.bookNow') : t('profile.bookingUnavailable')}
             disabled={!hasBookableServices}
             onPress={() => {
               if (!hasBookableServices) return;
@@ -361,7 +363,7 @@ export default function ProviderProfileScreen() {
           />
           {!hasBookableServices && (
             <ThemedText style={styles.bookingUnavailableText}>
-              This provider is setting up their services. Booking will be available once a service is listed.
+              {t('profile.bookingUnavailableNotice')}
             </ThemedText>
           )}
         </View>
