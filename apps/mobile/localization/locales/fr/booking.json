@@ -1,0 +1,12 @@
+{
+  "title": "Réservations",
+  "new": {
+    "title": "Nouvelle réservation"
+  },
+  "review": {
+    "title": "Vérifier la réservation"
+  },
+  "success": {
+    "title": "Réservation confirmée"
+  }
+}

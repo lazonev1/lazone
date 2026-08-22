@@ -1,0 +1,31 @@
+{
+  "appName": "LaZone",
+  "actions": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "confirm": "Confirmer",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé"
+  },
+  "states": {
+    "loading": "Chargement…",
+    "error": "Une erreur est survenue",
+    "empty": "Rien à afficher pour le moment",
+    "offline": "Pas de connexion Internet"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "booked": "Réservations",
+    "messages": "Messages",
+    "business": "Entreprise",
+    "account": "Compte"
+  },
+  "notFound": {
+    "title": "Oups !",
+    "message": "Cet écran n'existe pas.",
+    "goHome": "Retourner à l'accueil"
+  }
+}

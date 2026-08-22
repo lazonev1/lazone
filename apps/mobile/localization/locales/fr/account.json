@@ -1,0 +1,20 @@
+{
+  "title": "Compte",
+  "preferences": {
+    "title": "Préférences",
+    "language": {
+      "label": "Langue",
+      "description": "Sélectionnez votre langue préférée. L'application utilisera cette langue dans toute l'interface."
+    },
+    "appearance": {
+      "label": "Apparence",
+      "description": "Choisissez l'apparence de LaZone sur votre appareil.",
+      "system": "Par défaut du système",
+      "systemDescription": "Suivre les réglages de votre appareil",
+      "light": "Clair",
+      "lightDescription": "Fond clair avec texte foncé",
+      "dark": "Sombre",
+      "darkDescription": "Fond sombre avec texte clair"
+    }
+  }
+}

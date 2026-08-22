@@ -1,0 +1,12 @@
+{
+  "title": "Bookings",
+  "new": {
+    "title": "New booking"
+  },
+  "review": {
+    "title": "Review booking"
+  },
+  "success": {
+    "title": "Booking confirmed"
+  }
+}

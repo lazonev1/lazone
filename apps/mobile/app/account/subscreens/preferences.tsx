@@ -9,6 +9,8 @@ import { MenuItem } from '@/types/user';
 import { BottomPopup } from '@/components/account/BottomPopup';
 import { ThemedText } from '@/components/ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+import { setAppLanguage, isSupportedLanguage, type LanguageCode } from '@/localization';
 
 // Contains the Languages and Appearance preference settings.
 // Both are inside a BottomPopup and become visible on click.
@@ -20,29 +22,21 @@ export default function PreferencesScreen() {
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
+  const { t, i18n } = useTranslation(['account', 'common']);
+
   // Language setting state
   const [languagePopupVisible, setLanguagePopupVisible] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fr'>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(() =>
+    isSupportedLanguage(i18n.language) ? i18n.language : 'fr'
+  );
   // Appearance state variables
   const [appearancePopupVisible, setAppearancePopupVisible] = useState(false);
   const [selectedAppearance, setSelectedAppearance] = useState<'light' | 'dark' | 'system'>('system');
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Preferences' });
+    navigation.setOptions({ title: t('account:preferences.title') });
 
-    const loadLanguage = async () => {
-      try {
-        const storedLanguage = await AsyncStorage.getItem('userLanguage');
-        if (storedLanguage === 'en' || storedLanguage === 'fr') {
-          setSelectedLanguage(storedLanguage);
-        }
-      } catch (error) {
-        console.error('Failed to load language preference:', error);
-      }
-    };
-
-    loadLanguage();
-
+    // Language now lives in i18n (see @/localization); only appearance is loaded here.
     const loadAppearance = async () => {
       try {
         const storedAppearance = await AsyncStorage.getItem('userAppearance');
@@ -55,7 +49,7 @@ export default function PreferencesScreen() {
     };
 
     loadAppearance();
-  }, []);
+  }, [navigation, t]);
 
   const navigateTo = (route: string) => {
     if (route === '/preferences/language') {
@@ -70,13 +64,13 @@ export default function PreferencesScreen() {
   const preferenceItems: MenuItem[] = [
     {
       id: 'language',
-      label: 'Language',
+      label: t('account:preferences.language.label'),
       icon: 'globe-outline',
       route: '/preferences/language',
     },
     {
       id: 'appearance',
-      label: 'Appearance',
+      label: t('account:preferences.appearance.label'),
       icon: 'color-palette-outline',
       route: '/preferences/appearance',
     },
@@ -96,36 +90,14 @@ export default function PreferencesScreen() {
       <BottomPopup
         visible={languagePopupVisible}
         onClose={() => setLanguagePopupVisible(false)}
-        title="Language"
+        title={t('account:preferences.language.label')}
       >
         <View style={styles.languageContainer}>
           <ThemedText style={styles.languageDescription}>
-            Select your preferred language. The app will use this language throughout the interface.
+            {t('account:preferences.language.description')}
           </ThemedText>
 
           <View style={styles.optionsContainer}>
-            {/* English Option */}
-            <TouchableOpacity
-              style={styles.languageOption}
-              onPress={() => setSelectedLanguage('en')}
-            >
-              <View style={styles.optionLeft}>
-                <Text style={styles.flagText}>🇺🇸</Text>
-                <View style={styles.languageInfo}>
-                  <ThemedText type="defaultSemiBold">English</ThemedText>
-                  <ThemedText style={styles.languageCode}>EN</ThemedText>
-                </View>
-              </View>
-
-              {selectedLanguage === 'en' ? (
-                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
-              ) : (
-                <View style={styles.unselectedCircle} />
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
             {/* French Option */}
             <TouchableOpacity
               style={styles.languageOption}
@@ -145,21 +117,42 @@ export default function PreferencesScreen() {
                 <View style={styles.unselectedCircle} />
               )}
             </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* English Option */}
+            <TouchableOpacity
+              style={styles.languageOption}
+              onPress={() => setSelectedLanguage('en')}
+            >
+              <View style={styles.optionLeft}>
+                <Text style={styles.flagText}>🇺🇸</Text>
+                <View style={styles.languageInfo}>
+                  <ThemedText type="defaultSemiBold">English</ThemedText>
+                  <ThemedText style={styles.languageCode}>EN</ThemedText>
+                </View>
+              </View>
+
+              {selectedLanguage === 'en' ? (
+                <Ionicons name="checkmark-circle" size={24} color="#0A58A5" />
+              ) : (
+                <View style={styles.unselectedCircle} />
+              )}
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
             style={styles.saveButton}
             onPress={async () => {
               try {
-                await AsyncStorage.setItem('userLanguage', selectedLanguage);
-                // Here you would trigger language change in your app
+                await setAppLanguage(selectedLanguage);
                 setLanguagePopupVisible(false);
               } catch (error) {
                 console.error('Failed to save language preference:', error);
               }
             }}
           >
-            <ThemedText style={styles.saveButtonText}>Save</ThemedText>
+            <ThemedText style={styles.saveButtonText}>{t('common:actions.save')}</ThemedText>
           </TouchableOpacity>
         </View>
       </BottomPopup>
@@ -168,11 +161,11 @@ export default function PreferencesScreen() {
       <BottomPopup
         visible={appearancePopupVisible}
         onClose={() => setAppearancePopupVisible(false)}
-        title="Appearance"
+        title={t('account:preferences.appearance.label')}
       >
         <View style={styles.appearanceContainer}>
           <ThemedText style={styles.appearanceDescription}>
-            Choose how LaZone looks on your device.
+            {t('account:preferences.appearance.description')}
           </ThemedText>
 
           <View style={styles.optionsContainer}>
@@ -186,9 +179,9 @@ export default function PreferencesScreen() {
                   <Ionicons name="phone-portrait-outline" size={24} color={theme.text} />
                 </View>
                 <View>
-                  <ThemedText type="defaultSemiBold">System Default</ThemedText>
+                  <ThemedText type="defaultSemiBold">{t('account:preferences.appearance.system')}</ThemedText>
                   <ThemedText style={styles.appearanceDescription}>
-                    Match your device settings
+                    {t('account:preferences.appearance.systemDescription')}
                   </ThemedText>
                 </View>
               </View>
@@ -212,9 +205,9 @@ export default function PreferencesScreen() {
                   <Ionicons name="sunny" size={24} color="#e1a100" />
                 </View>
                 <View>
-                  <ThemedText type="defaultSemiBold">Light</ThemedText>
+                  <ThemedText type="defaultSemiBold">{t('account:preferences.appearance.light')}</ThemedText>
                   <ThemedText style={styles.appearanceDescription}>
-                    Light background with dark text
+                    {t('account:preferences.appearance.lightDescription')}
                   </ThemedText>
                 </View>
               </View>
@@ -238,9 +231,9 @@ export default function PreferencesScreen() {
                   <Ionicons name="moon" size={22} color="#FFFFFF" />
                 </View>
                 <View>
-                  <ThemedText type="defaultSemiBold">Dark</ThemedText>
+                  <ThemedText type="defaultSemiBold">{t('account:preferences.appearance.dark')}</ThemedText>
                   <ThemedText style={styles.appearanceDescription}>
-                    Dark background with light text
+                    {t('account:preferences.appearance.darkDescription')}
                   </ThemedText>
                 </View>
               </View>
@@ -265,7 +258,7 @@ export default function PreferencesScreen() {
               }
             }}
           >
-            <ThemedText style={styles.saveButtonText}>Save</ThemedText>
+            <ThemedText style={styles.saveButtonText}>{t('common:actions.save')}</ThemedText>
           </TouchableOpacity>
         </View>
       </BottomPopup>

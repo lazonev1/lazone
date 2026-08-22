@@ -1,0 +1,31 @@
+{
+  "appName": "LaZone",
+  "actions": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done"
+  },
+  "states": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "empty": "Nothing here yet",
+    "offline": "No internet connection"
+  },
+  "tabs": {
+    "home": "Home",
+    "booked": "Booked",
+    "messages": "Messages",
+    "business": "Business",
+    "account": "Account"
+  },
+  "notFound": {
+    "title": "Oops!",
+    "message": "This screen doesn't exist.",
+    "goHome": "Go to home screen"
+  }
+}

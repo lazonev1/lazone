@@ -65,7 +65,8 @@
       "expo-web-browser",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
-      "./plugins/withFirebaseNonModularFix"
+      "./plugins/withFirebaseNonModularFix",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

@@ -3,6 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import '@/localization';
 import { useEffect, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/auth';
 import { BookmarkProvider } from '@/contexts/bookmarks';

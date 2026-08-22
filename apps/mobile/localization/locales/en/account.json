@@ -1,0 +1,20 @@
+{
+  "title": "Account",
+  "preferences": {
+    "title": "Preferences",
+    "language": {
+      "label": "Language",
+      "description": "Select your preferred language. The app will use this language throughout the interface."
+    },
+    "appearance": {
+      "label": "Appearance",
+      "description": "Choose how LaZone looks on your device.",
+      "system": "System Default",
+      "systemDescription": "Match your device settings",
+      "light": "Light",
+      "lightDescription": "Light background with dark text",
+      "dark": "Dark",
+      "darkDescription": "Dark background with light text"
+    }
+  }
+}
