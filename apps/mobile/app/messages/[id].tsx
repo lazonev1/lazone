@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Audio } from 'expo-av';
@@ -26,10 +26,14 @@ export default function ConversationScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const styles = createStyles(theme, colorScheme);
+  const { height: screenHeight } = useWindowDimensions();
 
   const { user } = useAuth();
   const userId = user?.uid ?? '';
   const insets = useSafeAreaInsets();
+
+  // Calculate keyboard offset dynamically based on screen size
+  const keyboardOffset = Platform.OS === 'ios' ? 90 : Math.max(100, screenHeight * 0.1);
 
   // Real-time messages subscription
   const { messages, loading, error, sendMessage } = useMessages(conversationId);
@@ -254,9 +258,9 @@ export default function ConversationScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.bottom}
+        keyboardVerticalOffset={keyboardOffset}
       >
         <ScrollView
           ref={scrollRef}
