@@ -3,3 +3,4 @@ node_modules
 apps/mobile/google-services.json
 apps/mobile/GoogleService-Info.plist
 apps/mobile/firestore-debug.log
+apps/mobile/firebase-debug.log

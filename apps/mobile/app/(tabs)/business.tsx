@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@lazone/ui';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
+import { getStatusBackgroundColor, getStatusColor, getStatusLabel } from '@/components/booking/BookingStatus';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -312,9 +313,9 @@ export default function BusinessScreen() {
                   <ThemedText type="defaultSemiBold" style={styles.bookingPrice}>
                     {formatPrice(booking.price)}
                   </ThemedText>
-                  <View style={styles.confirmedBadge}>
-                    <ThemedText style={styles.confirmedText}>
-                      {booking.status === 'in_progress' ? 'In Progress' : 'Confirmed'}
+                  <View style={[styles.confirmedBadge, { backgroundColor: getStatusBackgroundColor(booking.status) }]}>
+                    <ThemedText style={[styles.confirmedText, { color: getStatusColor(booking.status) }]}>
+                      {getStatusLabel(booking.status)}
                     </ThemedText>
                   </View>
               </View>

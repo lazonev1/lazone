@@ -8,6 +8,10 @@ Contains server-side Firebase Cloud Functions for push notifications.
   - Trigger: `conversations/{conversationId}/messages/{messageId}` document create
   - Sends FCM notification/data payload to recipient device tokens
   - Cleans invalid tokens from user documents (`notificationTokens`)
+- `sendBookingStatusNotification`
+  - Trigger: `bookings/{bookingId}` document update
+  - Notifies the requester when delivery is submitted for review, and notifies
+    the provider when changes are requested or completion is confirmed
 
 ## Expected Firestore fields
 

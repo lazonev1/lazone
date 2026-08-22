@@ -19,9 +19,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
   let clientAvatar = undefined;
 
   // Extract requesterId as string
-  const requesterId = typeof review.requesterId === 'string'
-    ? review.requesterId
-    : (review.requesterId as any).id || review.requesterId;
+  const requesterId = review.requesterId;
 
   try {
     if (requesterId) {
@@ -46,12 +44,14 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
 
   return {
     id: review._id,
+    bookingId: review.bookingId,
+    providerId: review.providerId,
     clientName,
     clientAvatar,
     rating: review.rating,
     comment: review.comment,
     date: createdAt.toISOString(),
-    serviceId: (review.serviceId as any) as string | undefined,
+    serviceId: review.serviceId,
     serviceName: undefined, // Service names are not fetched separately - would need provider context
     images: review.images || [],
     isHelpful: review.isHelpful || 0,
@@ -102,29 +102,14 @@ export async function getUserReviews(userId: string): Promise<Review[]> {
 }
 
 /**
- * Check if user can review a provider
- */
-export async function canUserReviewProvider(
-  userId: string,
-  providerId: string
-): Promise<{ canReview: boolean; reason?: string }> {
-  try {
-    return await ReviewService.canUserReviewProvider(userId, providerId);
-  } catch (error) {
-    console.error('Error checking review eligibility:', error);
-    throw error;
-  }
-}
-
-/**
  * Add a new review
  */
 export async function addReview(
   providerId: string,
   reviewData: {
     requesterId: string;
-    bookingId?: string;
-    serviceId?: string;
+    bookingId: string;
+    serviceId: string;
     rating: number;
     comment: string;
     localImageUris?: string[]; // Local URIs from image picker (disabled for now)
@@ -282,4 +267,3 @@ export function calculateReviewStats(reviews: Review[]): ReviewStats {
     ratingCounts
   };
 }
-

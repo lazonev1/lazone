@@ -18,9 +18,9 @@ export function LoginPrompt({ title, message }: LoginPromptProps) {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.message, { color: theme.icon }]}>{message}</Text>
-      <Button 
-        label="Go to Login" 
-        onPress={() => router.push('/(auth)/login')} 
+      <Button
+        label="Go to Login"
+        onPress={() => router.push('/(auth)/login')}
         style={styles.button}
       />
     </View>

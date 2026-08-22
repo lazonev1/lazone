@@ -60,6 +60,7 @@ export default function EditBookingScreen() {
                 bookingDate: input.bookingDate,
                 price: input.price,
                 notes: input.notes,
+                checklist: input.checklist,
               });
               showToast('Booking updated', 'success');
               // Small delay so the user sees the toast before navigating back
@@ -99,6 +100,7 @@ export default function EditBookingScreen() {
             scheduledDate: params.currentDate ? new Date(params.currentDate as string) : undefined,
             price: params.currentPrice as string,
             description: params.description as string,
+            checklist: params.checklist ? JSON.parse(params.checklist as string) : undefined,
           }}
         />
 

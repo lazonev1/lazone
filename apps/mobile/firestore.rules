@@ -15,6 +15,33 @@ service cloud.firestore {
         && (request.auth.uid == booking.requesterId || request.auth.uid == booking.providerId);
     }
 
+    function hasNewLinkedBookingStatusEvent(bookingId) {
+      return request.resource.data.latestTransitionId is string
+        && (!resource.data.keys().hasAll(['latestTransitionId'])
+          || request.resource.data.latestTransitionId != resource.data.latestTransitionId)
+        && existsAfter(/databases/$(database)/documents/bookings/$(bookingId)/events/$(request.resource.data.latestTransitionId));
+    }
+
+    function hasPublishedServices(providerData) {
+      return providerData.keys().hasAll(['services'])
+        && providerData.services is list
+        && providerData.services.size() > 0
+        && providerData.services[0].keys().hasAll(['name'])
+        && providerData.services[0].name is string
+        && providerData.services[0].name.size() > 0;
+    }
+
+    function isRatingAggregateUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'averageRating', 'reviewCount', 'updatedAt'
+        ])
+        && request.resource.data.averageRating is number
+        && request.resource.data.averageRating >= 0
+        && request.resource.data.averageRating <= 5
+        && request.resource.data.reviewCount is int
+        && request.resource.data.reviewCount >= 0;
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isOwner(userId);
@@ -26,8 +53,11 @@ service cloud.firestore {
     // temporary development exception.
     match /providers/{providerId} {
       allow read: if true;
-      allow create, delete: if isOwner(providerId);
-      allow update: if isAuthenticated();
+      allow create: if isOwner(providerId) && hasPublishedServices(request.resource.data);
+      allow delete: if isOwner(providerId);
+      allow update: if isAuthenticated()
+        && hasPublishedServices(request.resource.data)
+        && (isOwner(providerId) || isRatingAggregateUpdate());
     }
 
     match /services/{serviceId} {
@@ -40,7 +70,13 @@ service cloud.firestore {
       allow create: if isAuthenticated()
         && request.resource.data.requesterId == request.auth.uid
         && request.resource.data.status == 'pending'
-        && exists(/databases/$(database)/documents/providers/$(request.resource.data.providerId));
+        && request.resource.data.checklist is list
+        && request.resource.data.checklist.size() > 0
+        && request.resource.data.checklistTotal == request.resource.data.checklist.size()
+        && request.resource.data.checklistCompletedCount == 0
+        && request.resource.data.checklistProgress is map
+        && exists(/databases/$(database)/documents/providers/$(request.resource.data.providerId))
+        && hasPublishedServices(get(/databases/$(database)/documents/providers/$(request.resource.data.providerId)).data);
       allow update: if isBookingParticipant(resource.data)
         && (
           (
@@ -48,30 +84,164 @@ service cloud.firestore {
             && resource.data.status == 'pending'
             && request.resource.data.status == 'pending'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'serviceId', 'serviceName', 'bookingDate', 'price', 'notes', 'updatedAt'
+              'serviceId', 'serviceName', 'bookingDate', 'price', 'notes', 'checklist', 'checklistTotal', 'checklistCompletedCount', 'checklistProgress', 'updatedAt'
             ])
+            && request.resource.data.checklist is list
+            && request.resource.data.checklist.size() > 0
+            && request.resource.data.checklistTotal == request.resource.data.checklist.size()
+            && request.resource.data.checklistCompletedCount == 0
+            && request.resource.data.checklistProgress is map
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'in_progress'
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.keys().hasAll(['checklistProgress', 'checklistCompletedCount'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['checklistProgress', 'checklistCompletedCount', 'updatedAt'])
+            && request.resource.data.checklistProgress is map
+            && request.resource.data.checklistCompletedCount >= 0
+            && request.resource.data.checklistCompletedCount <= resource.data.checklistTotal
           )
           || (
             request.auth.uid == resource.data.requesterId
             && resource.data.status in ['pending', 'confirmed']
             && request.resource.data.status == 'cancelled'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
           )
           || (
             request.auth.uid == resource.data.providerId
             && resource.data.status == 'pending'
             && request.resource.data.status in ['confirmed', 'cancelled']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'confirmed'
+            && request.resource.data.status == 'in_progress'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.providerId
+            && resource.data.status == 'in_progress'
+            && request.resource.data.status == 'awaiting_confirmation'
+            && request.resource.data.keys().hasAll(['requesterChangeRequest'])
+            && request.resource.data.requesterChangeRequest == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requesterChangeRequest', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.requesterId
+            && resource.data.status == 'awaiting_confirmation'
+            && request.resource.data.status == 'completed'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
+          )
+          || (
+            request.auth.uid == resource.data.requesterId
+            && resource.data.status == 'awaiting_confirmation'
+            && request.resource.data.status == 'in_progress'
+            && request.resource.data.keys().hasAll(['requesterChangeRequest'])
+            && request.resource.data.requesterChangeRequest is string
+            && request.resource.data.requesterChangeRequest.size() > 0
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requesterChangeRequest', 'updatedAt', 'latestTransitionId'])
+            && hasNewLinkedBookingStatusEvent(bookingId)
           )
         );
       allow delete: if false;
+
+      match /events/{eventId} {
+        allow read: if isBookingParticipant(get(/databases/$(database)/documents/bookings/$(bookingId)).data);
+        allow create: if isBookingParticipant(get(/databases/$(database)/documents/bookings/$(bookingId)).data)
+          && request.resource.data.keys().hasOnly(['fromStatus', 'toStatus', 'actorId', 'actorRole', 'occurredAt'])
+          && request.resource.data.keys().hasAll(['fromStatus', 'toStatus', 'actorId', 'actorRole', 'occurredAt'])
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.fromStatus == get(/databases/$(database)/documents/bookings/$(bookingId)).data.status
+          && request.resource.data.toStatus == getAfter(/databases/$(database)/documents/bookings/$(bookingId)).data.status
+          && request.resource.data.occurredAt == request.time
+          && eventId == getAfter(/databases/$(database)/documents/bookings/$(bookingId)).data.latestTransitionId
+          && (
+            (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.requesterId
+              && request.resource.data.actorRole == 'requester')
+            || (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.providerId
+              && request.resource.data.actorRole == 'provider')
+          );
+        allow update, delete: if false;
+      }
     }
 
     match /reviews/{reviewId} {
       allow read: if true;
-      // TODO(security): move provider responses and helpful-vote mutations to
-      // trusted backend code, then restrict reviewer edits to their own content.
-      allow create, update, delete: if isAuthenticated();
+      // A review is an immutable, booking-scoped trust signal. New reviews use
+      // the booking ID as their document ID, making duplicate submission races
+      // impossible and allowing rules to enforce one review per booking.
+      allow create: if isAuthenticated()
+        && reviewId == request.resource.data.bookingId
+        && request.resource.data.keys().hasOnly([
+          'bookingId', 'providerId', 'requesterId', 'serviceId', 'rating', 'comment',
+          'images', 'responses', 'isHelpful', 'helpfulBy', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.bookingId is string
+        && request.resource.data.providerId is string
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.serviceId is string
+        && request.resource.data.rating in [1, 2, 3, 4, 5]
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 500
+        && request.resource.data.images is list
+        && request.resource.data.images.size() <= 5
+        && request.resource.data.responses is list
+        && request.resource.data.responses.size() == 0
+        && request.resource.data.isHelpful == 0
+        && request.resource.data.helpfulBy is list
+        && request.resource.data.helpfulBy.size() == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed'
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.requesterId == request.auth.uid
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.providerId == request.resource.data.providerId
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.serviceId == request.resource.data.serviceId;
+
+      // The requester may edit only their rating/comment/photos. Booking
+      // ownership and the provider's response can never be changed by them.
+      allow update: if isAuthenticated() && (
+        (
+          request.auth.uid == resource.data.requesterId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'images', 'updatedAt'])
+          && request.resource.data.rating in [1, 2, 3, 4, 5]
+          && request.resource.data.comment is string
+          && request.resource.data.comment.size() <= 500
+          && request.resource.data.images is list
+          && request.resource.data.images.size() <= 5
+          && request.resource.data.updatedAt == request.time
+        )
+        || (
+          request.auth.uid == resource.data.providerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responses', 'updatedAt'])
+          && request.resource.data.responses is list
+          && request.resource.data.responses.size() == 1
+          && request.resource.data.responses[0].text is string
+          && request.resource.data.responses[0].text.size() > 0
+          && request.resource.data.responses[0].text.size() <= 500
+          && request.resource.data.responses[0].date is timestamp
+          && request.resource.data.updatedAt == request.time
+        )
+        || (
+          request.auth.uid != resource.data.requesterId
+          && request.auth.uid != resource.data.providerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHelpful', 'helpfulBy', 'updatedAt'])
+          && request.resource.data.helpfulBy is list
+          && request.resource.data.isHelpful == request.resource.data.helpfulBy.size()
+          && request.resource.data.isHelpful >= 0
+          && request.resource.data.isHelpful <= 1000
+          && request.resource.data.updatedAt == request.time
+        )
+      );
+
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.requesterId;
     }
 
     match /portfolios/{portfolioId} {
@@ -86,7 +256,13 @@ service cloud.firestore {
     }
 
     match /conversations/{conversationId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      // A chat is addressed by a deterministic ID. The client must be able to
+      // check whether that document exists before creating it, but may only
+      // read an existing conversation when it is one of its participants.
+      allow get: if isAuthenticated()
+        && (!exists(/databases/$(database)/documents/conversations/$(conversationId))
+          || request.auth.uid in resource.data.participants);
+      allow list: if isAuthenticated() && request.auth.uid in resource.data.participants;
       allow create: if isAuthenticated()
         && request.auth.uid in request.resource.data.participants
         && request.resource.data.participants.size() == 2;

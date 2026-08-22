@@ -181,7 +181,8 @@ export function subscribeToConversationsList(
 export function subscribeToMessages(
   conversationId: string,
   onUpdate: (messages: MessageViewModel[]) => void,
-  messageLimit: number = 50
+  messageLimit: number = 50,
+  onError?: (error: Error) => void
 ): () => void {
   return conversationService.subscribeToMessages(
     conversationId,
@@ -191,7 +192,8 @@ export function subscribeToMessages(
       );
       onUpdate(uiMessages);
     },
-    messageLimit
+    messageLimit,
+    onError
   );
 }
 
@@ -384,4 +386,3 @@ async function calculateUnreadCount(
     return message.senderId !== userId ? count + 1 : count;
   }, 0);
 }
-

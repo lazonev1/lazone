@@ -52,8 +52,8 @@ export const validateBusinessInfo = (data: any) => {
 export const validateService = (service: any) => {
   const errors: Record<string, string> = {};
 
-  if (!service.name) errors.name = validateRequired(service.name) ?? 'This field is required';
-  const priceError = validatePrice(service.price);
+  if (!service.name?.trim()) errors.name = validateRequired(service.name) ?? 'This field is required';
+  const priceError = validatePrice(service.price?.trim?.() ?? '');
   if (priceError) errors.price = priceError;
 
   return {

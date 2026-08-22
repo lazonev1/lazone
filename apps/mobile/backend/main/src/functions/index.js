@@ -1,4 +1,4 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 
@@ -207,5 +207,65 @@ exports.sendNewMessageNotification = onDocumentCreated(
       failureCount: response.failureCount,
       cleanedInvalidTokens: invalidTokens.length,
     });
+  }
+);
+
+exports.sendBookingStatusNotification = onDocumentUpdated(
+  {
+    document: 'bookings/{bookingId}',
+    region: 'us-central1',
+    retry: true,
+  },
+  async (event) => {
+    const before = event.data?.before?.data() || {};
+    const after = event.data?.after?.data() || {};
+    const bookingId = event.params.bookingId;
+
+    if (!bookingId || before.status === after.status) return;
+
+    let recipientId;
+    let title;
+    let body;
+    if (after.status === 'awaiting_confirmation') {
+      recipientId = after.requesterId;
+      title = 'Service ready for your review';
+      body = `${after.providerName || 'Your provider'} submitted the service for confirmation.`;
+    } else if (before.status === 'awaiting_confirmation' && after.status === 'in_progress') {
+      recipientId = after.providerId;
+      title = 'Changes requested';
+      body = `${after.requesterName || 'The requester'} requested changes before confirming the service.`;
+    } else if (after.status === 'completed') {
+      recipientId = after.providerId;
+      title = 'Service confirmed';
+      body = `${after.requesterName || 'The requester'} confirmed the service is complete.`;
+    }
+
+    if (!recipientId) return;
+    const userSnapshot = await db.collection(USERS_COLLECTION).doc(recipientId).get();
+    if (!userSnapshot.exists) return;
+    const userData = userSnapshot.data() || {};
+    const tokens = uniqueTokens(userData.notificationTokens || userData.tokens || []);
+    if (!tokens.length) return;
+
+    const payload = {
+      tokens,
+      notification: { title, body },
+      data: {
+        type: 'booking_status',
+        bookingId,
+        status: after.status,
+      },
+      android: { priority: 'high' },
+      apns: {
+        payload: { aps: { contentAvailable: true, sound: 'default' } },
+        headers: { 'apns-push-type': 'alert', 'apns-priority': '10' },
+      },
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(payload);
+    const invalidTokens = response.responses
+      .map((result, index) => result.error && INVALID_TOKEN_CODES.has(result.error.code) ? tokens[index] : null)
+      .filter(Boolean);
+    await removeInvalidTokens(new Map([[recipientId, tokens]]), invalidTokens);
   }
 );

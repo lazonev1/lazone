@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { Audio } from 'expo-av';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,10 @@ import * as messageRepository from '@/repositories/messageRepository';
 import { formatDateDivider } from '@/backend/main/src/utils/utils';
 
 export default function ConversationScreen() {
-  const { id, name, avatar } = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
-  const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string | string[]; name?: string | string[]; avatar?: string | string[] }>();
+  const conversationId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const name = Array.isArray(params.name) ? params.name[0] : params.name;
+  const avatar = Array.isArray(params.avatar) ? params.avatar[0] : params.avatar;
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const scrollRef = useRef<ScrollView | null>(null);
@@ -30,14 +32,16 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
 
   // Real-time messages subscription
-  const { messages, loading, error, sendMessage } = useMessages(id);
+  const { messages, loading, error, sendMessage } = useMessages(conversationId);
 
   // Mark conversation as read when entering and when new messages arrive
   useEffect(() => {
-    if (id && userId) {
-      messageRepository.updateReadStatus(id, userId);
+    if (conversationId && userId) {
+      void messageRepository.updateReadStatus(conversationId, userId).catch((readError) => {
+        console.warn('Unable to update conversation read status:', readError);
+      });
     }
-  }, [id, userId, messages.length]);
+  }, [conversationId, userId, messages.length]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -52,17 +56,21 @@ export default function ConversationScreen() {
   const handleTextChange = useCallback((text: string) => {
     setMessageText(text);
 
-    if (id && userId) {
-      messageRepository.setTypingStatus(id, userId, true);
+    if (conversationId && userId) {
+      void messageRepository.setTypingStatus(conversationId, userId, true).catch((typingError) => {
+        console.warn('Unable to update typing status:', typingError);
+      });
 
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       typingTimeoutRef.current = setTimeout(() => {
-        messageRepository.setTypingStatus(id, userId, false);
+        void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
+          console.warn('Unable to clear typing status:', typingError);
+        });
       }, 2000);
     }
-  }, [id, userId]);
+  }, [conversationId, userId]);
 
   // Clean up typing status on unmount
   useEffect(() => {
@@ -73,11 +81,13 @@ export default function ConversationScreen() {
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
       }
-      if (id && userId) {
-        messageRepository.setTypingStatus(id, userId, false);
+      if (conversationId && userId) {
+        void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
+          console.warn('Unable to clear typing status:', typingError);
+        });
       }
     };
-  }, [id, userId]);
+  }, [conversationId, userId]);
 
   const formatDuration = (durationMillis: number) => {
     const totalSeconds = Math.floor(durationMillis / 1000);
@@ -148,8 +158,10 @@ export default function ConversationScreen() {
     setMessageText('');
 
     // Clear typing indicator
-    if (id && userId) {
-      messageRepository.setTypingStatus(id, userId, false);
+    if (conversationId && userId) {
+      void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
+        console.warn('Unable to clear typing status:', typingError);
+      });
     }
 
     try {
@@ -252,6 +264,11 @@ export default function ConversationScreen() {
           contentContainerStyle={styles.messageContent}
           keyboardShouldPersistTaps="handled"
         >
+          {error && (
+            <ThemedText style={styles.errorText}>
+              Unable to load messages. Reopen this chat to reconnect.
+            </ThemedText>
+          )}
           {Object.entries(groupedMessages).map(([date, msgs]) => (
             <View key={date}>
               <DateDivider date={date} />
@@ -348,6 +365,11 @@ function createStyles(theme: any, colorScheme: any) {
     },
     messageContent: {
       paddingBottom: 10,
+    },
+    errorText: {
+      color: '#C0392B',
+      textAlign: 'center',
+      paddingVertical: 16,
     },
     inputContainer: {
       flexDirection: 'row',

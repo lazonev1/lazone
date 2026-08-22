@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { getStatusColor } from '@/components/booking/BookingStatus';
 
 export default function BookingSuccessScreen() {
   const params = useLocalSearchParams();
@@ -11,7 +12,7 @@ export default function BookingSuccessScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-  const { bookingId, providerName } = params;
+  const { bookingId, providerId, providerName } = params;
 
   return (
     <>
@@ -23,7 +24,7 @@ export default function BookingSuccessScreen() {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <Ionicons name="checkmark-circle" size={80} color="#4CAF50" />
+            <Ionicons name="checkmark-circle" size={80} color={getStatusColor('pending')} />
           </View>
           
           <ThemedText type="title" style={styles.title}>
@@ -31,7 +32,7 @@ export default function BookingSuccessScreen() {
           </ThemedText>
           
           <ThemedText style={styles.subtitle}>
-            Your booking request has been sent to {providerName}. You&apos;ll receive a notification once they respond.
+            Your request has been sent to {providerName}. You can view the booking now or return to the provider&apos;s profile.
           </ThemedText>
         
           <View style={styles.buttonGroup}>
@@ -43,7 +44,7 @@ export default function BookingSuccessScreen() {
             />
             <Button
               label="Return to Provider"
-              onPress={() => router.back()}
+              onPress={() => providerId ? router.replace(`/provider/${providerId}`) : router.back()}
               variant="secondary"
               style={styles.button}
             />

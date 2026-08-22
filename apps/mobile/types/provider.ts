@@ -11,6 +11,8 @@ export type Coordinates = {
 // Added Review and ReviewStats types
 export type Review = {
   id: string;
+  bookingId?: string;
+  providerId?: string;
   clientName: string;
   clientAvatar?: any;
   rating: number;

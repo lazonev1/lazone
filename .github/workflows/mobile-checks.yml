@@ -19,7 +19,12 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter ./apps/mobile lint
       - run: pnpm --filter ./apps/mobile typecheck
+      - run: cd apps/mobile && pnpm dlx firebase-tools@15.5.1 emulators:exec --project demo-rules --only firestore,auth "pnpm test:rules"
       - run: node --check apps/mobile/backend/main/src/functions/index.js

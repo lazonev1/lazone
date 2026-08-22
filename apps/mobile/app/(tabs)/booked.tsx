@@ -33,7 +33,7 @@ export default function BookedScreen() {
 
   // Partition bookings by filter category
   const activeBookings = useMemo(
-    () => bookings.filter((b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress'),
+    () => bookings.filter((b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'awaiting_confirmation'),
     [bookings]
   );
   const completedBookings = useMemo(
