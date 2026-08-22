@@ -1,13 +1,106 @@
 {
   "title": "Réservations",
+  "providerNotFound": "Prestataire introuvable",
   "new": {
-    "title": "Nouvelle réservation"
+    "title": "Réserver un service",
+    "bookProvider": "Réserver {{name}}",
+    "loadingProvider": "Chargement du prestataire...",
+    "unavailableTitle": "Réservation indisponible",
+    "unavailableMessage": "Ce prestataire n'a pas encore publié de service. Veuillez réessayer plus tard ou choisir un autre prestataire.",
+    "backToProvider": "Retour au prestataire",
+    "signInRequired": "Veuillez vous connecter pour réserver un service"
+  },
+  "edit": {
+    "title": "Modifier la réservation",
+    "confirmTitle": "Confirmer les modifications",
+    "confirmMessage": "Voulez-vous vraiment modifier cette réservation ?",
+    "update": "Mettre à jour",
+    "updated": "Réservation mise à jour"
+  },
+  "form": {
+    "selectService": "Sélectionnez un service *",
+    "serviceOption": "{{name}} ({{price}} CFA)",
+    "preferredDateTime": "Date et heure souhaitées *",
+    "proposedPrice": "Votre prix proposé (CFA) *",
+    "enterAmount": "Saisissez le montant",
+    "requestChecklist": "Liste des demandes *",
+    "checklistHelper": "Listez les résultats précis que le prestataire doit accomplir.",
+    "itemPlaceholder": "Élément {{number}}",
+    "remove": "Supprimer",
+    "addChecklistItem": "+ Ajouter un élément",
+    "additionalDetails": "Détails supplémentaires (facultatif)",
+    "additionalDetailsPlaceholder": "Exigences ou détails particuliers...",
+    "submitting": "Envoi...",
+    "submitRequest": "Envoyer la demande",
+    "errors": {
+      "service": "Veuillez sélectionner un service",
+      "date": "Veuillez sélectionner une date",
+      "price": "Veuillez saisir votre prix proposé",
+      "checklist": "Ajoutez une description pour chaque élément de la liste"
+    }
   },
   "review": {
-    "title": "Vérifier la réservation"
+    "title": "Évaluer votre réservation",
+    "checkFailed": "Impossible de vérifier cette réservation pour le moment. Veuillez réessayer.",
+    "selectRating": "Sélectionnez une note pour continuer.",
+    "tooLong": "Limitez votre avis à 500 caractères maximum.",
+    "submitFailed": "Impossible d'envoyer votre avis.",
+    "unavailableTitle": "Avis indisponible",
+    "unavailableMessage": "Le demandeur peut laisser un avis une fois la réservation terminée par le prestataire.",
+    "submittedTitle": "Avis envoyé",
+    "submittedMessage": "Merci d'avoir partagé votre avis sur {{name}}.",
+    "howWasService": "Comment s'est passé votre service ?",
+    "serviceWith": "{{service}} avec {{name}}",
+    "starLabel_one": "{{count}} étoile",
+    "starLabel_other": "{{count}} étoiles",
+    "commentLabel": "Racontez-nous votre expérience (facultatif)",
+    "commentPlaceholder": "Qu'est-ce qui s'est bien passé ? Que pourrait-on améliorer ?",
+    "submitting": "Envoi...",
+    "submitReview": "Envoyer l'avis",
+    "backToBooking": "Retour à la réservation"
   },
   "success": {
-    "title": "Réservation confirmée"
+    "title": "Demande de réservation envoyée",
+    "message": "Votre demande a été envoyée à {{name}}. Vous pouvez consulter la réservation maintenant ou revenir au profil du prestataire.",
+    "viewDetails": "Voir les détails de la réservation",
+    "returnToProvider": "Retour au prestataire"
+  },
+  "booked": {
+    "title": "Mes réservations",
+    "loading": "Chargement des réservations...",
+    "loginTitle": "Bon retour !",
+    "loginMessage": "Connectez-vous pour voir et gérer vos réservations.",
+    "filters": {
+      "active": "Actives",
+      "completed": "Terminées",
+      "cancelled": "Annulées"
+    },
+    "empty": {
+      "noneTitle": "Aucune réservation pour le moment",
+      "browseSubtitle": "Parcourez les prestataires et réservez un service pour commencer.",
+      "activeTitle": "Aucune réservation active",
+      "completedTitle": "Aucune réservation terminée",
+      "completedSubtitle": "Vos réservations terminées apparaîtront ici.",
+      "cancelledTitle": "Aucune réservation annulée",
+      "cancelledSubtitle": "Les réservations annulées apparaîtront ici.",
+      "findProvider": "Trouver un prestataire"
+    }
+  },
+  "card": {
+    "dateAtTime": "{{date}} à {{time}}"
+  },
+  "errors": {
+    "fetchBookings": "Impossible de récupérer les réservations",
+    "signInRequired": "Vous devez être connecté pour réserver",
+    "createFailed": "Impossible de créer la réservation",
+    "cancelFailed": "Impossible d'annuler la réservation",
+    "fetchBooking": "Impossible de récupérer la réservation",
+    "noBookingLoaded": "Aucune réservation chargée",
+    "updateFailed": "Impossible de mettre à jour la réservation",
+    "statusUpdateFailed": "Impossible de mettre à jour le statut de la réservation",
+    "fetchProviderBookings": "Impossible de récupérer les réservations du prestataire",
+    "acceptFailed": "Impossible d'accepter la réservation",
+    "declineFailed": "Impossible de refuser la réservation"
   },
   "status": {
     "pending": "En attente",

@@ -8,6 +8,7 @@ import { SelectList } from '@/components/ui/SelectList';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   providerId: string;
@@ -29,6 +30,8 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+  const { t, i18n } = useTranslation(['booking', 'common']);
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
 
   const [selectedService, setSelectedService] = useState(initialValues?.serviceId || '');
   const [date, setDate] = useState(initialValues?.scheduledDate || new Date());
@@ -51,10 +54,10 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!selectedService) newErrors.service = 'Please select a service';
-    if (!date) newErrors.date = 'Please select a date';
-    if (!price) newErrors.price = 'Please enter your proposed price';
-    if (checklist.some((item) => !item.trim())) newErrors.checklist = 'Add a description for each checklist item';
+    if (!selectedService) newErrors.service = t('form.errors.service');
+    if (!date) newErrors.date = t('form.errors.date');
+    if (!price) newErrors.price = t('form.errors.price');
+    if (checklist.some((item) => !item.trim())) newErrors.checklist = t('form.errors.checklist');
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -101,18 +104,18 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
         >
           <View style={styles.form}>
             <SelectList
-              label="Select Service *"
+              label={t('form.selectService')}
               value={selectedService}
-              options={services.map(s => ({ 
-                label: `${s.name} (${s.price} CFA)`, 
-                value: s.id 
+              options={services.map(s => ({
+                label: t('form.serviceOption', { name: s.name, price: s.price }),
+                value: s.id
               }))}
               onChange={handleServiceChange}
               error={errors.service}
             />
 
             <View style={styles.dateSection}>
-              <ThemedText style={styles.label}>Preferred Date and Time *</ThemedText>
+              <ThemedText style={styles.label}>{t('form.preferredDateTime')}</ThemedText>
               {Platform.OS === 'ios' ? (
                 <DateTimePicker
                   value={date}
@@ -129,7 +132,7 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                       activeOpacity={0.6}
                     >
                       <ThemedText style={styles.datePillText}>
-                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -138,7 +141,7 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                       activeOpacity={0.6}
                     >
                       <ThemedText style={styles.datePillText}>
-                        {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        {date.toLocaleTimeString(dateLocale, { hour: 'numeric', minute: '2-digit', hour12: i18n.language !== 'fr' })}
                       </ThemedText>
                     </TouchableOpacity>
                   </View>
@@ -169,51 +172,51 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
             </View>
 
             <TextBox
-              label="Your Proposed Price (CFA) *"
+              label={t('form.proposedPrice')}
               value={price}
               onChangeText={setPrice}
               keyboardType="numeric"
-              placeholder="Enter amount"
+              placeholder={t('form.enterAmount')}
               error={errors.price}
             />
 
             <View style={styles.checklistSection}>
-              <ThemedText style={styles.label}>Request Checklist *</ThemedText>
-              <ThemedText style={styles.helper}>List the specific outcomes the provider must complete.</ThemedText>
+              <ThemedText style={styles.label}>{t('form.requestChecklist')}</ThemedText>
+              <ThemedText style={styles.helper}>{t('form.checklistHelper')}</ThemedText>
               {checklist.map((item, index) => (
                 <View key={index} style={styles.checklistRow}>
                   <TextBox
                     value={item}
                     onChangeText={(value) => setChecklist((items) => items.map((current, i) => i === index ? value : current))}
                     onFocus={index > 0 ? () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50) : undefined}
-                    placeholder={`Item ${index + 1}`}
+                    placeholder={t('form.itemPlaceholder', { number: index + 1 })}
                   />
-                  {checklist.length > 1 && <TouchableOpacity onPress={() => setChecklist((items) => items.filter((_, i) => i !== index))}><ThemedText style={styles.remove}>Remove</ThemedText></TouchableOpacity>}
+                  {checklist.length > 1 && <TouchableOpacity onPress={() => setChecklist((items) => items.filter((_, i) => i !== index))}><ThemedText style={styles.remove}>{t('form.remove')}</ThemedText></TouchableOpacity>}
                 </View>
               ))}
               {errors.checklist && <ThemedText style={styles.error}>{errors.checklist}</ThemedText>}
-              <TouchableOpacity onPress={addChecklistItem}><ThemedText style={styles.add}>+ Add checklist item</ThemedText></TouchableOpacity>
+              <TouchableOpacity onPress={addChecklistItem}><ThemedText style={styles.add}>{t('form.addChecklistItem')}</ThemedText></TouchableOpacity>
             </View>
 
             <TextBox
-              label="Additional Details (Optional)"
+              label={t('form.additionalDetails')}
               value={description}
               onChangeText={setDescription}
               multiline
               numberOfLines={4}
-              placeholder="Any specific requirements or details..."
+              placeholder={t('form.additionalDetailsPlaceholder')}
             />
             
             <View style={styles.buttons}>
               <Button
-                label="Cancel"
+                label={t('common:actions.cancel')}
                 onPress={onCancel}
                 variant="secondary"
                 style={styles.button}
                 disabled={isSubmitting}
               />
               <Button
-                label={isSubmitting ? 'Submitting...' : 'Submit Request'}
+                label={isSubmitting ? t('form.submitting') : t('form.submitRequest')}
                 onPress={handleSubmit}
                 variant="primary"
                 style={styles.button}

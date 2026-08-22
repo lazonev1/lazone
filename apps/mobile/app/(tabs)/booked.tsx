@@ -11,11 +11,13 @@ import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { BookingViewModel } from '@/types/booking';
 import { LoginPrompt } from "@/components/auth/LoginPrompt";
+import { useTranslation } from 'react-i18next';
 
 type BookingFilter = 'active' | 'completed' | 'cancelled';
 
 export default function BookedScreen() {
   const router = useRouter();
+  const { t } = useTranslation('booking');
   const { user } = useAuth();
   const { bookings, isLoading, refreshBookings } = useBookings(user?.uid);
   const colorScheme = Appearance.getColorScheme();
@@ -45,7 +47,7 @@ export default function BookedScreen() {
     [bookings]
   );
 
-  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view and manage your bookings." />; }
+  if (!user) { return <LoginPrompt title={t('booked.loginTitle')} message={t('booked.loginMessage')} />; }
 
   const filteredBookings: BookingViewModel[] =
     activeFilter === 'active' ? activeBookings
@@ -53,23 +55,23 @@ export default function BookedScreen() {
     : cancelledBookings;
 
   const filters: { id: BookingFilter; label: string; count: number }[] = [
-    { id: 'active', label: 'Active', count: activeBookings.length },
-    { id: 'completed', label: 'Completed', count: completedBookings.length },
-    { id: 'cancelled', label: 'Cancelled', count: cancelledBookings.length },
+    { id: 'active', label: t('booked.filters.active'), count: activeBookings.length },
+    { id: 'completed', label: t('booked.filters.completed'), count: completedBookings.length },
+    { id: 'cancelled', label: t('booked.filters.cancelled'), count: cancelledBookings.length },
   ];
 
   const emptyMessages: Record<BookingFilter, { title: string; subtitle: string }> = {
     active: {
-      title: 'No active bookings',
-      subtitle: 'Browse providers and book a service to get started.',
+      title: t('booked.empty.activeTitle'),
+      subtitle: t('booked.empty.browseSubtitle'),
     },
     completed: {
-      title: 'No completed bookings',
-      subtitle: 'Your finished bookings will appear here.',
+      title: t('booked.empty.completedTitle'),
+      subtitle: t('booked.empty.completedSubtitle'),
     },
     cancelled: {
-      title: 'No cancelled bookings',
-      subtitle: 'Cancelled bookings will appear here.',
+      title: t('booked.empty.cancelledTitle'),
+      subtitle: t('booked.empty.cancelledSubtitle'),
     },
   };
 
@@ -78,7 +80,7 @@ export default function BookedScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.tint} />
-          <ThemedText style={styles.loadingText}>Loading bookings...</ThemedText>
+          <ThemedText style={styles.loadingText}>{t('booked.loading')}</ThemedText>
         </View>
       </SafeAreaView>
     );
@@ -92,7 +94,7 @@ export default function BookedScreen() {
           <RefreshControl refreshing={isLoading} onRefresh={refreshBookings} />
         }
       >
-        <ThemedText type="title" style={styles.title}>My Bookings</ThemedText>
+        <ThemedText type="title" style={styles.title}>{t('booked.title')}</ThemedText>
 
         {/* ── Filter Tabs ──────────────────────────────── */}
         {bookings.length > 0 && (
@@ -139,12 +141,12 @@ export default function BookedScreen() {
         {bookings.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={64} color={theme.icon} />
-            <ThemedText style={styles.emptyTitle}>No bookings yet</ThemedText>
+            <ThemedText style={styles.emptyTitle}>{t('booked.empty.noneTitle')}</ThemedText>
             <ThemedText style={styles.emptySubtitle}>
-              Browse providers and book a service to get started.
+              {t('booked.empty.browseSubtitle')}
             </ThemedText>
             <Button
-              label="Find a Provider"
+              label={t('booked.empty.findProvider')}
               onPress={() => router.push('/explore/search-results')}
               variant="primary"
               style={styles.emptyButton}
