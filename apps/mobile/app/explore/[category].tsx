@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useTranslation } from 'react-i18next';
 
 export default function CategoryScreen() {
-  const { t } = useTranslation('explore');
+  const { t, i18n } = useTranslation('explore');
   const { category } = useLocalSearchParams();
   const categoryId = String(category);
   const navigation = useNavigation();
@@ -17,15 +17,16 @@ export default function CategoryScreen() {
 
   const { providers, isLoading, error, fetchProvidersByCategory } = useProvider();
 
-  // Find category by ID (the URL parameter)
-  const selectedCategory = getCategoryById(categoryId);
 
-  // Fetch providers when category changes - no auth required for browsing
+  const selectedCategory = useMemo(() => getCategoryById(categoryId), [categoryId, i18n.language]);
+
+
+  const selectedCategoryId = selectedCategory?.id;
   useEffect(() => {
-    if (selectedCategory) {
-      fetchProvidersByCategory(selectedCategory.id);
+    if (selectedCategoryId) {
+      fetchProvidersByCategory(selectedCategoryId);
     }
-  }, [selectedCategory, fetchProvidersByCategory]);
+  }, [selectedCategoryId, fetchProvidersByCategory]);
 
   // Filter and sort providers by rating
   // Match by category ID since that's what's stored in Firebase
