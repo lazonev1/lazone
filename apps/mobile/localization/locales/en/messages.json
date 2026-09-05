@@ -1,0 +1,28 @@
+{
+  "title": "Messages",
+  "list": {
+    "loginTitle": "Welcome Back!",
+    "loginMessage": "Log in to view your messages and chat with providers.",
+    "searchPlaceholder": "Search messages",
+    "noResults": "No messages found matching \"{{query}}\"",
+    "empty": "Your messages will appear here."
+  },
+  "chat": {
+    "loading": "Loading conversation...",
+    "defaultTitle": "Conversation",
+    "loadError": "Unable to load messages. Reopen this chat to reconnect.",
+    "inputPlaceholder": "Message",
+    "comingSoon": "Coming soon",
+    "sendFailed": "Failed to send message. Please try again.",
+    "voiceNote": "🎤 Voice note ({{duration}})",
+    "voiceSaveFailed": "Failed to save voice note. Please try again.",
+    "voiceStartFailed": "Could not start voice recording.",
+    "micPermissionTitle": "Microphone permission needed",
+    "micPermissionMessage": "Please allow microphone access to record voice notes."
+  },
+  "errors": {
+    "conversationUnavailable": "Conversation is unavailable. Reopen the chat and try again.",
+    "sendFailed": "Failed to send message",
+    "findConversationFailed": "Failed to find conversation"
+  }
+}

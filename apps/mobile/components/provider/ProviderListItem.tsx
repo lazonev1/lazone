@@ -5,6 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useAuth } from '@/contexts/auth';
 import { requireAuth } from '@/utils/auth';
+import i18n from '@/localization';
 
 type Props = {
   id: string; // Add provider ID to props
@@ -23,7 +24,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
   const styles = createStyles(theme, colorScheme);
 
   const handleBookmarkPress = () => {
-    if (!requireAuth(user?.uid, 'Please sign in to save providers.')) return;
+    if (!requireAuth(user?.uid, i18n.t('provider:profile.signInToSave'))) return;
     toggleBookmark(id);
   };
 

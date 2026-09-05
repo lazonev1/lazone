@@ -9,10 +9,12 @@ import { CreateBookingInput } from '@/types/booking';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function EditBookingScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { t } = useTranslation(['booking', 'common']);
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -27,9 +29,9 @@ export default function EditBookingScreen() {
   if (providerLoading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <Stack.Screen options={{ title: 'Edit Booking' }} />
+        <Stack.Screen options={{ title: t('edit.title') }} />
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('common:states.loading')}</ThemedText>
       </View>
     );
   }
@@ -37,20 +39,20 @@ export default function EditBookingScreen() {
   if (!provider) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <Stack.Screen options={{ title: 'Edit Booking' }} />
-        <ThemedText>Provider not found</ThemedText>
+        <Stack.Screen options={{ title: t('edit.title') }} />
+        <ThemedText>{t('providerNotFound')}</ThemedText>
       </View>
     );
   }
 
   const handleSubmit = (input: CreateBookingInput) => {
     Alert.alert(
-      'Confirm Changes',
-      'Are you sure you want to modify this booking?',
+      t('edit.confirmTitle'),
+      t('edit.confirmMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:actions.cancel'), style: 'cancel' },
         {
-          text: 'Update',
+          text: t('edit.update'),
           onPress: async () => {
             setIsSubmitting(true);
             try {
@@ -62,12 +64,12 @@ export default function EditBookingScreen() {
                 notes: input.notes,
                 checklist: input.checklist,
               });
-              showToast('Booking updated', 'success');
+              showToast(t('edit.updated'), 'success');
               // Small delay so the user sees the toast before navigating back
               setTimeout(() => router.back(), 800);
             } catch (error) {
               console.error('[EditBooking] Error updating booking:', error);
-              const message = error instanceof Error ? error.message : 'Failed to update booking';
+              const message = error instanceof Error ? error.message : t('errors.updateFailed');
               showToast(message, 'error');
             } finally {
               setIsSubmitting(false);
@@ -83,7 +85,7 @@ export default function EditBookingScreen() {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen
           options={{
-            title: 'Edit Booking',
+            title: t('edit.title'),
             headerStyle: { backgroundColor: theme.background },
             headerTintColor: theme.text,
           }}

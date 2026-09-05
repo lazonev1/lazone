@@ -1,0 +1,71 @@
+{
+  "appName": "LaZone",
+  "actions": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done"
+  },
+  "alerts": {
+    "error": "Error",
+    "success": "Success"
+  },
+  "auth": {
+    "signInRequiredTitle": "Sign in required",
+    "signInRequiredMessage": "Please sign in to continue.",
+    "signIn": "Sign In",
+    "goToLogin": "Go to Login"
+  },
+  "validation": {
+    "required": "This field is required",
+    "requiredShort": "Required",
+    "invalidPrice": "Please enter a valid price",
+    "dateFormat": "Date must be in MM/YYYY format",
+    "dateFormatShort": "Use MM/YYYY format"
+  },
+  "location": {
+    "country": "Country",
+    "cityRegion": "City/Region",
+    "cityPlaceholder": "Enter your city or region",
+    "coordinates": "Coordinates",
+    "getLocation": "Get Location",
+    "getting": "Getting...",
+    "permissionTitle": "Location Permission Required",
+    "permissionMessage": "Please enable location access in your settings to use this feature.",
+    "openSettings": "Open Settings",
+    "accessRequired": "Location access is required",
+    "unableToGet": "Unable to get location. Please try again."
+  },
+  "media": {
+    "addPhoto": "Add Photo",
+    "captionPlaceholder": "Add a caption...",
+    "cameraRollPermission": "Permission to access camera roll is required!"
+  },
+  "dates": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "states": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "empty": "Nothing here yet",
+    "offline": "No internet connection"
+  },
+  "tabs": {
+    "home": "Home",
+    "booked": "Booked",
+    "messages": "Messages",
+    "business": "Business",
+    "account": "Account"
+  },
+  "notFound": {
+    "title": "Oops!",
+    "message": "This screen doesn't exist.",
+    "goHome": "Go to home screen"
+  }
+}

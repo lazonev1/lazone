@@ -3,6 +3,7 @@ import { ThemedText } from '@/components/ThemedText'
 import { Image, View, StyleSheet, Appearance, ImageSourcePropType } from 'react-native'
 import { Button } from '@lazone/ui'
 import { Colors } from '@/constants/Colors'
+import { useTranslation } from 'react-i18next'
 
 type PaymentMethod = {
 	id: number;
@@ -16,6 +17,7 @@ type Props = {
 	onSetDefault: () => void
 }
 export function PaymentMethodCard({ method, onSetDefault }: Props) {
+	const { t } = useTranslation('account');
 	const colorScheme = Appearance.getColorScheme();
 	const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 	const styles = createStyles(theme, colorScheme);
@@ -38,9 +40,9 @@ export function PaymentMethodCard({ method, onSetDefault }: Props) {
 
 			<View style={styles.cardRight}>
 				{method.isDefault ?
-					<ThemedText style={styles.defaultLabel}>Default</ThemedText> :
+					<ThemedText style={styles.defaultLabel}>{t('wallet.default')}</ThemedText> :
 					<Button
-						label="Set as Default"
+						label={t('wallet.setAsDefault')}
 						onPress={onSetDefault}
 						variant="primary"
 						size="small"

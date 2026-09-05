@@ -21,25 +21,29 @@ export const MOCK_USER_PROFILE: UserProfile = {
 
 // ── Unified Profile menu items (no role separation) ──────────────────────────
 // Role-conditional items use the `roleAccess` field and are filtered at render time.
+// Labels are translated at call time, so these are builders instead of constants:
+// call them during render so a language switch produces fresh labels.
 
-export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
+import i18n from '@/localization';
+
+export const getProfileMenuItems = (): Record<string, MenuItem[]> => ({
     /** Shown to everyone */
     general: [
         {
             id: 'saved',
-            label: 'Saved Businesses',
+            label: i18n.t('account:menu.savedBusinesses'),
             route: '/account/subscreens/savedproviders',
             icon: 'bookmark-outline',
         },
         {
             id: 'wallet',
-            label: 'Payment Methods',
+            label: i18n.t('account:menu.paymentMethods'),
             route: '/account/subscreens/wallet',
             icon: 'wallet-outline',
         },
         {
             id: 'referral',
-            label: 'Refer a Friend',
+            label: i18n.t('account:menu.referFriend'),
             route: '/account/subscreens/refer',
             icon: 'share-social-outline',
         },
@@ -49,13 +53,13 @@ export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
     settings: [
         {
             id: 'preferences',
-            label: 'Preferences',
+            label: i18n.t('account:menu.preferences'),
             route: '/account/subscreens/preferences',
             icon: 'settings-outline',
         },
         {
             id: 'notifications',
-            label: 'Notification Settings',
+            label: i18n.t('account:menu.notificationSettings'),
             route: '/account/subscreens/notifications',
             icon: 'notifications-outline',
         },
@@ -65,41 +69,38 @@ export const PROFILE_MENU_ITEMS: Record<string, MenuItem[]> = {
     support: [
         {
             id: 'help',
-            label: 'Help & Support',
-            route: '/account/subscreens/placeholder?title=Help%20%26%20Support',
+            label: i18n.t('account:menu.help'),
+            route: `/account/subscreens/placeholder?title=${encodeURIComponent(i18n.t('account:menu.help'))}`,
             icon: 'help-circle-outline',
         },
         {
             id: 'terms',
-            label: 'Terms and Policies',
-            route: '/account/subscreens/placeholder?title=Terms%20and%20Policies',
+            label: i18n.t('account:menu.terms'),
+            route: `/account/subscreens/placeholder?title=${encodeURIComponent(i18n.t('account:menu.terms'))}`,
             icon: 'document-text-outline',
         },
     ],
-};
+});
 
-// Keep the old export name as an alias so nothing else breaks during migration.
-export const ACCOUNT_MENU_ITEMS = PROFILE_MENU_ITEMS;
-export const WALLET_SETTINGS_ITEMS: Record<string,  MenuItem[]> = {
+export const getWalletSettingsItems = (): Record<string, MenuItem[]> => ({
     settings: [
         {
-        id: 'manage-payment',
-        label: 'Manage Payment Info',
-        route: '/manager-payment',
-        icon: 'card-outline'
-    },
-    {
-        id: 'add-payment-method',
-        label: 'Add Payment Method',
-        route: '/add-payment',
-        icon: 'add-circle-outline'
-    },
-    {
-        id: 'security',
-        label: 'Security Info',
-        route: '/security',
-        icon: 'lock-closed-outline'
-    }
-
-
-]}
+            id: 'manage-payment',
+            label: i18n.t('account:menu.managePayment'),
+            route: '/manager-payment',
+            icon: 'card-outline',
+        },
+        {
+            id: 'add-payment-method',
+            label: i18n.t('account:menu.addPaymentMethod'),
+            route: '/add-payment',
+            icon: 'add-circle-outline',
+        },
+        {
+            id: 'security',
+            label: i18n.t('account:menu.securityInfo'),
+            route: '/security',
+            icon: 'lock-closed-outline',
+        },
+    ],
+});

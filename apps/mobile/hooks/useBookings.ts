@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BookingChecklistItem, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
 import * as bookingRepo from '@/repositories/bookingRepository';
+import i18n from '@/localization';
 
 /**
  * Hook for the "My Bookings" list screen.
@@ -35,7 +36,7 @@ export function useBookings(userId?: string): UseBookingsResult {
       setBookings(data);
     } catch (err) {
       console.error('[useBookings] Error fetching bookings:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch bookings'));
+      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchBookings')));
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +48,7 @@ export function useBookings(userId?: string): UseBookingsResult {
 
   const createBooking = useCallback(
     async (requesterName: string, input: CreateBookingInput): Promise<BookingViewModel> => {
-      if (!userId) throw new Error('User must be signed in to book');
+      if (!userId) throw new Error(i18n.t('booking:errors.signInRequired'));
 
       setError(null);
 
@@ -60,7 +61,7 @@ export function useBookings(userId?: string): UseBookingsResult {
         return newBooking;
       } catch (err) {
         console.error('[useBookings] Error creating booking:', err);
-        const error = err instanceof Error ? err : new Error('Failed to create booking');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.createFailed'));
         setError(error);
         throw error;
       }
@@ -84,7 +85,7 @@ export function useBookings(userId?: string): UseBookingsResult {
         console.error('[useBookings] Error cancelling booking:', err);
         // Rollback
         setBookings(previous);
-        const error = err instanceof Error ? err : new Error('Failed to cancel booking');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.cancelFailed'));
         setError(error);
         throw error;
       }
@@ -142,7 +143,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
       setBooking(data);
     } catch (err) {
       console.error('[useBookingDetail] Error fetching booking:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch booking'));
+      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchBooking')));
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +154,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
   }, [fetchBooking]);
 
   const cancelBooking = useCallback(async (): Promise<void> => {
-    if (!bookingId || !booking) throw new Error('No booking loaded');
+    if (!bookingId || !booking) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
 
     const previous = { ...booking };
 
@@ -166,7 +167,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
     } catch (err) {
       console.error('[useBookingDetail] Error cancelling booking:', err);
       setBooking(previous); // Rollback
-      const error = err instanceof Error ? err : new Error('Failed to cancel booking');
+      const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.cancelFailed'));
       setError(error);
       throw error;
     }
@@ -174,7 +175,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
 
   const updateBooking = useCallback(
     async (input: UpdateBookingInput): Promise<BookingViewModel> => {
-      if (!bookingId) throw new Error('No booking loaded');
+      if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
 
       try {
         const updated = await bookingRepo.updateBooking(bookingId, input);
@@ -183,7 +184,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
         return updated;
       } catch (err) {
         console.error('[useBookingDetail] Error updating booking:', err);
-        const error = err instanceof Error ? err : new Error('Failed to update booking');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.updateFailed'));
         setError(error);
         throw error;
       }
@@ -193,7 +194,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
 
   const updateStatus = useCallback(
     async (status: 'in_progress' | 'awaiting_confirmation' | 'completed'): Promise<void> => {
-      if (!bookingId || !booking) throw new Error('No booking loaded');
+      if (!bookingId || !booking) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
 
       const previous = booking;
       setBooking({ ...booking, status });
@@ -209,7 +210,7 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
       } catch (err) {
         console.error(`[useBookingDetail] Error updating status to ${status}:`, err);
         setBooking(previous);
-        const error = err instanceof Error ? err : new Error('Failed to update booking status');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.statusUpdateFailed'));
         setError(error);
         throw error;
       }
@@ -223,13 +224,13 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
   const confirmCompletion = useCallback(() => updateStatus('completed'), [updateStatus]);
 
   const requestChanges = useCallback(async (reason: string) => {
-    if (!bookingId) throw new Error('No booking loaded');
+    if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
     await bookingRepo.requestBookingChanges(bookingId, reason);
     await fetchBooking();
   }, [bookingId, fetchBooking]);
 
   const updateChecklist = useCallback(async (checklist: BookingChecklistItem[]) => {
-    if (!bookingId) throw new Error('No booking loaded');
+    if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
     await bookingRepo.updateBookingChecklist(bookingId, checklist);
     await fetchBooking();
   }, [bookingId, fetchBooking]);
@@ -305,7 +306,7 @@ export function useProviderBookings(providerId?: string): UseProviderBookingsRes
       setAllBookings(data);
     } catch (err) {
       console.error('[useProviderBookings] Error fetching bookings:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch provider bookings'));
+      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchProviderBookings')));
     } finally {
       setIsLoading(false);
     }
@@ -351,7 +352,7 @@ export function useProviderBookings(providerId?: string): UseProviderBookingsRes
       } catch (err) {
         console.error('[useProviderBookings] Error accepting booking:', err);
         setAllBookings(previous); // Rollback
-        const error = err instanceof Error ? err : new Error('Failed to accept booking');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.acceptFailed'));
         setError(error);
         throw error;
       }
@@ -376,7 +377,7 @@ export function useProviderBookings(providerId?: string): UseProviderBookingsRes
       } catch (err) {
         console.error('[useProviderBookings] Error declining booking:', err);
         setAllBookings(previous); // Rollback
-        const error = err instanceof Error ? err : new Error('Failed to decline booking');
+        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.declineFailed'));
         setError(error);
         throw error;
       }

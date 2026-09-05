@@ -6,8 +6,10 @@ import { ProviderList } from '@/components/provider/ProviderList';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
+import { useTranslation } from 'react-i18next';
 
 export default function CategoryScreen() {
+  const { t, i18n } = useTranslation('explore');
   const { category } = useLocalSearchParams();
   const categoryId = String(category);
   const navigation = useNavigation();
@@ -15,15 +17,16 @@ export default function CategoryScreen() {
 
   const { providers, isLoading, error, fetchProvidersByCategory } = useProvider();
 
-  // Find category by ID (the URL parameter)
-  const selectedCategory = getCategoryById(categoryId);
 
-  // Fetch providers when category changes - no auth required for browsing
+  const selectedCategory = useMemo(() => getCategoryById(categoryId), [categoryId, i18n.language]);
+
+
+  const selectedCategoryId = selectedCategory?.id;
   useEffect(() => {
-    if (selectedCategory) {
-      fetchProvidersByCategory(selectedCategory.id);
+    if (selectedCategoryId) {
+      fetchProvidersByCategory(selectedCategoryId);
     }
-  }, [selectedCategory, fetchProvidersByCategory]);
+  }, [selectedCategoryId, fetchProvidersByCategory]);
 
   // Filter and sort providers by rating
   // Match by category ID since that's what's stored in Firebase
@@ -55,7 +58,7 @@ export default function CategoryScreen() {
   if (!selectedCategory) {
     return (
       <SafeAreaView style={[styles.container, styles.centerContainer]}>
-        <ThemedText style={styles.errorText}>Category not found</ThemedText>
+        <ThemedText style={styles.errorText}>{t('category.notFound')}</ThemedText>
       </SafeAreaView>
     );
   }
@@ -77,7 +80,7 @@ export default function CategoryScreen() {
         onEndReached={handleLoadMore}
         hasMore={displayedCount < sortedProviders.length}
         ListHeaderComponent={ListHeaderComponent}
-        emptyMessage={`No providers found in ${selectedCategory.name}`}
+        emptyMessage={t('category.empty', { category: selectedCategory.name })}
       />
     </SafeAreaView>
   );

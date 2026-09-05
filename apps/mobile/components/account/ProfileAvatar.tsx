@@ -1,6 +1,7 @@
 import { View, Image, StyleSheet, Pressable, Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   uri: string | null;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export default function ProfileAvatar({ uri, onChange }: Props) {
+  const { t } = useTranslation('account');
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
@@ -27,7 +29,7 @@ export default function ProfileAvatar({ uri, onChange }: Props) {
         style={styles.image}
       />
       <Pressable onPress={pickImage}>
-        <Text style={styles.changeText}>Change Photo</Text>
+        <Text style={styles.changeText}>{t('info.changePhoto')}</Text>
       </Pressable>
     </View>
   );

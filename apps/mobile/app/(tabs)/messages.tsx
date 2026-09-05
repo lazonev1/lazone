@@ -12,10 +12,12 @@ import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { LoginPrompt } from "@/components/auth/LoginPrompt";
 import SearchBar from '@/components/ui/SearchBar';
+import { useTranslation } from 'react-i18next';
 
 export default function Messages() {
   const navigation = useNavigation();
   const router = useRouter();
+  const { t } = useTranslation('messages');
   const [searchQuery, setSearchQuery] = useState('');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -30,7 +32,7 @@ export default function Messages() {
     });
   }, []);
 
-  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view your messages and chat with providers." />; }
+  if (!user) { return <LoginPrompt title={t('list.loginTitle')} message={t('list.loginMessage')} />; }
 
   // Filter conversations based on search query
   const filteredConversations = conversations.filter(conversation => {
@@ -46,14 +48,14 @@ export default function Messages() {
       <View style={styles.container}>
         {/* Title Section */}
         <View style={styles.titleContainer}>
-          <ThemedText style={styles.subtitle}>Messages</ThemedText>
+          <ThemedText style={styles.subtitle}>{t('title')}</ThemedText>
         </View>
 
         {/* Search Section */}
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search messages"/>
+          placeholder={t('list.searchPlaceholder')}/>
 
         {/* Conversation List */}
         <ScrollView style={styles.scrollView}>
@@ -65,8 +67,8 @@ export default function Messages() {
             <ThemedView style={styles.emptyState}>
               <ThemedText style={styles.emptyText}>
                 {searchQuery
-                  ? `No messages found matching "${searchQuery}"`
-                  : 'Your messages will appear here.'}
+                  ? t('list.noResults', { query: searchQuery })
+                  : t('list.empty')}
               </ThemedText>
             </ThemedView>
           ) : (

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from '@lazone/ui';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   onSendMessage: (message: string) => void;
 };
 
 export default function MessageInput({ onSendMessage }: Props) {
+  const { t } = useTranslation('messages');
   const [message, setMessage] = useState('');
   
   const handleSend = () => {
@@ -26,7 +28,7 @@ export default function MessageInput({ onSendMessage }: Props) {
       
       <TextInput
         style={styles.input}
-        placeholder="Message"
+        placeholder={t('chat.inputPlaceholder')}
         placeholderTextColor="#888"
         value={message}
         onChangeText={setMessage}

@@ -1,0 +1,71 @@
+{
+  "appName": "LaZone",
+  "actions": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "confirm": "Confirmer",
+    "retry": "Réessayer",
+    "submit": "Envoyer",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé"
+  },
+  "alerts": {
+    "error": "Erreur",
+    "success": "Succès"
+  },
+  "auth": {
+    "signInRequiredTitle": "Connexion requise",
+    "signInRequiredMessage": "Veuillez vous connecter pour continuer.",
+    "signIn": "Se connecter",
+    "goToLogin": "Aller à la connexion"
+  },
+  "validation": {
+    "required": "Ce champ est obligatoire",
+    "requiredShort": "Obligatoire",
+    "invalidPrice": "Veuillez saisir un prix valide",
+    "dateFormat": "La date doit être au format MM/AAAA",
+    "dateFormatShort": "Format MM/AAAA"
+  },
+  "location": {
+    "country": "Pays",
+    "cityRegion": "Ville/Région",
+    "cityPlaceholder": "Saisissez votre ville ou région",
+    "coordinates": "Coordonnées",
+    "getLocation": "Obtenir la position",
+    "getting": "Localisation...",
+    "permissionTitle": "Autorisation de localisation requise",
+    "permissionMessage": "Veuillez activer l'accès à la localisation dans vos réglages pour utiliser cette fonctionnalité.",
+    "openSettings": "Ouvrir les réglages",
+    "accessRequired": "L'accès à la localisation est requis",
+    "unableToGet": "Impossible d'obtenir la position. Veuillez réessayer."
+  },
+  "media": {
+    "addPhoto": "Ajouter une photo",
+    "captionPlaceholder": "Ajoutez une légende...",
+    "cameraRollPermission": "L'accès à la galerie est requis !"
+  },
+  "dates": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier"
+  },
+  "states": {
+    "loading": "Chargement…",
+    "error": "Une erreur est survenue",
+    "empty": "Rien à afficher pour le moment",
+    "offline": "Pas de connexion Internet"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "booked": "Réservations",
+    "messages": "Messages",
+    "business": "Entreprise",
+    "account": "Compte"
+  },
+  "notFound": {
+    "title": "Oups !",
+    "message": "Cet écran n'existe pas.",
+    "goHome": "Retourner à l'accueil"
+  }
+}

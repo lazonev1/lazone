@@ -22,37 +22,44 @@ import { Button } from '@lazone/ui';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { getStatusBackgroundColor, getStatusColor, getStatusLabel } from '@/components/booking/BookingStatus';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/localization';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function dateLocale() {
+  return i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+}
+
 function formatDate(isoString: string) {
   const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' });
 }
 
 function formatTime(isoString: string) {
   const date = new Date(isoString);
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  return date.toLocaleTimeString(dateLocale(), { hour: 'numeric', minute: '2-digit', hour12: i18n.language !== 'fr' }).toLowerCase();
 }
 
 function timeAgo(isoString: string) {
   const now = new Date();
   const diff = now.getTime() - new Date(isoString).getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 1) return 'Just now';
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 1) return i18n.t('provider:business.justNow');
+  if (hours < 24) return i18n.t('provider:business.hoursAgo', { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return i18n.t('provider:business.daysAgo', { count: days });
 }
 
 function formatPrice(amount: number): string {
-  return amount.toLocaleString('en-US') + ' CFA';
+  return amount.toLocaleString(dateLocale()) + ' CFA';
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BusinessScreen() {
   const router = useRouter();
+  const { t } = useTranslation(['provider', 'common', 'booking']);
   const { user, userProfile } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -92,9 +99,9 @@ export default function BusinessScreen() {
     setActionInFlight(bookingId);
     try {
       await acceptBooking(bookingId);
-      showToast('Booking accepted', 'success');
+      showToast(t('booking:details.toasts.accepted'), 'success');
     } catch {
-      showToast('Failed to accept booking', 'error');
+      showToast(t('booking:details.toasts.acceptFailed'), 'error');
     } finally {
       setActionInFlight(null);
     }
@@ -102,20 +109,20 @@ export default function BusinessScreen() {
 
   const handleDecline = (bookingId: string, clientName: string) => {
     Alert.alert(
-      'Decline Request',
-      `Are you sure you want to decline the request from ${clientName}?`,
+      t('business.declineTitle'),
+      t('business.declineMessage', { name: clientName }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:actions.cancel'), style: 'cancel' },
         {
-          text: 'Decline',
+          text: t('business.decline'),
           style: 'destructive',
           onPress: async () => {
             setActionInFlight(bookingId);
             try {
               await declineBooking(bookingId);
-              showToast('Request declined', 'success');
+              showToast(t('booking:details.toasts.declined'), 'success');
             } catch {
-              showToast('Failed to decline request', 'error');
+              showToast(t('booking:details.toasts.declineFailed'), 'error');
             } finally {
               setActionInFlight(null);
             }
@@ -132,13 +139,13 @@ export default function BusinessScreen() {
         <View style={styles.activationContainer}>
           <Ionicons name="briefcase-outline" size={64} color={theme.icon} style={{ marginBottom: 16 }} />
           <ThemedText type="subtitle" style={styles.activationTitle}>
-            Start your business on LaZone
+            {t('business.startTitle')}
           </ThemedText>
           <ThemedText style={styles.activationSubtitle}>
-            Register as a service provider to manage bookings, track earnings, and grow your client base.
+            {t('business.startSubtitle')}
           </ThemedText>
           <Button
-            label="Become a Provider"
+            label={t('registration.title')}
             onPress={() => router.push('/provider/registration')}
             style={styles.activationButton}
           />
@@ -158,7 +165,7 @@ export default function BusinessScreen() {
       >
         {/* ── Header ────────────────────────────────────── */}
         <View style={styles.titleRow}>
-          <ThemedText type="title" style={styles.title}>Business</ThemedText>
+          <ThemedText type="title" style={styles.title}>{t('business.title')}</ThemedText>
           <TouchableOpacity onPress={() => router.push({
             pathname: '/provider/registration',
             params: { editMode: 'true', providerId: user?.uid ?? '' },
@@ -171,28 +178,28 @@ export default function BusinessScreen() {
         <View style={styles.metricsGrid}>
           <MetricCard
             icon="eye-outline"
-            label="Profile Views"
+            label={t('business.metrics.profileViews')}
             value="—"
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="cash-outline"
-            label="Earnings"
+            label={t('business.metrics.earnings')}
             value={formatPrice(totalEarnings)}
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="star-outline"
-            label="Avg Rating"
+            label={t('business.metrics.avgRating')}
             value="—"
             theme={theme}
             colorScheme={colorScheme}
           />
           <MetricCard
             icon="checkmark-done-outline"
-            label="Completed"
+            label={t('business.metrics.completed')}
             value={String(completedBookings.length)}
             theme={theme}
             colorScheme={colorScheme}
@@ -201,13 +208,13 @@ export default function BusinessScreen() {
 
         {/* ── Incoming Requests ──────────────────────────── */}
         <SectionHeader
-          title="Incoming Requests"
+          title={t('business.incomingRequests')}
           count={incomingRequests.length}
           theme={theme}
         />
         {incomingRequests.length === 0 ? (
           <ThemedView style={styles.emptyCard}>
-            <ThemedText style={styles.emptyText}>No pending requests</ThemedText>
+            <ThemedText style={styles.emptyText}>{t('business.noPendingRequests')}</ThemedText>
           </ThemedView>
         ) : (
           incomingRequests.map((req) => (
@@ -242,7 +249,7 @@ export default function BusinessScreen() {
                 <View style={styles.requestDateRow}>
                   <Ionicons name="calendar-outline" size={14} color={theme.icon} />
                   <ThemedText style={styles.requestDateText}>
-                    {formatDate(req.bookingDate)} at {formatTime(req.bookingDate)}
+                    {t('booking:card.dateAtTime', { date: formatDate(req.bookingDate), time: formatTime(req.bookingDate) })}
                   </ThemedText>
                 </View>
                 <ThemedText style={styles.requestPrice}>{formatPrice(req.price)}</ThemedText>
@@ -256,7 +263,7 @@ export default function BusinessScreen() {
                   {actionInFlight === req.id ? (
                     <ActivityIndicator size="small" color={theme.text} />
                   ) : (
-                    <ThemedText style={styles.declineText}>Decline</ThemedText>
+                    <ThemedText style={styles.declineText}>{t('business.decline')}</ThemedText>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -267,7 +274,7 @@ export default function BusinessScreen() {
                   {actionInFlight === req.id ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <ThemedText style={styles.acceptText}>Accept</ThemedText>
+                    <ThemedText style={styles.acceptText}>{t('business.accept')}</ThemedText>
                   )}
                 </TouchableOpacity>
               </View>
@@ -278,13 +285,13 @@ export default function BusinessScreen() {
 
         {/* ── Upcoming Bookings ──────────────────────────── */}
         <SectionHeader
-          title="Upcoming Bookings"
+          title={t('business.upcomingBookings')}
           count={upcomingBookings.length}
           theme={theme}
         />
         {upcomingBookings.length === 0 ? (
           <ThemedView style={styles.emptyCard}>
-            <ThemedText style={styles.emptyText}>No upcoming bookings</ThemedText>
+            <ThemedText style={styles.emptyText}>{t('business.noUpcoming')}</ThemedText>
           </ThemedView>
         ) : (
           upcomingBookings.map((booking) => (
@@ -305,7 +312,7 @@ export default function BusinessScreen() {
                   <View style={styles.bookingDateRow}>
                     <Ionicons name="calendar-outline" size={14} color={theme.icon} />
                     <ThemedText style={styles.bookingDateText}>
-                      {formatDate(booking.bookingDate)} at {formatTime(booking.bookingDate)}
+                      {t('booking:card.dateAtTime', { date: formatDate(booking.bookingDate), time: formatTime(booking.bookingDate) })}
                     </ThemedText>
                   </View>
                 </View>
@@ -326,10 +333,10 @@ export default function BusinessScreen() {
         )}
 
         {/* ── Recent Earnings ────────────────────────────── */}
-        <SectionHeader title="Recent Earnings" theme={theme} />
+        <SectionHeader title={t('business.recentEarnings')} theme={theme} />
         {completedBookings.length === 0 ? (
           <ThemedView style={styles.emptyCard}>
-            <ThemedText style={styles.emptyText}>No completed bookings yet</ThemedText>
+            <ThemedText style={styles.emptyText}>{t('business.noCompleted')}</ThemedText>
           </ThemedView>
         ) : (
           <ThemedView
@@ -362,11 +369,11 @@ export default function BusinessScreen() {
         )}
 
         {/* ── Quick Actions ──────────────────────────────── */}
-        <SectionHeader title="Manage" theme={theme} />
+        <SectionHeader title={t('business.manage')} theme={theme} />
         <View style={styles.quickActionsGrid}>
           <QuickActionCard
             icon="images-outline"
-            label="Portfolio"
+            label={t('business.quickActions.portfolio')}
             onPress={() => router.push({
               pathname: '/provider/registration',
               params: { editMode: 'true', providerId: user?.uid ?? '' },
@@ -376,7 +383,7 @@ export default function BusinessScreen() {
           />
           <QuickActionCard
             icon="pricetags-outline"
-            label="Services & Pricing"
+            label={t('business.quickActions.servicesPricing')}
             onPress={() => router.push({
               pathname: '/provider/registration',
               params: { editMode: 'true', providerId: user?.uid ?? '' },
@@ -386,14 +393,14 @@ export default function BusinessScreen() {
           />
           <QuickActionCard
             icon="star-outline"
-            label="Reviews"
+            label={t('business.quickActions.reviews')}
             onPress={() => router.push('/provider/reviews')}
             theme={theme}
             colorScheme={colorScheme}
           />
           <QuickActionCard
             icon="person-outline"
-            label="Public Profile"
+            label={t('business.quickActions.publicProfile')}
             onPress={() => router.push({
               pathname: '/provider/preview',
               params: { id: user?.uid ?? '' },

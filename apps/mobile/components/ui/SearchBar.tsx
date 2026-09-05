@@ -2,6 +2,7 @@ import { TextInput, StyleSheet, View, Pressable, Appearance } from 'react-native
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface SearchBarProps {
   value?: string;
@@ -20,10 +21,13 @@ export default function SearchBar({
   onSubmit,
   showFilterButton = false,
   onFilterPress,
-  filterButtonText = 'Filters',
-  placeholder = 'Search for services...',
+  filterButtonText,
+  placeholder,
   style,
 }: SearchBarProps) {
+  const { t } = useTranslation('explore');
+  filterButtonText = filterButtonText ?? t('search.filters');
+  placeholder = placeholder ?? t('searchPlaceholder');
   const colorScheme = Appearance.getColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const styles = createStyles(theme);

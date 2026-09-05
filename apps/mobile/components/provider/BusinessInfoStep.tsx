@@ -10,15 +10,13 @@ import { Colors } from '@/constants/Colors';
 import { getCategoryOptions } from '@/constants/categories';
 import { validateBusinessInfo } from '@/utils/validation';
 import { ProviderRegistration } from '@/types/provider';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   initialData: Partial<ProviderRegistration>;
   onNext: (data: Partial<ProviderRegistration>) => void;
   isEditMode?: boolean;
 }
-
-// Use centralized categories
-const SERVICE_CATEGORIES = getCategoryOptions();
 
 function getInitialFormData(initialData: Partial<ProviderRegistration>) {
   return {
@@ -38,6 +36,9 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
+  const { t } = useTranslation('provider');
+  // Centralized categories — resolved at render time so labels follow the active language
+  const serviceCategories = getCategoryOptions();
 
   // The provider record is fetched asynchronously when editing. Sync the saved
   // values once it arrives so the inputs show the current profile details.
@@ -57,7 +58,7 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
 
     if (!validation.isValid) {
       setErrors(validation.errors);
-      Alert.alert('Please fill in all required fields correctly.');
+      Alert.alert(t('registration.businessInfo.fillRequired'));
       return;
     }
 
@@ -69,31 +70,31 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
-            {isEditMode ? 'Edit Business Information' : 'Business Information'}
+            {isEditMode ? t('registration.businessInfo.editTitle') : t('registration.businessInfo.title')}
           </ThemedText>
           <ThemedText style={styles.subtitle}>
-            {isEditMode 
-              ? 'Update your business details below'
-              : 'Tell us about your business to get started'
+            {isEditMode
+              ? t('registration.businessInfo.editSubtitle')
+              : t('registration.businessInfo.subtitle')
             }
           </ThemedText>
         </View>
 
         <View style={styles.form}>
           <TextBox
-            label="Business Name"
+            label={t('registration.businessInfo.businessName')}
             value={formData.businessName}
             onChangeText={(textinput) => handleFieldChange('businessName', textinput)}
-            placeholder="Enter your business name"
+            placeholder={t('registration.businessInfo.businessNamePlaceholder')}
             error={errors.businessName}
             maxLength={50}
             style={styles.input}
           />
 
           <SelectList
-            label="Service Category"
+            label={t('registration.businessInfo.serviceCategory')}
             value={formData.serviceCategory}
-            options={SERVICE_CATEGORIES}
+            options={serviceCategories}
             onChange={(selectedCategory) => handleFieldChange('serviceCategory', selectedCategory)}
             error={errors.serviceCategory}
             style={styles.input}
@@ -107,10 +108,10 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
           />
 
           <TextBox
-            label="Business Description"
+            label={t('registration.businessInfo.description')}
             value={formData.description}
             onChangeText={(text) => handleFieldChange('description', text)}
-            placeholder="Describe your services and expertise..."
+            placeholder={t('registration.businessInfo.descriptionPlaceholder')}
             multiline
             numberOfLines={5}
             maxLength={500}
@@ -120,7 +121,7 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
           />
 
           <View style={styles.optionsSection}>
-            <ThemedText style={styles.optionLabel}>I offer remote services</ThemedText>
+            <ThemedText style={styles.optionLabel}>{t('registration.businessInfo.remoteService')}</ThemedText>
             <Checkbox
               isChecked={formData.remoteService ?? false}
               setChecked={() => handleFieldChange('remoteService', !formData.remoteService)}
@@ -132,7 +133,7 @@ export default function BusinessInfoStep({ initialData, onNext, isEditMode = fal
 
       <View style={styles.footer}>
         <Button
-          label={isEditMode ? "Continue to Services" : "Continue"}
+          label={isEditMode ? t('registration.businessInfo.continueToServices') : t('registration.businessInfo.continue')}
           onPress={handleSubmit}
           variant="primary"
           style={styles.button}

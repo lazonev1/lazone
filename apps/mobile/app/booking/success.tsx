@@ -5,10 +5,12 @@ import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor } from '@/components/booking/BookingStatus';
+import { useTranslation } from 'react-i18next';
 
 export default function BookingSuccessScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { t } = useTranslation('booking');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -28,22 +30,22 @@ export default function BookingSuccessScreen() {
           </View>
           
           <ThemedText type="title" style={styles.title}>
-            Booking Request Sent
+            {t('success.title')}
           </ThemedText>
-          
+
           <ThemedText style={styles.subtitle}>
-            Your request has been sent to {providerName}. You can view the booking now or return to the provider&apos;s profile.
+            {t('success.message', { name: providerName })}
           </ThemedText>
         
           <View style={styles.buttonGroup}>
             <Button
-              label="View Booking Details"
+              label={t('success.viewDetails')}
               onPress={() => router.replace(`/booking/${bookingId}`)}
               variant="primary"
               style={styles.button}
             />
             <Button
-              label="Return to Provider"
+              label={t('success.returnToProvider')}
               onPress={() => providerId ? router.replace(`/provider/${providerId}`) : router.back()}
               variant="secondary"
               style={styles.button}

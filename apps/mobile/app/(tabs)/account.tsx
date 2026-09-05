@@ -4,7 +4,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { PROFILE_MENU_ITEMS } from '@/constants/account';
+import { getProfileMenuItems } from '@/constants/account';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
 import { useAuth } from '@/contexts/auth';
@@ -14,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { t } = useTranslation(['account', 'provider']);
   const { user, userProfile, logout, refreshUserProfile, loading } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -21,9 +23,10 @@ export default function AccountScreen() {
 
   const isProvider = userProfile?.role === 'provider' || userProfile?.role === 'both';
   const [businessVisible, setBusinessVisible] = useState(true);
+  const menuItems = getProfileMenuItems();
 
   // Show a loading indicator while the initial auth check is happening.
-  if (!user) { return <LoginPrompt title="Welcome Back!" message="Log in to view and manage your account." />; }
+  if (!user) { return <LoginPrompt title={t('tab.loginTitle')} message={t('tab.loginMessage')} />; }
 
   if (loading) {
     return (
@@ -37,9 +40,9 @@ export default function AccountScreen() {
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ThemedText style={{textAlign: 'center', marginBottom: 20}}>Could not load profile. This can happen if the database entry is missing for this user.</ThemedText>
-        <Button label="Try to Refresh Profile" onPress={refreshUserProfile} />
-        <Button label="Logout" onPress={logout} style={{marginTop: 20}}/>
+        <ThemedText style={{textAlign: 'center', marginBottom: 20}}>{t('tab.profileLoadFailed')}</ThemedText>
+        <Button label={t('tab.refreshProfile')} onPress={refreshUserProfile} />
+        <Button label={t('tab.logout')} onPress={logout} style={{marginTop: 20}}/>
       </SafeAreaView>
     );
   }
@@ -86,15 +89,15 @@ export default function AccountScreen() {
 
         {/* ── General (everyone) ──────────────────────────── */}
         <MenuSection
-          items={PROFILE_MENU_ITEMS.general}
+          items={menuItems.general}
           onPress={navigateTo}
           styles={styles}
         />
 
         {/* ── Settings (everyone) ─────────────────────────── */}
         <MenuSection
-          title="Settings"
-          items={PROFILE_MENU_ITEMS.settings}
+          title={t('menu.settings')}
+          items={menuItems.settings}
           onPress={navigateTo}
           styles={styles}
         />
@@ -106,9 +109,9 @@ export default function AccountScreen() {
               <View style={styles.toggleLeft}>
                 <Ionicons name="storefront-outline" size={24} style={styles.menuIcon} />
                 <View>
-                  <ThemedText type="defaultSemiBold">Business Visibility</ThemedText>
+                  <ThemedText type="defaultSemiBold">{t('tab.businessVisibility')}</ThemedText>
                   <ThemedText style={styles.toggleHint}>
-                    {businessVisible ? 'Your business is visible to clients' : 'Your business is hidden from clients'}
+                    {businessVisible ? t('tab.businessVisible') : t('tab.businessHidden')}
                   </ThemedText>
                 </View>
               </View>
@@ -124,8 +127,8 @@ export default function AccountScreen() {
 
         {/* ── Support (everyone) ──────────────────────────── */}
         <MenuSection
-          title="Support"
-          items={PROFILE_MENU_ITEMS.support}
+          title={t('menu.support')}
+          items={menuItems.support}
           onPress={navigateTo}
           styles={styles}
         />
@@ -139,9 +142,9 @@ export default function AccountScreen() {
           >
             <Ionicons name="briefcase-outline" size={24} color="#0A58A5" style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
-              <ThemedText type="defaultSemiBold">Become a Provider</ThemedText>
+              <ThemedText type="defaultSemiBold">{t('provider:registration.title')}</ThemedText>
               <ThemedText style={styles.becomeProviderHint}>
-                Offer your services and start earning
+                {t('tab.becomeProviderHint')}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.icon} />

@@ -1,0 +1,160 @@
+{
+  "title": "Compte",
+  "menu": {
+    "savedBusinesses": "Entreprises enregistrées",
+    "paymentMethods": "Moyens de paiement",
+    "referFriend": "Parrainer un ami",
+    "preferences": "Préférences",
+    "notificationSettings": "Paramètres de notification",
+    "help": "Aide et assistance",
+    "terms": "Conditions et politiques",
+    "settings": "Paramètres",
+    "support": "Assistance",
+    "managePayment": "Gérer les informations de paiement",
+    "addPaymentMethod": "Ajouter un moyen de paiement",
+    "securityInfo": "Informations de sécurité"
+  },
+  "tab": {
+    "loginTitle": "Bon retour !",
+    "loginMessage": "Connectez-vous pour voir et gérer votre compte.",
+    "profileLoadFailed": "Impossible de charger le profil. Cela peut arriver si l'entrée en base de données est manquante pour cet utilisateur.",
+    "refreshProfile": "Réessayer de charger le profil",
+    "logout": "Se déconnecter",
+    "businessVisibility": "Visibilité de l'entreprise",
+    "businessVisible": "Votre entreprise est visible pour les clients",
+    "businessHidden": "Votre entreprise est masquée pour les clients",
+    "becomeProviderHint": "Proposez vos services et commencez à gagner de l'argent"
+  },
+  "info": {
+    "title": "Informations du compte",
+    "name": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "noName": "Aucun nom renseigné",
+    "noEmail": "Aucune adresse e-mail enregistrée",
+    "noPhone": "Aucun numéro de téléphone enregistré",
+    "editInformation": "Modifier les informations",
+    "changePhoto": "Changer la photo",
+    "accountManagement": "Gestion du compte",
+    "deactivate": "Désactivation et suppression",
+    "changePassword": "Changer le mot de passe",
+    "logoutTitle": "Déconnexion",
+    "logoutMessage": "Voulez-vous vraiment vous déconnecter ?",
+    "logout": "Se déconnecter",
+    "editPopup": {
+      "title": "Modifier les informations",
+      "missingInfoTitle": "Informations manquantes",
+      "missingInfoMessage": "Le prénom et le nom sont obligatoires.",
+      "confirmTitle": "Confirmer les modifications",
+      "confirmMessage": "Voulez-vous vraiment mettre à jour vos informations ?",
+      "update": "Mettre à jour",
+      "successMessage": "Vos informations ont été mises à jour.",
+      "errorMessage": "Impossible d'enregistrer vos informations. Veuillez réessayer.",
+      "firstName": "Prénom",
+      "firstNamePlaceholder": "Saisissez votre prénom",
+      "lastName": "Nom",
+      "lastNamePlaceholder": "Saisissez votre nom",
+      "email": "E-mail",
+      "emailPlaceholder": "Saisissez votre adresse e-mail",
+      "phone": "Téléphone",
+      "phonePlaceholder": "Saisissez votre numéro de téléphone"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "allTitle": "Toutes les notifications",
+    "allEnabled": "Toutes les notifications sont activées",
+    "allDisabled": "Toutes les notifications sont désactivées",
+    "someEnabled": "Certaines notifications sont activées",
+    "messages": {
+      "title": "Nouveaux messages",
+      "description": "Soyez averti lorsque vous recevez de nouveaux messages"
+    },
+    "bookings": {
+      "title": "Mises à jour des réservations",
+      "description": "Changements de statut de vos réservations"
+    },
+    "reminders": {
+      "title": "Rappels de rendez-vous",
+      "description": "Rappels avant vos rendez-vous prévus"
+    },
+    "payments": {
+      "title": "Confirmations de paiement",
+      "description": "Recevez des mises à jour sur le statut des paiements"
+    },
+    "promotions": {
+      "title": "Offres et promotions",
+      "description": "Actualités sur les remises et offres spéciales"
+    },
+    "updates": {
+      "title": "Mises à jour du service",
+      "description": "Mises à jour importantes de la plateforme LaZone"
+    }
+  },
+  "wallet": {
+    "title": "Portefeuille",
+    "securityTitle": "Informations de sécurité",
+    "encryption": "Chiffrement de bout en bout",
+    "encryptionText": "Nous utilisons les algorithmes de chiffrement les plus récents pour stocker vos informations en toute sécurité.",
+    "secureTransactions": "Transactions sécurisées",
+    "secureTransactionsText": "Toutes les transactions sont traitées via des canaux sécurisés selon les normes de sécurité du secteur.",
+    "default": "Par défaut",
+    "setAsDefault": "Définir par défaut"
+  },
+  "saved": {
+    "title": "Prestataires enregistrés",
+    "loading": "Chargement des prestataires enregistrés...",
+    "emptyTitle": "Vous n'avez pas encore enregistré de prestataires.",
+    "emptySubtitle": "Parcourez les prestataires et appuyez sur l'icône de signet pour les enregistrer ici.",
+    "reviewCount_one": "({{count}} avis)",
+    "reviewCount_other": "({{count}} avis)"
+  },
+  "refer": {
+    "heroTitle": "Parrainez vos amis, gagnez des récompenses",
+    "heroSubtitle": "Partagez votre code et gagnez des récompenses lorsque vos amis rejoignent et utilisent LaZone.",
+    "codeLabel": "Votre code de parrainage",
+    "copy": "Copier",
+    "share": "Partager le parrainage",
+    "shareMessage": "Rejoignez LaZone — la première place de marché de services ! Utilisez mon code de parrainage {{code}} lors de votre inscription et nous serons tous les deux récompensés. Téléchargez maintenant : https://lazone.app/refer?code={{code}}",
+    "referred": "Parrainés",
+    "completed": "Terminés",
+    "rewarded": "Récompensés",
+    "totalRewards": "Total des récompenses gagnées",
+    "howItWorks": "Comment ça marche",
+    "step": "Étape {{number}}",
+    "step1": "Partagez votre code avec vos amis par SMS, WhatsApp ou toute autre application",
+    "step2": "Votre ami s'inscrit sur LaZone avec votre code",
+    "step3": "Vous êtes tous les deux récompensés après son premier service terminé",
+    "filterAll": "Tous",
+    "status": {
+      "signed_up": "Inscrit",
+      "completed": "Terminé",
+      "rewarded": "Récompensé"
+    },
+    "yourReferrals": "Vos parrainages",
+    "emptyTitle": "Aucun parrainage pour le moment",
+    "emptyMessage": "Partagez votre code de parrainage pour commencer à inviter vos amis !",
+    "copied": "Copié !"
+  },
+  "placeholder": {
+    "comingSoon": "Bientôt disponible",
+    "underConstruction": "Cette fonctionnalité est en construction. Revenez bientôt !"
+  },
+  "preferences": {
+    "title": "Préférences",
+    "language": {
+      "label": "Langue",
+      "description": "Sélectionnez votre langue préférée. L'application utilisera cette langue dans toute l'interface."
+    },
+    "appearance": {
+      "label": "Apparence",
+      "description": "Choisissez l'apparence de LaZone sur votre appareil.",
+      "system": "Par défaut du système",
+      "systemDescription": "Suivre les réglages de votre appareil",
+      "light": "Clair",
+      "lightDescription": "Fond clair avec texte foncé",
+      "dark": "Sombre",
+      "darkDescription": "Fond sombre avec texte clair"
+    }
+  }
+}

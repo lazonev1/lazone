@@ -4,8 +4,10 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';
 import { useReferrals } from '@/hooks/useReferrals';
 import ReferralComponent from '@/components/account/ReferralComponent';
+import { useTranslation } from 'react-i18next';
 
 export default function ReferralScreen() {
+  const { t } = useTranslation('account');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -25,7 +27,7 @@ export default function ReferralScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: 'Refer a Friend' }} />
+      <Stack.Screen options={{ title: t('menu.referFriend') }} />
       <ReferralComponent
         referrals={referrals}
         summary={summary}

@@ -7,9 +7,11 @@ import { Colors } from '@/constants/Colors';
 import { Appearance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookmarks } from '@/hooks/useBookmarks';
+import { useTranslation } from 'react-i18next';
 
 export default function SavedProvidersScreen() {
     const router = useRouter();
+    const { t } = useTranslation('account');
     const colorScheme = Appearance.getColorScheme();
     const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
     const styles = createStyles(theme, colorScheme);
@@ -37,7 +39,7 @@ export default function SavedProvidersScreen() {
         <SafeAreaView style={styles.container}>
             <Stack.Screen
                 options={{
-                    headerTitle: "Saved Providers",
+                    headerTitle: t('saved.title'),
                     headerStyle: {
                         backgroundColor: theme.background,
                     },
@@ -58,16 +60,16 @@ export default function SavedProvidersScreen() {
                 {isLoadingProviders && bookmarkedProviders.length === 0 ? (
                     <View style={styles.emptyState}>
                         <ActivityIndicator size="large" color={theme.tint} />
-                        <ThemedText style={styles.emptySubtext}>Loading saved providers...</ThemedText>
+                        <ThemedText style={styles.emptySubtext}>{t('saved.loading')}</ThemedText>
                     </View>
                 ) : bookmarkedProviders.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="bookmark" size={48} color={theme.tabIconDefault} />
                         <ThemedText style={styles.emptyText}>
-                            You haven&apos;t saved any providers yet.
+                            {t('saved.emptyTitle')}
                         </ThemedText>
                         <ThemedText style={styles.emptySubtext}>
-                            Browse providers and tap the bookmark icon to save them here.
+                            {t('saved.emptySubtitle')}
                         </ThemedText>
                     </View>
                 ) : (
@@ -105,7 +107,7 @@ export default function SavedProvidersScreen() {
                                         {provider.rating.toFixed(1)} <Ionicons name="star" size={14} color="#FFD700" />
                                     </ThemedText>
                                     <ThemedText style={styles.reviewCount}>
-                                        ({provider.reviews} reviews)
+                                        {t('saved.reviewCount', { count: provider.reviews })}
                                     </ThemedText>
                                 </View>
                             </View>

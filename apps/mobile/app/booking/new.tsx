@@ -11,10 +11,12 @@ import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
 import { Button } from '@lazone/ui';
+import { useTranslation } from 'react-i18next';
 
 export default function NewBookingScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { t } = useTranslation(['booking', 'common']);
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -28,9 +30,9 @@ export default function NewBookingScreen() {
   if (providerLoading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <Stack.Screen options={{ title: 'Book a Service' }} />
+        <Stack.Screen options={{ title: t('new.title') }} />
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={styles.loadingText}>Loading provider...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('new.loadingProvider')}</ThemedText>
       </View>
     );
   }
@@ -38,8 +40,8 @@ export default function NewBookingScreen() {
   if (!provider) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <Stack.Screen options={{ title: 'Book a Service' }} />
-        <ThemedText>Provider not found</ThemedText>
+        <Stack.Screen options={{ title: t('new.title') }} />
+        <ThemedText>{t('providerNotFound')}</ThemedText>
       </View>
     );
   }
@@ -47,19 +49,19 @@ export default function NewBookingScreen() {
   if (provider.services.length === 0) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background, padding: 24 }]}>
-        <Stack.Screen options={{ title: 'Booking unavailable' }} />
-        <ThemedText style={styles.unavailableTitle}>Booking unavailable</ThemedText>
+        <Stack.Screen options={{ title: t('new.unavailableTitle') }} />
+        <ThemedText style={styles.unavailableTitle}>{t('new.unavailableTitle')}</ThemedText>
         <ThemedText style={styles.unavailableText}>
-          This provider has not published a service yet. Please check back later or choose another provider.
+          {t('new.unavailableMessage')}
         </ThemedText>
-        <Button label="Back to provider" onPress={() => router.back()} variant="primary" />
+        <Button label={t('new.backToProvider')} onPress={() => router.back()} variant="primary" />
       </View>
     );
   }
 
   const handleSubmit = async (input: CreateBookingInput) => {
     if (!user || !userProfile) {
-      showToast('Please sign in to book a service', 'error');
+      showToast(t('new.signInRequired'), 'error');
       return;
     }
 
@@ -79,7 +81,7 @@ export default function NewBookingScreen() {
       });
     } catch (error) {
       console.error('[NewBooking] Error creating booking:', error);
-      const message = error instanceof Error ? error.message : 'Failed to create booking';
+      const message = error instanceof Error ? error.message : t('errors.createFailed');
       showToast(message, 'error');
     } finally {
       setIsSubmitting(false);
@@ -91,8 +93,8 @@ export default function NewBookingScreen() {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen
           options={{
-            title: `Book ${provider.name}`,
-            headerBackTitle: 'Back',
+            title: t('new.bookProvider', { name: provider.name }),
+            headerBackTitle: t('common:actions.back'),
             headerStyle: { backgroundColor: theme.background },
             headerTintColor: theme.text,
           }}

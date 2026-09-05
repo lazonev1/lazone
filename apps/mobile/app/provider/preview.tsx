@@ -12,8 +12,10 @@ import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import type { ProviderViewModel } from '@/types/provider';
 import { useProvider } from '@/hooks/useProvider';
 import { useAuth } from '@/contexts/auth';
+import { useTranslation } from 'react-i18next';
 
 export default function ProviderPreviewScreen() {
+  const { t } = useTranslation('provider');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
@@ -79,7 +81,7 @@ export default function ProviderPreviewScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.centeredState}>
-        <ThemedText>Loading your provider profile…</ThemedText>
+        <ThemedText>{t('preview.loading')}</ThemedText>
       </SafeAreaView>
     );
   }
@@ -87,12 +89,12 @@ export default function ProviderPreviewScreen() {
   if (!provider) {
     return (
       <SafeAreaView style={styles.centeredState}>
-        <ThemedText type="subtitle">Provider profile unavailable</ThemedText>
+        <ThemedText type="subtitle">{t('preview.unavailableTitle')}</ThemedText>
         <ThemedText style={styles.stateMessage}>
-          {error?.message ?? 'Create your provider profile before viewing it.'}
+          {error?.message ?? t('preview.unavailableMessage')}
         </ThemedText>
         <Button
-          label="Edit Provider Profile"
+          label={t('registration.editTitle')}
           onPress={() => router.push({
             pathname: '/provider/registration',
             params: { editMode: 'true', providerId: resolvedProviderId ?? '' },
@@ -118,7 +120,7 @@ export default function ProviderPreviewScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
+        alert(t('preview.permissionRequired'));
         return;
       }
 
@@ -134,7 +136,7 @@ export default function ProviderPreviewScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      alert('An error occurred while picking an image.');
+      alert(t('preview.imagePickError'));
     }
   };
 
@@ -142,7 +144,7 @@ export default function ProviderPreviewScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
+        alert(t('preview.permissionRequired'));
         return;
       }
 
@@ -158,7 +160,7 @@ export default function ProviderPreviewScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      alert('An error occurred while picking an image.');
+      alert(t('preview.imagePickError'));
     }
   };
 
@@ -182,13 +184,13 @@ export default function ProviderPreviewScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
         <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
-          <Text style={styles.tabText}>About</Text>
+          <Text style={styles.tabText}>{t('profile.about')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
-          <Text style={styles.tabText}>Portfolio</Text>
+          <Text style={styles.tabText}>{t('profile.portfolio')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
-          <Text style={styles.tabText}>Reviews</Text>
+          <Text style={styles.tabText}>{t('profile.reviews')}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -224,20 +226,20 @@ export default function ProviderPreviewScreen() {
           <View style={{ flex: 1 }}>
             <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
             <ThemedText>{provider.profession}</ThemedText>
-            <ThemedText style={styles.rating}>⭐ {provider.rating} | {provider.reviews} Reviews</ThemedText>
+            <ThemedText style={styles.rating}>{t('profile.ratingSummary', { rating: provider.rating, count: provider.reviews })}</ThemedText>
           </View>
         </ThemedView>
 
         <View style={styles.actionsRow}>
           <Button
-            label="Message"
+            label={t('profile.message')}
             onPress={() => {}}
             variant="primary"
             size="small"
             style={styles.actionButton}
           />
           <Button
-            label="Follow"
+            label={t('profile.follow')}
             onPress={() => {}}
             variant="primary"
             size="small"
@@ -249,23 +251,23 @@ export default function ProviderPreviewScreen() {
 
         <View style={styles.tabsRow} onLayout={onMainTabsLayout}>
           <TouchableOpacity onPress={() => scrollTo(aboutRef)} style={styles.tab}>
-            <Text style={styles.tabText}>About</Text>
+            <Text style={styles.tabText}>{t('profile.about')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => scrollTo(portfolioRef)} style={styles.tab}>
-            <Text style={styles.tabText}>Portfolio</Text>
+            <Text style={styles.tabText}>{t('profile.portfolio')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => scrollTo(testimonialRef)} style={styles.tab}>
-            <Text style={styles.tabText}>Reviews</Text>
+            <Text style={styles.tabText}>{t('profile.reviews')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section} ref={aboutRef}>
-          <ThemedText type="subtitle">About</ThemedText>
+          <ThemedText type="subtitle">{t('profile.about')}</ThemedText>
           <ThemedText>{provider.bio}</ThemedText>
         </View>
 
         <View style={styles.section} ref={portfolioRef}>
-          <ThemedText type="subtitle">Portfolio</ThemedText>
+          <ThemedText type="subtitle">{t('profile.portfolio')}</ThemedText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
             {(portfolioExpanded ? provider.portfolio : provider.portfolio.slice(0, 1)).map((item, i) => (
               <View key={i} style={styles.card}>
@@ -276,13 +278,13 @@ export default function ProviderPreviewScreen() {
           </ScrollView>
           {provider.portfolio.length > 1 && (
             <Pressable onPress={() => setPortfolioExpanded(!portfolioExpanded)}>
-              <ThemedText style={styles.toggle}>{portfolioExpanded ? 'Show Less' : 'See More'}</ThemedText>
+              <ThemedText style={styles.toggle}>{portfolioExpanded ? t('profile.showLess') : t('profile.seeMore')}</ThemedText>
             </Pressable>
           )}
         </View>
 
         <View style={styles.section}>
-          <ThemedText type="subtitle">Service Showcase</ThemedText>
+          <ThemedText type="subtitle">{t('profile.serviceShowcase')}</ThemedText>
           {(servicesExpanded ? provider.services : provider.services.slice(0, 1)).map((service, i) => (
             <View key={i} style={styles.serviceCard}>
               <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
@@ -292,13 +294,13 @@ export default function ProviderPreviewScreen() {
           ))}
           {provider.services.length > 1 && (
             <Pressable onPress={() => setServicesExpanded(!servicesExpanded)}>
-              <ThemedText style={styles.toggle}>{servicesExpanded ? 'Show Less' : 'See More'}</ThemedText>
+              <ThemedText style={styles.toggle}>{servicesExpanded ? t('profile.showLess') : t('profile.seeMore')}</ThemedText>
             </Pressable>
           )}
         </View>
 
         <View style={styles.section} ref={testimonialRef}>
-          <ThemedText type="subtitle">Client Reviews</ThemedText>
+          <ThemedText type="subtitle">{t('preview.clientReviews')}</ThemedText>
           <ReviewsComponent
             reviews={reviewItems}
             stats={reviewStats}
@@ -311,10 +313,10 @@ export default function ProviderPreviewScreen() {
         </View>
 
         <View style={styles.section}>
-          <ThemedText type="subtitle">Pricing Estimate</ThemedText>
+          <ThemedText type="subtitle">{t('profile.pricingEstimate')}</ThemedText>
           <ThemedText>{provider.pricing}</ThemedText>
           <Button
-            label="Edit Profile"
+            label={t('preview.editProfile')}
             onPress={handleEditProfile}
             variant="primary"
             style={styles.quoteButton}

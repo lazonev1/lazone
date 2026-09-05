@@ -1,0 +1,205 @@
+{
+  "title": "Bookings",
+  "providerNotFound": "Provider not found",
+  "new": {
+    "title": "Book a Service",
+    "bookProvider": "Book {{name}}",
+    "loadingProvider": "Loading provider...",
+    "unavailableTitle": "Booking unavailable",
+    "unavailableMessage": "This provider has not published a service yet. Please check back later or choose another provider.",
+    "backToProvider": "Back to provider",
+    "signInRequired": "Please sign in to book a service"
+  },
+  "edit": {
+    "title": "Edit Booking",
+    "confirmTitle": "Confirm Changes",
+    "confirmMessage": "Are you sure you want to modify this booking?",
+    "update": "Update",
+    "updated": "Booking updated"
+  },
+  "form": {
+    "selectService": "Select Service *",
+    "serviceOption": "{{name}} ({{price}} CFA)",
+    "preferredDateTime": "Preferred Date and Time *",
+    "proposedPrice": "Your Proposed Price (CFA) *",
+    "enterAmount": "Enter amount",
+    "requestChecklist": "Request Checklist *",
+    "checklistHelper": "List the specific outcomes the provider must complete.",
+    "itemPlaceholder": "Item {{number}}",
+    "remove": "Remove",
+    "addChecklistItem": "+ Add checklist item",
+    "additionalDetails": "Additional Details (Optional)",
+    "additionalDetailsPlaceholder": "Any specific requirements or details...",
+    "submitting": "Submitting...",
+    "submitRequest": "Submit Request",
+    "errors": {
+      "service": "Please select a service",
+      "date": "Please select a date",
+      "price": "Please enter your proposed price",
+      "checklist": "Add a description for each checklist item"
+    }
+  },
+  "review": {
+    "title": "Review your booking",
+    "checkFailed": "We could not check this booking yet. Please try again.",
+    "selectRating": "Select a rating to continue.",
+    "tooLong": "Keep your review to 500 characters or fewer.",
+    "submitFailed": "Could not submit your review.",
+    "unavailableTitle": "Review unavailable",
+    "unavailableMessage": "Reviews can be left by the requester after the provider completes the booking.",
+    "submittedTitle": "Review submitted",
+    "submittedMessage": "Thanks for sharing feedback about {{name}}.",
+    "howWasService": "How was your service?",
+    "serviceWith": "{{service}} with {{name}}",
+    "starLabel_one": "{{count}} star",
+    "starLabel_other": "{{count}} stars",
+    "commentLabel": "Tell us about your experience (optional)",
+    "commentPlaceholder": "What went well? What could be improved?",
+    "submitting": "Submitting...",
+    "submitReview": "Submit Review",
+    "backToBooking": "Back to Booking"
+  },
+  "success": {
+    "title": "Booking Request Sent",
+    "message": "Your request has been sent to {{name}}. You can view the booking now or return to the provider's profile.",
+    "viewDetails": "View Booking Details",
+    "returnToProvider": "Return to Provider"
+  },
+  "booked": {
+    "title": "My Bookings",
+    "loading": "Loading bookings...",
+    "loginTitle": "Welcome Back!",
+    "loginMessage": "Log in to view and manage your bookings.",
+    "filters": {
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "empty": {
+      "noneTitle": "No bookings yet",
+      "browseSubtitle": "Browse providers and book a service to get started.",
+      "activeTitle": "No active bookings",
+      "completedTitle": "No completed bookings",
+      "completedSubtitle": "Your finished bookings will appear here.",
+      "cancelledTitle": "No cancelled bookings",
+      "cancelledSubtitle": "Cancelled bookings will appear here.",
+      "findProvider": "Find a Provider"
+    }
+  },
+  "card": {
+    "dateAtTime": "{{date}} at {{time}}"
+  },
+  "errors": {
+    "fetchBookings": "Failed to fetch bookings",
+    "signInRequired": "User must be signed in to book",
+    "createFailed": "Failed to create booking",
+    "cancelFailed": "Failed to cancel booking",
+    "fetchBooking": "Failed to fetch booking",
+    "noBookingLoaded": "No booking loaded",
+    "updateFailed": "Failed to update booking",
+    "statusUpdateFailed": "Failed to update booking status",
+    "fetchProviderBookings": "Failed to fetch provider bookings",
+    "acceptFailed": "Failed to accept booking",
+    "declineFailed": "Failed to decline booking"
+  },
+  "status": {
+    "pending": "Pending",
+    "confirmed": "Accepted",
+    "in_progress": "In Progress",
+    "awaiting_confirmation": "Awaiting Confirmation",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "details": {
+    "title": "Booking Details",
+    "loading": "Loading booking...",
+    "notFound": "Booking not found",
+    "goBack": "Go Back",
+    "banner": "Booking {{status}}",
+    "ref": "Ref: #{{ref}}",
+    "dateNotSet": "Date not set",
+    "invalidDate": "Invalid date",
+    "service": "Service",
+    "price": "Price",
+    "dateTime": "Date & Time",
+    "clientInformation": "Client Information",
+    "providerInformation": "Provider Information",
+    "viewProfile": "View Profile",
+    "message": "Message",
+    "requestChecklist": "Request Checklist",
+    "reviewChecklistNotice": "Review these requested outcomes. The provider progress is shown for reference; use the actions below to confirm or request changes.",
+    "changesRequested": "Changes requested: {{reason}}",
+    "additionalDetails": "Additional Details",
+    "timelineTitle": "Booking Timeline",
+    "timelineUnavailable": "Timeline history is temporarily unavailable. Showing the current status.",
+    "created": "Booking Created",
+    "currentStatus": "Current status: {{status}}",
+    "timelineEvents": {
+      "accepted": "Booking Accepted",
+      "workResumed": "Changes Requested — Work Resumed",
+      "started": "Service Started",
+      "completionSubmitted": "Completion Submitted for Review",
+      "completed": "Service Completed",
+      "declined": "Booking Declined",
+      "cancelled": "Booking Cancelled"
+    },
+    "actions": {
+      "acceptBooking": "Accept Booking",
+      "accepting": "Accepting...",
+      "decline": "Decline",
+      "declining": "Declining...",
+      "startService": "Start Service",
+      "starting": "Starting...",
+      "submitForConfirmation": "Submit for Confirmation",
+      "submitting": "Submitting...",
+      "editBooking": "Edit Booking",
+      "cancelBooking": "Cancel Booking",
+      "confirmWorkCompleted": "Confirm Work Completed",
+      "requestChanges": "Request Changes",
+      "sending": "Sending...",
+      "leaveReview": "Leave a Review"
+    },
+    "changeRequest": {
+      "label": "Need changes?",
+      "placeholder": "Describe what is still missing"
+    },
+    "notices": {
+      "awaitingRequesterReview": "Submitted for requester review. You will be notified when they confirm or request changes.",
+      "providerSubmitted": "The provider submitted this work for your review. Check each requested outcome before confirming."
+    },
+    "alerts": {
+      "cancelTitle": "Cancel Booking",
+      "cancelMessage": "Are you sure you want to cancel this booking? This cannot be undone.",
+      "keepBooking": "Keep Booking",
+      "cannotEditTitle": "Cannot Edit",
+      "cannotEditMessage": "Only pending bookings can be modified.",
+      "declineTitle": "Decline Request",
+      "declineMessage": "Are you sure you want to decline this request from {{name}}?",
+      "startTitle": "Start Service",
+      "startMessage": "Confirm that you are starting this service now.",
+      "submitTitle": "Submit for Confirmation",
+      "submitMessage": "The requester will review the checklist and confirm the delivered work.",
+      "confirmCompletionTitle": "Confirm completed work",
+      "confirmCompletionMessage": "Confirm that the provider delivered everything in your request. This moves the booking to Completed.",
+      "notYet": "Not yet"
+    },
+    "toasts": {
+      "conversationFailed": "Failed to open conversation",
+      "cancelled": "Booking cancelled",
+      "cancelFailed": "Failed to cancel booking",
+      "accepted": "Booking accepted",
+      "acceptFailed": "Failed to accept booking",
+      "declined": "Request declined",
+      "declineFailed": "Failed to decline request",
+      "statusUpdateFailed": "Could not update the booking status",
+      "checklistUpdateFailed": "Could not update checklist",
+      "serviceInProgress": "Service marked as in progress",
+      "workSubmitted": "Work submitted for requester confirmation",
+      "completionConfirmed": "Completion confirmed",
+      "completionFailed": "Could not confirm completion",
+      "changesRequested": "Changes requested from the provider",
+      "changeRequestFailed": "Could not request changes",
+      "describeChanges": "Please describe what still needs to be done"
+    }
+  }
+}

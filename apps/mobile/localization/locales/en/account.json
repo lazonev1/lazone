@@ -1,0 +1,160 @@
+{
+  "title": "Account",
+  "menu": {
+    "savedBusinesses": "Saved Businesses",
+    "paymentMethods": "Payment Methods",
+    "referFriend": "Refer a Friend",
+    "preferences": "Preferences",
+    "notificationSettings": "Notification Settings",
+    "help": "Help & Support",
+    "terms": "Terms and Policies",
+    "settings": "Settings",
+    "support": "Support",
+    "managePayment": "Manage Payment Info",
+    "addPaymentMethod": "Add Payment Method",
+    "securityInfo": "Security Info"
+  },
+  "tab": {
+    "loginTitle": "Welcome Back!",
+    "loginMessage": "Log in to view and manage your account.",
+    "profileLoadFailed": "Could not load profile. This can happen if the database entry is missing for this user.",
+    "refreshProfile": "Try to Refresh Profile",
+    "logout": "Logout",
+    "businessVisibility": "Business Visibility",
+    "businessVisible": "Your business is visible to clients",
+    "businessHidden": "Your business is hidden from clients",
+    "becomeProviderHint": "Offer your services and start earning"
+  },
+  "info": {
+    "title": "Account Info",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "noName": "No name provided",
+    "noEmail": "No email on file",
+    "noPhone": "No phone number on file",
+    "editInformation": "Edit Information",
+    "changePhoto": "Change Photo",
+    "accountManagement": "Account Management",
+    "deactivate": "Deactivate and deletion",
+    "changePassword": "Change Password",
+    "logoutTitle": "Logout",
+    "logoutMessage": "Are you sure you want to logout?",
+    "logout": "Logout",
+    "editPopup": {
+      "title": "Edit Information",
+      "missingInfoTitle": "Missing Info",
+      "missingInfoMessage": "First name and last name are required.",
+      "confirmTitle": "Confirm Changes",
+      "confirmMessage": "Are you sure you want to update your information?",
+      "update": "Update",
+      "successMessage": "Your information has been updated.",
+      "errorMessage": "Could not save your info. Please try again.",
+      "firstName": "First Name",
+      "firstNamePlaceholder": "Enter your first name",
+      "lastName": "Last Name",
+      "lastNamePlaceholder": "Enter your last name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email address",
+      "phone": "Phone",
+      "phonePlaceholder": "Enter your phone number"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "allTitle": "All Notifications",
+    "allEnabled": "All notifications are enabled",
+    "allDisabled": "All notifications are disabled",
+    "someEnabled": "Some notifications are enabled",
+    "messages": {
+      "title": "New Messages",
+      "description": "Get notified when you receive new messages"
+    },
+    "bookings": {
+      "title": "Booking Updates",
+      "description": "Status changes for your bookings"
+    },
+    "reminders": {
+      "title": "Appointment Reminders",
+      "description": "Reminders before your scheduled appointments"
+    },
+    "payments": {
+      "title": "Payment Confirmations",
+      "description": "Receive updates on payment status"
+    },
+    "promotions": {
+      "title": "Offers & Promotions",
+      "description": "News about discounts and special offers"
+    },
+    "updates": {
+      "title": "Service Updates",
+      "description": "Important updates about LaZone platform"
+    }
+  },
+  "wallet": {
+    "title": "Wallet",
+    "securityTitle": "Security Information",
+    "encryption": "End-to-End Encryption",
+    "encryptionText": "We use the latest encryption algorithms to securely store your information.",
+    "secureTransactions": "Secure Transactions",
+    "secureTransactionsText": "All transactions are processed through secure channels using industry-standard security algorithms.",
+    "default": "Default",
+    "setAsDefault": "Set as Default"
+  },
+  "saved": {
+    "title": "Saved Providers",
+    "loading": "Loading saved providers...",
+    "emptyTitle": "You haven't saved any providers yet.",
+    "emptySubtitle": "Browse providers and tap the bookmark icon to save them here.",
+    "reviewCount_one": "({{count}} review)",
+    "reviewCount_other": "({{count}} reviews)"
+  },
+  "refer": {
+    "heroTitle": "Refer Friends, Get Rewarded",
+    "heroSubtitle": "Share your code and earn rewards when friends join and use LaZone.",
+    "codeLabel": "Your referral code",
+    "copy": "Copy",
+    "share": "Share Referral",
+    "shareMessage": "Join LaZone — the #1 service marketplace! Use my referral code {{code}} when you sign up and we both get rewarded. Download now: https://lazone.app/refer?code={{code}}",
+    "referred": "Referred",
+    "completed": "Completed",
+    "rewarded": "Rewarded",
+    "totalRewards": "Total rewards earned",
+    "howItWorks": "How it works",
+    "step": "Step {{number}}",
+    "step1": "Share your code with friends via SMS, WhatsApp, or any app",
+    "step2": "Your friend signs up on LaZone using your code",
+    "step3": "You both get rewarded after their first completed service",
+    "filterAll": "All",
+    "status": {
+      "signed_up": "Signed Up",
+      "completed": "Completed",
+      "rewarded": "Rewarded"
+    },
+    "yourReferrals": "Your Referrals",
+    "emptyTitle": "No Referrals Yet",
+    "emptyMessage": "Share your referral code to start inviting friends!",
+    "copied": "Copied!"
+  },
+  "placeholder": {
+    "comingSoon": "Coming Soon",
+    "underConstruction": "This feature is under construction. Check back soon!"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "language": {
+      "label": "Language",
+      "description": "Select your preferred language. The app will use this language throughout the interface."
+    },
+    "appearance": {
+      "label": "Appearance",
+      "description": "Choose how LaZone looks on your device.",
+      "system": "System Default",
+      "systemDescription": "Match your device settings",
+      "light": "Light",
+      "lightDescription": "Light background with dark text",
+      "dark": "Dark",
+      "darkDescription": "Dark background with light text"
+    }
+  }
+}

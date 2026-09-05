@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
+import i18n from '@/localization';
 
 /**
  * Checks if a user is authenticated before performing an action.
@@ -10,20 +11,20 @@ import { router } from 'expo-router';
  * @returns `true` if authenticated, `false` if the sign-in alert was shown
  *
  * Usage:
- *   if (!requireAuth(currentUserId, 'Please sign in to save providers.')) return;
+ *   if (!requireAuth(currentUserId, t('provider:profile.signInToSave'))) return;
  */
 export function requireAuth(
   userId: string | undefined | null,
-  message = 'Please sign in to continue.'
+  message?: string
 ): boolean {
   if (userId) return true;
 
   Alert.alert(
-    'Sign in required',
-    message,
+    i18n.t('common:auth.signInRequiredTitle'),
+    message ?? i18n.t('common:auth.signInRequiredMessage'),
     [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
+      { text: i18n.t('common:actions.cancel'), style: 'cancel' },
+      { text: i18n.t('common:auth.signIn'), onPress: () => router.push('/(auth)/login') },
     ]
   );
   return false;

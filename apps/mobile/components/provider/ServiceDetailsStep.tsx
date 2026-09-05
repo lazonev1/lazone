@@ -10,6 +10,7 @@ import { CertificationUploader } from './CertificationUploader';
 import { Ionicons } from '@expo/vector-icons';
 import { generateServiceId } from '@/utils/generateId';
 import { validateService, validateCertification } from '@/utils/validation';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   initialData: Partial<ProviderRegistration>;
@@ -22,7 +23,8 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
-  
+  const { t } = useTranslation('provider');
+
   const [services, setServices] = useState<ServiceItem[]>(initialData?.services || [{
     id: generateServiceId(),
     name: '',
@@ -91,8 +93,8 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
 
     if (services.length === 0) {
       Alert.alert(
-        'Add a service',
-        'Add at least one service so customers know what they can book.'
+        t('registration.services.addServiceTitle'),
+        t('registration.services.addServiceMessage')
       );
       return false;
     }
@@ -128,8 +130,8 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
 
     if (!isValid) {
       Alert.alert(
-        'Incomplete Information',
-        'Please complete at least one service and fill in all fields marked in red.'
+        t('registration.services.incompleteTitle'),
+        t('registration.services.incompleteMessage')
       );
     }
 
@@ -145,37 +147,37 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>    
-        <ThemedText type="subtitle" style={styles.sectionTitle}>Services Offered</ThemedText>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>{t('registration.services.title')}</ThemedText>
         
         {services.map((service, index) => (
           <View key={service.id} style={styles.serviceCard}>
             <View style={styles.serviceHeader}>
-              <ThemedText style={styles.serviceNumber}>Service {index + 1}</ThemedText>
+              <ThemedText style={styles.serviceNumber}>{t('registration.services.serviceNumber', { number: index + 1 })}</ThemedText>
               {renderServiceControls(index, service.id)}
             </View>
             
             <TextBox
-              label="Service Name"
+              label={t('registration.services.name')}
               value={service.name}
               onChangeText={(text) => updateService(service.id, 'name', text)}
-              placeholder="e.g., Basic Electrical Installation"
+              placeholder={t('registration.services.namePlaceholder')}
               error={service.errors?.name}
             />
-            
+
             <TextBox
-              label="Description (Optional)"
+              label={t('registration.services.description')}
               value={service.description}
               onChangeText={(text) => updateService(service.id, 'description', text)}
-              placeholder="Describe what's included in this service..."
+              placeholder={t('registration.services.descriptionPlaceholder')}
               multiline
               numberOfLines={3}
               error={service.errors?.description}
             />
             <TextBox
-              label="Price (CFA)"
+              label={t('registration.services.price')}
               value={service.price}
               onChangeText={(text) => updateService(service.id, 'price', text)}
-              placeholder="e.g., 25000"
+              placeholder={t('registration.services.pricePlaceholder')}
               keyboardType="numeric"
               error={service.errors?.price}
             />
@@ -187,31 +189,31 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
             style={styles.addServiceButton}
           >
             <Ionicons name="add-circle" size={20} color="#0A58A5" />
-            <ThemedText style={styles.addServiceText}>Add Service</ThemedText>
+            <ThemedText style={styles.addServiceText}>{t('registration.services.addService')}</ThemedText>
           </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>Portfolio</ThemedText>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>{t('registration.portfolio.title')}</ThemedText>
         <ThemedText style={styles.sectionDescription}>
-          Add photos of your previous work to showcase your expertise
+          {t('registration.portfolio.subtitle')}
         </ThemedText>
-        
+
         <PortfolioImagePicker  // Updated component name
           images={portfolio}
           onChange={setPortfolio}
           maxImages={6}
           allowCaptions
-          captionPlaceholder="Describe this work (optional)"
+          captionPlaceholder={t('registration.portfolio.captionPlaceholder')}
         />
       </View>
 
       <View style={styles.section}>
         <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Certifications & Recognition
+          {t('registration.certifications.title')}
         </ThemedText>
         <ThemedText style={styles.sectionDescription}>
-          Add any relevant certifications or professional recognition
+          {t('registration.certifications.subtitle')}
         </ThemedText>
 
         <CertificationUploader
@@ -221,7 +223,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
       </View>
 
       <Button
-        label={isEditMode ? "Save Changes" : "Complete Registration"}
+        label={isEditMode ? t('registration.services.saveChanges') : t('registration.services.completeRegistration')}
         onPress={handleSubmit}
         variant="primary"
         style={styles.submitButton}

@@ -6,11 +6,10 @@
  */
 
 export {
-  CATEGORIES,
-  Categories,
+  getCategories,
   getCategoryById,
   getCategoryByName,
   getCategoryOptions,
-  type Category
+  type Category,
+  type CategoryId,
 } from '@/constants/categories';
-

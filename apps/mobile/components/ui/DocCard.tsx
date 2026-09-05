@@ -2,6 +2,7 @@ import { ThemedView } from '@/components/ThemedView'
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@lazone/ui'
 import { StyleSheet, Alert } from 'react-native'
+import { useTranslation } from 'react-i18next'
 
 type DocType = {
 	type: 'certificate' | 'reference' | 'id'
@@ -10,6 +11,7 @@ type DocType = {
 }
 
 const DocCard = ({ type, title, description }: DocType) => {
+	const { t } = useTranslation('common');
 	return <ThemedView style={styles.card}>
 		<ThemedText style={styles.title}>
 			{title}
@@ -18,7 +20,7 @@ const DocCard = ({ type, title, description }: DocType) => {
 		<ThemedText style={styles.desc}>
 			{description}
 		</ThemedText>
-		<Button label='Submit' onPress={() => { Alert.alert("Bonjour") }}></Button>
+		<Button label={t('actions.submit')} onPress={() => { Alert.alert("Bonjour") }}></Button>
 	</ThemedView>
 
 

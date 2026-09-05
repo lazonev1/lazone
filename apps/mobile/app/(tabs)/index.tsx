@@ -3,7 +3,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
-import { CATEGORIES } from '@/constants/categories';
+import { getCategories } from '@/constants/categories';
+import { useTranslation } from 'react-i18next';
 import ServiceCategoryCard from '../../components/provider/ServiceCategoryCard';
 import { ProviderList } from '@/components/provider/ProviderList';
 import SearchBar from '@/components/ui/SearchBar';
@@ -16,6 +17,8 @@ export default function HomeScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
+  const { t } = useTranslation('explore');
+  const categories = getCategories();
   const [searchText, setSearchText] = useState('');
   const [displayedCount, setDisplayedCount] = useState(10);
 
@@ -62,12 +65,12 @@ export default function HomeScreen() {
     <>
       <View style={styles.contentPadding}>
         <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Popular Services
+          {t('home.popularServices')}
         </ThemedText>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <ServiceCategoryCard
             key={cat.id}
             id={cat.id}
@@ -79,7 +82,7 @@ export default function HomeScreen() {
 
       <View style={styles.contentPadding}>
         <ThemedText type="subtitle" style={styles.exploreTitle}>
-          Explore beautiful work
+          {t('home.exploreWork')}
         </ThemedText>
       </View>
     </>
@@ -102,7 +105,7 @@ export default function HomeScreen() {
           onEndReached={handleLoadMore}
           hasMore={displayedCount < sortedProviders.length}
           ListHeaderComponent={ListHeaderComponent}
-          emptyMessage="No providers available yet"
+          emptyMessage={t('home.noProviders')}
         />
       </SafeAreaView>
     </TouchableWithoutFeedback>

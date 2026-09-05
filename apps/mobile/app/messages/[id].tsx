@@ -12,6 +12,7 @@ import { useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/auth';
 import * as messageRepository from '@/repositories/messageRepository';
 import { formatDateDivider } from '@/backend/main/src/utils/utils';
+import { useTranslation } from 'react-i18next';
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ id?: string | string[]; name?: string | string[]; avatar?: string | string[] }>();
@@ -27,6 +28,7 @@ export default function ConversationScreen() {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const styles = createStyles(theme, colorScheme);
   const { height: screenHeight } = useWindowDimensions();
+  const { t } = useTranslation(['messages', 'common']);
 
   const { user } = useAuth();
   const userId = user?.uid ?? '';
@@ -121,13 +123,13 @@ export default function ConversationScreen() {
         });
 
         const durationMillis = status.durationMillis ?? 0;
-        const voiceNoteText = `🎤 Voice note (${formatDuration(durationMillis)})`;
+        const voiceNoteText = t('chat.voiceNote', { duration: formatDuration(durationMillis) });
         await sendMessage(userId, voiceNoteText);
       } catch (err) {
         console.error('Failed to stop recording:', err);
         setIsRecording(false);
         recordingRef.current = null;
-        Alert.alert('Error', 'Failed to save voice note. Please try again.');
+        Alert.alert(t('common:alerts.error'), t('chat.voiceSaveFailed'));
       }
       return;
     }
@@ -135,7 +137,7 @@ export default function ConversationScreen() {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Microphone permission needed', 'Please allow microphone access to record voice notes.');
+        Alert.alert(t('chat.micPermissionTitle'), t('chat.micPermissionMessage'));
         return;
       }
 
@@ -151,9 +153,9 @@ export default function ConversationScreen() {
       setIsRecording(true);
     } catch (err) {
       console.error('Failed to start recording:', err);
-      Alert.alert('Error', 'Could not start voice recording.');
+      Alert.alert(t('common:alerts.error'), t('chat.voiceStartFailed'));
     }
-  }, [isRecording, sendMessage, userId]);
+  }, [isRecording, sendMessage, userId, t]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !userId) return;
@@ -172,7 +174,7 @@ export default function ConversationScreen() {
       await sendMessage(userId, text);
     } catch (err) {
       console.error('Failed to send message:', err);
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      Alert.alert(t('common:alerts.error'), t('chat.sendFailed'));
       setMessageText(text); // Restore the message on failure
     }
   };
@@ -214,12 +216,12 @@ export default function ConversationScreen() {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={theme.tint} />
-        <ThemedText style={{ marginTop: 12 }}>Loading conversation...</ThemedText>
+        <ThemedText style={{ marginTop: 12 }}>{t('chat.loading')}</ThemedText>
       </SafeAreaView>
     );
   }
 
-  const contactName = name ?? 'Conversation';
+  const contactName = name ?? t('chat.defaultTitle');
   const contactAvatar = avatar ? { uri: avatar } : require('@/assets/images/avatar-placeholder.png');
 
   return (
@@ -270,7 +272,7 @@ export default function ConversationScreen() {
         >
           {error && (
             <ThemedText style={styles.errorText}>
-              Unable to load messages. Reopen this chat to reconnect.
+              {t('chat.loadError')}
             </ThemedText>
           )}
           {Object.entries(groupedMessages).map(([date, msgs]) => (
@@ -294,13 +296,13 @@ export default function ConversationScreen() {
 
         <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
           <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.inputButton} onPress={() => Alert.alert('Coming soon')}>
+            <TouchableOpacity style={styles.inputButton} onPress={() => Alert.alert(t('chat.comingSoon'))}>
               <Ionicons name='add-outline' size={24} color='#0A58A5' />
             </TouchableOpacity>
 
             <TextInput
               style={styles.input}
-              placeholder="Message"
+              placeholder={t('chat.inputPlaceholder')}
               placeholderTextColor={theme.tabIconDefault}
               value={messageText}
               onChangeText={handleTextChange}

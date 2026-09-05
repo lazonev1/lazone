@@ -5,6 +5,7 @@ import { BookingViewModel } from '@/types/booking';
 import { BookingStatus, getStatusColor } from './BookingStatus';
 import { ArrowButton } from '@/components/ui/ArrowButton';
 import { Colors } from '@/constants/Colors';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   booking: BookingViewModel;
@@ -14,19 +15,21 @@ type Props = {
 export function BookingCard({ booking, onPress }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { t, i18n } = useTranslation('booking');
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
 
   const formatDateTime = (dateString: string) => {
     try {
       const date = new Date(dateString);
       return {
-        date: date.toLocaleDateString('en-US', {
+        date: date.toLocaleDateString(dateLocale, {
           month: 'short',
           day: 'numeric',
         }),
-        time: date.toLocaleTimeString('en-US', {
+        time: date.toLocaleTimeString(dateLocale, {
           hour: 'numeric',
           minute: '2-digit',
-          hour12: true,
+          hour12: i18n.language !== 'fr',
         }).toLowerCase()
       };
     } catch {
@@ -35,7 +38,7 @@ export function BookingCard({ booking, onPress }: Props) {
   };
 
   const { date, time } = formatDateTime(booking.bookingDate);
-  const formattedDateTime = `${date} at ${time}`;
+  const formattedDateTime = t('card.dateAtTime', { date, time });
 
   return (
     <TouchableOpacity

@@ -10,10 +10,12 @@ import { useAuth } from '@/contexts/auth';
 import { useBookingDetail } from '@/hooks/useBookings';
 import { useReviews } from '@/hooks/useReviews';
 import * as ReviewService from '@/backend/main/src/services/reviewService';
+import { useTranslation } from 'react-i18next';
 
 export default function BookingReviewScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId?: string }>();
   const router = useRouter();
+  const { t } = useTranslation('booking');
   const { user } = useAuth();
   const { booking, isLoading: bookingLoading } = useBookingDetail(bookingId);
   const colorScheme = Appearance.getColorScheme();
@@ -32,10 +34,10 @@ export default function BookingReviewScreen() {
     if (!bookingId) { setCheckingReview(false); return () => { active = false; }; }
     ReviewService.getReviewByBookingId(bookingId)
       .then((review) => { if (active) setExistingReview(Boolean(review)); })
-      .catch(() => { if (active) setError('We could not check this booking yet. Please try again.'); })
+      .catch(() => { if (active) setError(t('review.checkFailed')); })
       .finally(() => { if (active) setCheckingReview(false); });
     return () => { active = false; };
-  }, [bookingId]);
+  }, [bookingId, t]);
 
   const canReview = Boolean(
     user?.uid && booking && booking.requesterId === user.uid && booking.status === 'completed'
@@ -43,15 +45,15 @@ export default function BookingReviewScreen() {
 
   const handleSubmit = async () => {
     if (!booking || !bookingId || !canReview) return;
-    if (rating < 1) { setError('Select a rating to continue.'); return; }
-    if (comment.length > 500) { setError('Keep your review to 500 characters or fewer.'); return; }
+    if (rating < 1) { setError(t('review.selectRating')); return; }
+    if (comment.length > 500) { setError(t('review.tooLong')); return; }
     setSubmitting(true);
     setError('');
     try {
       await submitReview({ rating, comment: comment.trim(), bookingId, serviceId: booking.serviceId });
       setExistingReview(true);
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Could not submit your review.');
+      setError(submissionError instanceof Error ? submissionError.message : t('review.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -63,30 +65,30 @@ export default function BookingReviewScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: 'Review your booking', headerTintColor: theme.text }} />
+      <Stack.Screen options={{ title: t('review.title'), headerTintColor: theme.text }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {!booking || !canReview ? (
           <>
             <Ionicons name="lock-closed-outline" size={52} color={theme.icon} />
-            <ThemedText type="title" style={styles.title}>Review unavailable</ThemedText>
-            <ThemedText style={styles.centerText}>Reviews can be left by the requester after the provider completes the booking.</ThemedText>
+            <ThemedText type="title" style={styles.title}>{t('review.unavailableTitle')}</ThemedText>
+            <ThemedText style={styles.centerText}>{t('review.unavailableMessage')}</ThemedText>
           </>
         ) : existingReview ? (
           <>
             <Ionicons name="checkmark-circle" size={64} color="#2E7D32" />
-            <ThemedText type="title" style={styles.title}>Review submitted</ThemedText>
-            <ThemedText style={styles.centerText}>Thanks for sharing feedback about {booking.providerName}.</ThemedText>
+            <ThemedText type="title" style={styles.title}>{t('review.submittedTitle')}</ThemedText>
+            <ThemedText style={styles.centerText}>{t('review.submittedMessage', { name: booking.providerName })}</ThemedText>
           </>
         ) : (
           <>
-            <ThemedText type="title" style={styles.title}>How was your service?</ThemedText>
-            <ThemedText style={styles.subtitle}>{booking.serviceName} with {booking.providerName}</ThemedText>
+            <ThemedText type="title" style={styles.title}>{t('review.howWasService')}</ThemedText>
+            <ThemedText style={styles.subtitle}>{t('review.serviceWith', { service: booking.serviceName, name: booking.providerName })}</ThemedText>
             <View accessibilityRole="radiogroup" style={styles.stars}>
               {[1, 2, 3, 4, 5].map((value) => (
                 <TouchableOpacity
                   key={value}
                   accessibilityRole="radio"
-                  accessibilityLabel={`${value} star${value === 1 ? '' : 's'}`}
+                  accessibilityLabel={t('review.starLabel', { count: value })}
                   accessibilityState={{ selected: rating === value }}
                   onPress={() => setRating(value)}
                   style={styles.starButton}
@@ -96,22 +98,22 @@ export default function BookingReviewScreen() {
               ))}
             </View>
             <TextBox
-              label="Tell us about your experience (optional)"
+              label={t('review.commentLabel')}
               value={comment}
               onChangeText={setComment}
               multiline
               numberOfLines={5}
               maxLength={500}
-              placeholder="What went well? What could be improved?"
+              placeholder={t('review.commentPlaceholder')}
               inputStyle={styles.comment}
             />
             <ThemedText style={styles.counter}>{comment.length}/500</ThemedText>
             {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
-            <Button label={submitting ? 'Submitting...' : 'Submit Review'} onPress={handleSubmit} disabled={submitting || rating === 0} variant="primary" style={styles.submit} />
+            <Button label={submitting ? t('review.submitting') : t('review.submitReview')} onPress={handleSubmit} disabled={submitting || rating === 0} variant="primary" style={styles.submit} />
           </>
         )}
         {error && (!canReview || existingReview) ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
-        <Button label="Back to Booking" onPress={() => bookingId ? router.replace(`/booking/${bookingId}`) : router.back()} variant="secondary" style={styles.back} />
+        <Button label={t('review.backToBooking')} onPress={() => bookingId ? router.replace(`/booking/${bookingId}`) : router.back()} variant="secondary" style={styles.back} />
       </ScrollView>
     </View>
   );
