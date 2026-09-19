@@ -40,9 +40,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const currentUser = auth.currentUser;
     if (currentUser) {
       setLoading(true);
-      const profile = await getUserProfile(currentUser.uid);
-      setUserProfile(profile);
-      setLoading(false);
+      try {
+        const profile = await getUserProfile(currentUser.uid);
+        setUserProfile(profile);
+      } finally {
+        setLoading(false);
+      }
     }
   }, []);
 

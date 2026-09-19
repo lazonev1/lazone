@@ -19,7 +19,7 @@ import {
 import {COLLECTIONS, db} from "../config/firebase";
 import {Message} from "../models/Message";
 import {Conversation} from "../models/Conversation";
-import {User} from "../models/User";
+import {PublicProfile} from "../models/PublicProfile";
 
 /**
  * Fetches messages for a conversation with pagination.
@@ -158,14 +158,14 @@ export async function findOrCreateConversation(
 
     // Reads stay inside the transaction so an existing conversation can be
     // returned without depending on either user's profile still existing.
-    const user1Doc = await transaction.get(doc(db, COLLECTIONS.USERS, userId1));
-    const user2Doc = await transaction.get(doc(db, COLLECTIONS.USERS, userId2));
+    const user1Doc = await transaction.get(doc(db, COLLECTIONS.PUBLIC_PROFILES, userId1));
+    const user2Doc = await transaction.get(doc(db, COLLECTIONS.PUBLIC_PROFILES, userId2));
     if (!user1Doc.exists() || !user2Doc.exists()) {
       throw new Error("One or both users not found");
     }
 
-    const user1Data = user1Doc.data() as User;
-    const user2Data = user2Doc.data() as User;
+    const user1Data = user1Doc.data() as PublicProfile;
+    const user2Data = user2Doc.data() as PublicProfile;
     const newConversation: Omit<Conversation, "_id"> = {
       participants: [userId1, userId2],
       participantDetails: {

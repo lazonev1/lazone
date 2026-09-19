@@ -14,6 +14,8 @@
     "filters": "Filters",
     "hide": "Hide",
     "distance": "Distance: {{km}}km",
+    "anyDistance": "Any distance",
+    "locationUnavailable": "Location is unavailable. Showing providers without a distance filter; enable location to search nearby.",
     "minRating": "Minimum Rating: {{rating}}⭐",
     "maxPrice": "Maximum Price: {{price}}CFA",
     "remoteOnly": "Remote Services Only",

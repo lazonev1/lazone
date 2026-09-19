@@ -21,7 +21,6 @@ function transformProviderViewModelToRegistration(
   return {
     businessName: provider.businessName || provider.name,
     serviceCategory: provider.categoryName,
-    phone: provider.phoneNumber || '',
     description: provider.bio,
     location: {
       country: provider.locationDetails?.country || 'BF',

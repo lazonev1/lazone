@@ -1,7 +1,7 @@
 import { Review, ReviewStats } from '@/types/provider';
 import { Review as ReviewModel } from '@/backend/main/src/models/Review';
 import * as ReviewService from '@/backend/main/src/services/reviewService';
-import * as ProviderService from '@/backend/main/src/services/providerService';
+import { getPublicProfile } from '@/backend/main/src/services/publicProfileService';
 
 /**
  * Review Repository
@@ -23,7 +23,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
 
   try {
     if (requesterId) {
-      const user = await ProviderService.getUserById(requesterId as string);
+      const user = await getPublicProfile(requesterId as string);
       if (user) {
         clientName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous';
         clientAvatar = user.avatar;

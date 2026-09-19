@@ -17,7 +17,7 @@ import { db, COLLECTIONS } from "../config/firebase";
  *   - A user realistically saves 10-50 providers, not thousands
  *   - No extra metadata needed (just provider IDs)
  *   - One fewer collection/subcollection to manage
- *   - The bookmarked field is already on the User model (Provider inherits it)
+ *   - Requesters and providers share the same private User account and bookmarks
  *   - arrayUnion/arrayRemove are atomic — no read-modify-write needed
  */
 
@@ -57,5 +57,4 @@ export async function getBookmarkedProviderIds(userId: string): Promise<string[]
 
   return (snap.data().bookmarked as string[]) || [];
 }
-
 

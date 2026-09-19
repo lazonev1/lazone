@@ -1,5 +1,5 @@
-import {collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,} from "firebase/firestore";
-import {db} from "../config/firebase";
+import {collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch} from "firebase/firestore";
+import {auth, db} from "../config/firebase";
 import {Provider} from "../models/Provider";
 import {Review} from "../models/Review";
 import {Portfolio} from "../models/Portfolio";
@@ -35,7 +35,7 @@ export async function getProviderById(providerId: string): Promise<Provider | nu
  */
 export async function getAllProviders(): Promise<Provider[]> {
   try {
-    const providersSnapshot = await getDocs(collection(db, "providers"));
+    const providersSnapshot = await getDocs(query(collection(db, "providers"), where('publicSchemaVersion', '==', 1)));
 
     return providersSnapshot.docs.map(doc => ({
       _id: doc.id,
@@ -52,17 +52,14 @@ export async function getAllProviders(): Promise<Provider[]> {
  */
 export async function getProvidersByCategory(category: string): Promise<Provider[]> {
   try {
-    const q = query(
-      collection(db, "providers"),
-      where("categoryName", "==", category)
-    );
+    const q = query(collection(db, "providers"), where('publicSchemaVersion', '==', 1));
 
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map(doc => ({
       _id: doc.id,
       ...doc.data()
-    } as Provider));
+    } as Provider)).filter(provider => provider.categoryName === category);
   } catch (error) {
     console.error("Error fetching providers by category:", error);
     throw error;
@@ -128,9 +125,10 @@ export async function getServicesByUserId(userId: string): Promise<Service[]> {
 }
 
 /**
- * Fetches a user document by ID
+ * Fetches the signed-in owner's private account document for enrollment.
  */
-export async function getUserById(userId: string): Promise<User | null> {
+export async function getOwnUserById(userId: string): Promise<User | null> {
+  if (auth.currentUser?.uid !== userId) throw new Error('Cannot read another account');
   try {
     const userDoc = await getDoc(doc(db, "users", userId));
 
@@ -145,29 +143,20 @@ export async function getUserById(userId: string): Promise<User | null> {
   }
 }
 
-/**
- * Creates a new provider document
- * Uses the userId as the document ID for better security rule matching
- * @param userId - The user ID to use as the provider document ID
- * @param providerData - Provider data to create
- */
-export async function createProvider(
+/** Publish the provider and promote the account as one Firestore commit. */
+export async function createProviderAndPromote(
   userId: string,
-  providerData: Omit<Provider, "_id">
+  providerData: Omit<Provider, '_id'>
 ): Promise<string> {
-  try {
-    const docRef = doc(db, "providers", userId);
-    await setDoc(docRef, {
-      ...providerData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    console.log('[ProviderService] Provider document created successfully:', userId);
-    return userId;
-  } catch (error) {
-    console.error("Error creating provider:", error);
-    throw error;
-  }
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'providers', userId), {
+    ...providerData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  batch.update(doc(db, 'users', userId), { role: 'both', updatedAt: serverTimestamp() });
+  await batch.commit();
+  return userId;
 }
 
 /**
@@ -184,56 +173,6 @@ export async function updateProvider(
     });
   } catch (error) {
     console.error("Error updating provider:", error);
-    throw error;
-  }
-}
-
-/**
- * Creates or updates a provider profile
- * If providerId is provided, updates existing provider; otherwise creates new one
- * @param userId - The user ID (used as provider document ID for new providers)
- * @param providerId - Optional ID for update operation
- * @param providerData - Provider data to create or update
- * @returns The provider ID (existing or newly created)
- */
-export async function createOrUpdateProvider(
-  userId: string,
-  providerId: string | null,
-  providerData: Partial<Provider>
-): Promise<string> {
-  try {
-    if (providerId) {
-      // Update existing provider
-      console.log('[ProviderService] UPDATE mode');
-      await updateProvider(providerId, providerData);
-      return providerId;
-    } else {
-      // Create new provider with userId as document ID
-      console.log('[ProviderService] CREATE mode - calling createProvider');
-      return await createProvider(userId, providerData as Omit<Provider, "_id">);
-    }
-  } catch (error) {
-    console.error("[ProviderService] Error creating or updating provider:", error);
-    throw error;
-  }
-}
-
-/**
- * Updates a user's role in the users collection
- * @param userId - The user ID to update
- * @param role - The new role to set
- */
-export async function updateUserRole(
-  userId: string,
-  role: "requester" | "provider" | "both"
-): Promise<void> {
-  try {
-    await updateDoc(doc(db, "users", userId), {
-      role,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error("Error updating user role:", error);
     throw error;
   }
 }
