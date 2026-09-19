@@ -42,9 +42,48 @@ service cloud.firestore {
         && request.resource.data.reviewCount >= 0;
     }
 
+    function isPublicIdentity(data) {
+      return data.keys().hasOnly(['firstName', 'lastName', 'avatar', 'updatedAt'])
+        && data.keys().hasAll(['firstName', 'lastName'])
+        && data.firstName is string
+        && data.lastName is string
+        && data.firstName.size() <= 80
+        && data.lastName.size() <= 80
+        && (!data.keys().hasAny(['avatar']) || (data.avatar is string && data.avatar.size() <= 2048));
+    }
+
+    function isPublicProvider(data) {
+      return data.keys().hasOnly([
+        'firstName', 'lastName', 'avatar', 'businessName', 'profession',
+        'categoryName', 'bio', 'remoteService', 'services', 'reviews',
+        'averageRating', 'reviewCount', 'coverImage', 'portfolio',
+        'pricing', 'location', 'createdAt', 'updatedAt', 'publicSchemaVersion'
+      ])
+        && data.publicSchemaVersion == 1
+        && (!data.keys().hasAny(['location']) || (
+          data.location is map
+          && data.location.keys().hasOnly(['country', 'city', 'coordinates'])
+          && data.location.country is string
+          && data.location.city is string
+          && (!data.location.keys().hasAny(['coordinates']) || (
+            data.location.coordinates is map
+            && data.location.coordinates.keys().hasOnly(['latitude', 'longitude'])
+            && data.location.coordinates.latitude is number
+            && data.location.coordinates.longitude is number
+          ))
+        ));
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isOwner(userId);
       allow create, update, delete: if isOwner(userId);
+    }
+
+    // Minimal identity used by chat and reviews. No account or contact fields.
+    match /publicProfiles/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId) && isPublicIdentity(request.resource.data);
+      allow delete: if false;
     }
 
     // TODO(security): restrict updates to isOwner(providerId) once provider
@@ -52,11 +91,16 @@ service cloud.firestore {
     // recalculates rating fields on the reviewer's device, which needs this
     // temporary development exception.
     match /providers/{providerId} {
-      allow read: if true;
-      allow create: if isOwner(providerId) && hasPublishedServices(request.resource.data);
+      // Owners may inspect their own record, including checking for its absence
+      // before enrollment. Other readers and list queries see migrated profiles.
+      allow get: if isOwner(providerId) || resource.data.publicSchemaVersion == 1;
+      allow list: if resource.data.publicSchemaVersion == 1;
+      allow create: if isOwner(providerId) && hasPublishedServices(request.resource.data)
+        && isPublicProvider(request.resource.data);
       allow delete: if isOwner(providerId);
       allow update: if isAuthenticated()
         && hasPublishedServices(request.resource.data)
+        && isPublicProvider(request.resource.data)
         && (isOwner(providerId) || isRatingAggregateUpdate());
     }
 
@@ -287,7 +331,7 @@ service cloud.firestore {
     }
 
     match /earnings/{earningId} {
-      allow read: if isAuthenticated();
+      allow read: if isOwner(resource.data.providerId);
     }
 
     match /referrals/{referralId} {

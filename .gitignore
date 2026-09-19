@@ -4,3 +4,5 @@ apps/mobile/google-services.json
 apps/mobile/GoogleService-Info.plist
 apps/mobile/firestore-debug.log
 apps/mobile/firebase-debug.log
+# Local Firestore recovery snapshots contain private account data.
+.private-backups/
