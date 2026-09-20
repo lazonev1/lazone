@@ -31,13 +31,13 @@ flowchart TD
     R --> H[Refresh account; requester features remain]
     O[Account owner] -->|Own account only| U
     V[Visitors / other users] -->|Discovery and provider details| P
-    V -->|Current rollout: chat and review names / avatars| I
+    V -->|Known identity from a review; direct lookup only| I
     V -.->|Private account read denied| U
 ```
 
 A provider keeps the same UID, bookmarks, bookings, messages, and requester reviews. Only public fields are copied into the business document. Editing a business still works; editing an account name synchronizes the private account, interaction identity, and existing provider name in a transaction. Firebase Admin operations remain server-authorized. Earnings reads are scoped to their provider owner.
 
-`publicProfiles` is the current collection name, but it does not represent a browsable requester profile. It is a small identity projection used when a requester appears in a booking, conversation, or review. The deployed rollout allows anonymous direct reads because guest-visible reviews hydrate requester names from this collection. That access is broader than the product requires and remains an explicit S01 acceptance task: choose a limited public review-author snapshot, then restrict interaction identities to authenticated direct lookup and deny collection listing (or enforce an equivalent participant-scoped design).
+`publicProfiles` is the current collection name, but it does not represent a browsable requester profile. It is a small identity projection used when a requester appears in a booking, conversation, or review. A caller may directly fetch a known identity so a guest can see the name attached to a public review. Collection listing is denied, so requesters cannot be browsed or searched like providers.
 
 ## Main code changes
 
@@ -71,8 +71,8 @@ The empty discovery screen came from running the updated query **before migratio
 
 ## Verified and still open
 
-- Passed: TypeScript, security/role-transition emulator tests, migration/atomicity tests, and live discovery/public-access checks. Lint: 0 errors, 61 existing warnings. Backup comparison confirmed private users and provider business data were preserved.
-- Still open: narrow requester interaction-identity visibility, complete a full two-account iOS walkthrough, add dedicated earnings-access tests, review historical exposure, and obtain PR sign-off. Five legacy providers need their owners to add services; new portfolio uploads and trusted rating aggregation are separate backlog items.
-- Old clients using private cross-account reads or unfiltered provider queries need updating. No commits or pushes were made as part of the rollout. Private recovery snapshots are Git-ignored and must never enter the PR.
+- Passed: TypeScript, security/role-transition emulator tests, migration/atomicity tests, identity direct-read/list-denial tests, earnings owner/outsider/anonymous tests, and live discovery/public-access checks. Lint: 0 errors, 61 existing warnings. Backup comparison confirmed private users and provider business data were preserved.
+- Native two-account smoke passed on iPhone 15 / iOS 17.5: requester discovery, sanitized provider detail, enrollment validation, booking entry, chat, completed history, review form, and reviewer identity loaded; the provider dashboard, requester capabilities, bookings/chat, owner profile, edit prefill, and role persistence after reload also passed. The actual requester-to-provider transition passes the emulator regression suite; disposable record-creating native automation is tracked under E04 release validation rather than leaving S01 open. The historical-exposure inventory is recorded in the rollout notes. Five legacy providers need their owners to add services; new portfolio uploads and trusted rating aggregation are separate backlog items.
+- Old clients using private cross-account reads or unfiltered provider queries need updating. Private recovery snapshots are Git-ignored and must never enter the PR.
 
 See [release readiness](release-readiness.md) for status and [rollout/recovery notes](public-private-profile-rollout.md) for deployment evidence and commands.
