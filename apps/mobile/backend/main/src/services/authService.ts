@@ -120,16 +120,21 @@ export async function updateUserProfile(
     const snapshot = await transaction.get(userDocRef);
     if (!snapshot.exists()) throw new Error('User profile not found');
     const providerRef = doc(db, COLLECTIONS.PROVIDERS, userId);
+    const publicProfileRef = doc(db, COLLECTIONS.PUBLIC_PROFILES, userId);
     const providerSnapshot = nameChanged ? await transaction.get(providerRef) : null;
+    const publicProfileSnapshot = nameChanged ? await transaction.get(publicProfileRef) : null;
     const current = snapshot.data();
     transaction.update(userDocRef, { ...data, updatedAt: serverTimestamp() });
     if (nameChanged) {
       const firstName = data.firstName ?? current.firstName ?? '';
       const lastName = data.lastName ?? current.lastName ?? '';
-      transaction.set(doc(db, COLLECTIONS.PUBLIC_PROFILES, userId), {
+      const currentPublicProfile = publicProfileSnapshot?.data();
+      transaction.set(publicProfileRef, {
         firstName,
         lastName,
-        avatar: current.avatar ?? '',
+        ...(currentPublicProfile?.avatar || current.avatar
+          ? { avatar: currentPublicProfile?.avatar ?? current.avatar }
+          : {}),
         updatedAt: serverTimestamp(),
       });
       if (providerSnapshot?.exists()) {

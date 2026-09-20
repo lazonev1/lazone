@@ -79,9 +79,12 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(userId);
     }
 
-    // Minimal identity used by chat and reviews. No account or contact fields.
+    // Minimal identity used by chat and reviews. A caller may fetch a known
+    // identity (for example, the author referenced by a public review), but
+    // requesters are not a browsable directory.
     match /publicProfiles/{userId} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if false;
       allow create, update: if isOwner(userId) && isPublicIdentity(request.resource.data);
       allow delete: if false;
     }

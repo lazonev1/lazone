@@ -61,6 +61,23 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
   await batch.commit();
 }
 
+async function seedAdminDocument(documentPath, fields) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer owner',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
 const providerClient = createClient(`provider-${runId}`);
 const requesterClient = createClient(`requester-${runId}`);
 const outsiderClient = createClient(`outsider-${runId}`);
@@ -123,13 +140,15 @@ try {
   await expectAllowed('owner reads private account', () => getDoc(doc(providerClient.db, 'users', providerId)));
   await expectDenied('unrelated user cannot list accounts', () => getDocs(collection(outsiderClient.db, 'users')));
   await expectAllowed('provider public identity creation', () => setDoc(doc(providerClient.db, 'publicProfiles', providerId), {
-    firstName: 'Test', lastName: 'Provider',
+    firstName: 'Test', lastName: 'Provider', avatar: 'https://example.test/provider.png',
   }));
   await expectAllowed('requester public identity creation', () => setDoc(doc(requesterClient.db, 'publicProfiles', requesterId), {
     firstName: 'Test', lastName: 'Requester',
   }));
   await expectAllowed('unrelated user reads public identity', () => getDoc(doc(outsiderClient.db, 'publicProfiles', providerId)));
   await expectAllowed('anonymous user reads public identity', () => getDoc(doc(anonymousClient.db, 'publicProfiles', providerId)));
+  await expectDenied('unrelated user cannot list public identities', () => getDocs(collection(outsiderClient.db, 'publicProfiles')));
+  await expectDenied('anonymous user cannot list public identities', () => getDocs(collection(anonymousClient.db, 'publicProfiles')));
   await expectDenied('public identity cannot contain private phone', () => updateDoc(
     doc(providerClient.db, 'publicProfiles', providerId), { phoneNumber: '+22600000000' }
   ));
@@ -172,15 +191,35 @@ try {
     providerClient.db, async transaction => {
       const userRef = doc(providerClient.db, 'users', providerId);
       const providerRef = doc(providerClient.db, 'providers', providerId);
+      const publicProfileRef = doc(providerClient.db, 'publicProfiles', providerId);
       await transaction.get(userRef);
       await transaction.get(providerRef);
+      const publicProfile = await transaction.get(publicProfileRef);
       transaction.update(userRef, { firstName: 'Updated' });
-      transaction.set(doc(providerClient.db, 'publicProfiles', providerId), {
-        firstName: 'Updated', lastName: 'Provider', updatedAt: serverTimestamp(),
+      transaction.set(publicProfileRef, {
+        firstName: 'Updated', lastName: 'Provider', avatar: publicProfile.data().avatar,
+        updatedAt: serverTimestamp(),
       });
       transaction.update(providerRef, { firstName: 'Updated', updatedAt: serverTimestamp() });
     }
   ));
+  assert.equal((await getDoc(doc(providerClient.db, 'publicProfiles', providerId))).data().avatar, 'https://example.test/provider.png');
+
+  const earningId = `earning-${runId}`;
+  await seedAdminDocument(`earnings/${earningId}`, {
+    providerId: { stringValue: providerId },
+    amount: { integerValue: '1000' },
+  });
+  const earningRef = doc(providerClient.db, 'earnings', earningId);
+  await expectAllowed('earnings owner reads their record', () => getDoc(earningRef));
+  await expectDenied('unrelated user cannot read earnings', () => getDoc(doc(outsiderClient.db, 'earnings', earningId)));
+  await expectDenied('anonymous user cannot read earnings', () => getDoc(doc(anonymousClient.db, 'earnings', earningId)));
+  await expectAllowed('earnings owner queries their records', () => getDocs(query(
+    collection(providerClient.db, 'earnings'), where('providerId', '==', providerId)
+  )));
+  await expectDenied('unrelated user cannot query provider earnings', () => getDocs(query(
+    collection(outsiderClient.db, 'earnings'), where('providerId', '==', providerId)
+  )));
 
   const bookingId = `booking-${runId}`;
   const requesterBookingRef = doc(requesterClient.db, 'bookings', bookingId);
