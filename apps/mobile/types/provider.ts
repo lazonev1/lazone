@@ -40,7 +40,6 @@ export type ReviewStats = {
 export interface ProviderRegistration {
   businessName: string;
   serviceCategory: string;
-  phone: string;
   description: string;
   location: {
     country: string;
@@ -104,7 +103,6 @@ export interface ProviderViewModel {
   name: string;
   /** Provider-facing fields retained so the registration form can be edited. */
   businessName?: string;
-  phoneNumber?: string;
   profession: string;
   categoryName: string;
   remoteService: boolean;

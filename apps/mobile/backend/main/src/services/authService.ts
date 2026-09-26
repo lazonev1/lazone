@@ -6,11 +6,11 @@ import {
 } from "firebase/auth";
 import {
   doc,
-  setDoc,
-  updateDoc,
   serverTimestamp,
   getDoc,
+  runTransaction,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, db, COLLECTIONS } from "../config/firebase";
 import { User } from "../models/User";
@@ -48,12 +48,19 @@ export async function signupUser(
 
   // 3. Create user document in Firestore
   const userDocRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
-  await setDoc(userDocRef, {
+  const batch = writeBatch(db);
+  batch.set(userDocRef, {
     ...newUser,
     dob: serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  batch.set(doc(db, COLLECTIONS.PUBLIC_PROFILES, firebaseUser.uid), {
+    firstName: newUser.firstName,
+    lastName: newUser.lastName,
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
 
   // 4. Fetch the created user profile
   const profile = await getUserProfile(firebaseUser.uid);
@@ -108,8 +115,31 @@ export async function updateUserProfile(
   data: { firstName?: string; lastName?: string; phoneNumber?: string }
 ): Promise<void> {
   const userDocRef = doc(db, COLLECTIONS.USERS, userId);
-  await updateDoc(userDocRef, {
-    ...data,
-    updatedAt: serverTimestamp(),
+  const nameChanged = data.firstName !== undefined || data.lastName !== undefined;
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(userDocRef);
+    if (!snapshot.exists()) throw new Error('User profile not found');
+    const providerRef = doc(db, COLLECTIONS.PROVIDERS, userId);
+    const publicProfileRef = doc(db, COLLECTIONS.PUBLIC_PROFILES, userId);
+    const providerSnapshot = nameChanged ? await transaction.get(providerRef) : null;
+    const publicProfileSnapshot = nameChanged ? await transaction.get(publicProfileRef) : null;
+    const current = snapshot.data();
+    transaction.update(userDocRef, { ...data, updatedAt: serverTimestamp() });
+    if (nameChanged) {
+      const firstName = data.firstName ?? current.firstName ?? '';
+      const lastName = data.lastName ?? current.lastName ?? '';
+      const currentPublicProfile = publicProfileSnapshot?.data();
+      transaction.set(publicProfileRef, {
+        firstName,
+        lastName,
+        ...(currentPublicProfile?.avatar || current.avatar
+          ? { avatar: currentPublicProfile?.avatar ?? current.avatar }
+          : {}),
+        updatedAt: serverTimestamp(),
+      });
+      if (providerSnapshot?.exists()) {
+        transaction.update(providerRef, { firstName, lastName, updatedAt: serverTimestamp() });
+      }
+    }
   });
 }

@@ -82,6 +82,7 @@ if (initializeAuthFunction && getReactNativePersistenceFunction && ReactNativeAs
 // Collection names for type-safe queries
 export const COLLECTIONS = {
   USERS: 'users',
+  PUBLIC_PROFILES: 'publicProfiles',
   PROVIDERS: 'providers',
   PORTFOLIOS: 'portfolios',
   SERVICES: 'services',

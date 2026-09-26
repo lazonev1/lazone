@@ -26,7 +26,7 @@ export default function SearchResultsScreen() {
   }, [navigation, t]);
 
   // Get user's current location for distance calculation
-  const { location: userLocation } = useLocation();
+  const { location: userLocation, isLoading: locationLoading, error: locationError } = useLocation();
 
   // Fetch real providers using search
   const { providers, isLoading: providersLoading, error, searchProviders } = useProvider();
@@ -49,7 +49,7 @@ export default function SearchResultsScreen() {
       remoteOnly: filters.remoteOnly || undefined,
       minRating: filters.minRating > 0 ? filters.minRating : undefined,
       maxPrice: filters.maxPrice < DEFAULT_FILTERS.maxPrice ? filters.maxPrice : undefined,
-      maxDistance: filters.radius < FILTER_RANGES.radius.maximumValue ? filters.radius : undefined,
+      maxDistance: userLocation && filters.radius < FILTER_RANGES.radius.maximumValue ? filters.radius : undefined,
       userLocation: userLocation,
     });
   }, [filters, userLocation, searchProviders]);
@@ -91,7 +91,9 @@ export default function SearchResultsScreen() {
         <View style={styles.filtersContainer}>
           {/* Distance Filter */}
           <View style={styles.filterItem}>
-            <ThemedText>{t('search.distance', { km: filters.radius })}</ThemedText>
+            <ThemedText>{filters.radius >= FILTER_RANGES.radius.maximumValue
+              ? t('search.anyDistance')
+              : t('search.distance', { km: filters.radius })}</ThemedText>
             <Slider
               value={filters.radius}
               onValueChange={(value) => updateFilter('radius', Math.round(value))}
@@ -140,6 +142,9 @@ export default function SearchResultsScreen() {
 
       {/* Results Header */}
       <View style={styles.resultsHeader}>
+        {!locationLoading && !userLocation && locationError && (
+          <ThemedText style={styles.locationNotice}>{t('search.locationUnavailable')}</ThemedText>
+        )}
         <ThemedText type="subtitle">
           {providersLoading ? t('search.searching') : t('search.found', { count: providers.length })}
         </ThemedText>
@@ -155,7 +160,9 @@ export default function SearchResultsScreen() {
         emptyMessage={
           filters.query
             ? t('search.noMatch', { query: filters.query })
-            : t('search.noneWithin', { km: filters.radius })
+            : userLocation && filters.radius < FILTER_RANGES.radius.maximumValue
+              ? t('search.noneWithin', { km: filters.radius })
+              : t('list.empty')
         }
       />
     </SafeAreaView>
@@ -181,6 +188,11 @@ function createStyles(theme: any) {
     resultsHeader: {
       paddingHorizontal: 16,
       paddingVertical: 8,
+    },
+    locationNotice: {
+      marginBottom: 8,
+      color: theme.text,
+      opacity: 0.7,
     },
   });
 }

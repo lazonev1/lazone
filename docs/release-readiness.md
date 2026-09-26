@@ -2,13 +2,15 @@
 
 Last audited: **2026-09-17**
 
+S01 completed: **2026-09-19** (implementation, live migration, rules deployment, regression coverage, and two-account production-safe native smoke test). Other findings retain their audit-baseline status.
+
 Baseline: **`develop` at `e2fb0aa`**, including merged French/English localization PR #79. `origin/develop` was fetched and matched this baseline.
 
 Decision: **Not ready for a public release.** The core marketplace journey exists, but security, data persistence, recovery, and visible product promises still have launch-blocking gaps.
 
 This is the working backlog for functionality, security/maintainability, and professional, frictionless UI/UX. It replaces the earlier checklist: some earlier “completed and verified” claims were broader than the implementation or tests support.
 
-**Next implementation slice:** S01 (private/public profile separation), including the chat/review adapters, migration, and regression tests. Do not tighten profile reads in isolation and break those consumers.
+**Next implementation slice:** S02 (authoritative trust fields, ratings, and rewards). S01 is complete. Read the [brief before/after guide](public-private-profile-changes.md) and [deployment evidence](public-private-profile-rollout.md).
 
 Jump to: [implemented foundation](#implemented-foundation--keep-do-not-rebuild-blindly), [audit evidence](#audit-coverage-and-evidence), [delivery order](#recommended-delivery-order), [security](#remaining-work--security-and-data-integrity), [booking UX](#remaining-work--booking-journey-and-customer-experience), [providers/discovery](#remaining-work--provider-management-and-discovery), [accounts](#remaining-work--identity-account-and-trust), [messaging/notifications](#remaining-work--messaging-and-notifications), [UI/accessibility](#remaining-work--professional-ui-accessibility-and-localization), [engineering/release](#remaining-work--maintainability-performance-and-release-operations), [scope decisions](#conditional-scope--decide-explicitly-then-finish-or-defer), [acceptance matrix](#release-candidate-acceptance-matrix).
 
@@ -20,7 +22,7 @@ Jump to: [implemented foundation](#implemented-foundation--keep-do-not-rebuild-b
 - **P2 — release quality and operations:** still required for the selected launch scope, after the foundations are stable. P2 does not mean optional.
 - **Conditional:** a product decision is needed. Either finish the feature end to end or explicitly defer it and remove its promises/entry points from the release UI. Hiding a feature is a scope decision, not implementation completion.
 - Check off an item only after its acceptance criteria pass. Record owner, PR/commit, test evidence, applicable migration, and deployed environment. “Code merged,” “emulator passed,” and “production deployed” are separate facts.
-- Security findings below refer to **checked-in rules tested locally**, not a new inspection of the deployed Firebase project. This audit did not deploy rules/functions, change production data, or perform a device-based visual sign-off.
+- Security findings describe the **2026-09-17 audit baseline**, unless a progress record says otherwise. The audit itself did not deploy or change live data. The subsequent authorized S01 rollout inspected and migrated `lazonev1-5da5a`, deployed its Firestore rules, and completed a two-account production-safe native smoke test. Broader release-candidate device automation remains E04.
 
 ## Product contract to preserve
 
@@ -50,7 +52,7 @@ Cancellation/decline and support paths must be defined alongside this happy path
 - [x] Email/password signup and login, persisted authentication, guest browsing, and requester/provider role handling exist.
 - [x] Discovery, categories, search/filter UI, provider profiles, and saved providers use Firestore-backed data.
 - [x] Provider registration/editing saves business information and embedded services; service presence is checked in the form, repository, and rules. Validation is not yet complete (S05/P02).
-- [x] Provider promotion requests a profile refresh without requiring a new login. Recovery and atomicity need work (A01/P03).
+- [x] Provider promotion refreshes the same account without requiring a new login. S01 now commits provider creation and role `both` atomically; draft/retry/auth recovery work remains (A01/P03).
 - [x] Booking creation, pending-booking editing, acceptance, start, submission for review, requester confirmation, changes requested, cancellation, and timeline rendering exist.
 - [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. **New-event linkage is bypassable** (S04).
 - [x] First-contact conversation creation uses a canonical participant ID and a transaction in the client. Message creation and summary writes are batched. **Rules do not enforce all equivalent invariants** (S06).
@@ -95,7 +97,7 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 
 ## Recommended delivery order
 
-1. **Close the trust boundary:** S01–S07 and S09, with schema/migration work from E01 and regression tests from E04. Tightening reads must include the public-profile adapters used by chat/reviews.
+1. **Close the remaining trust boundary:** S02–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01 public/private profiles are complete; preserve their public-profile adapters and deny requester-directory access while addressing later security work.
 2. **Finish the main requester/provider journey:** B01–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
@@ -103,17 +105,21 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 
 These are delivery slices, not a requirement to move every Firestore write to Functions. Well-constrained user-owned writes can remain client-driven. Privileged, cross-user, financial, and abuse-sensitive operations need a trusted authority and independent authorization.
 
+## Completed implementation and deployment
+
+### S01 · P0 · Public/private profiles — complete
+
+- [x] Separate private `users/{uid}`, minimal `publicProfiles/{uid}`, and public `providers/{uid}`; update chat/review identity readers and owner-scoped earnings reads.
+- [x] Preserve the same account/UID and requester capabilities during provider enrollment; create the provider and update role to `both` atomically. Keep business editing and approximate-distance discovery.
+- [x] Back up and migrate the live project `lazonev1-5da5a`: 22 private accounts unchanged, 11 provider documents sanitized, 22 public identities created. Deploy the matching Firestore rules.
+- [x] Pass TypeScript, lint (0 errors / 61 existing warnings), Auth/Firestore regression tests, and migration tests including stale-backup rejection. Live client queries return all 11 migrated providers, allow public details/identities, and deny private-account reads.
+- [x] Allow direct lookup of a known minimal identity for public review attribution while denying requester-directory listing; preserve the existing avatar during name synchronization; test owner-only earnings access.
+- [x] Complete a two-account native smoke test on iPhone 15 / iOS 17.5 covering both requester and provider perspectives, edit prefill, reload persistence, booking/chat access, and public review identity without changing live records.
+- [x] Document the [before/after flows and code changes](public-private-profile-changes.md) and [rollout/recovery evidence](public-private-profile-rollout.md).
+
+S01's implementation, migration, deployment, regression coverage, and production-safe native smoke test are complete. Disposable record-creating release-candidate journeys and general PR/build governance are tracked under E04 rather than leaving this implementation ticket open.
+
 ## Remaining work — security and data integrity
-
-### S01 · P0 · Separate public profiles from private account data
-
-- [ ] **Problem:** `/users` allows any authenticated reader to fetch complete documents. Provider creation copies `dob`, `bookmarked`, phone, and account/trust fields into publicly readable `/providers`. `/earnings` also has authenticated-wide reads. Hiding these fields in a component does not protect them.
-
-  **Sources:** [Firestore rules][rules], [provider mapping][provider-repo], [message mapping][message-repo], [review mapping][review-repo].
-
-  **Required:** Define explicit public-profile projections; keep private contact, preferences, tokens, personal location, DOB, and financial records owner-/server-scoped. Publish business contact/location only deliberately. Update chat/review/name/avatar reads to the public projection, not private users. Migrate existing provider documents to remove copied private fields and review existing exposure.
-
-  **Done when:** Anonymous, unrelated, participant, owner, and administrative access are tested field-by-field through the actual document layout; private data is inaccessible, while discovery/chat/reviews still work. Firestore reads are document-level, so use separate documents for different visibility, as described in [Firebase's field-access guidance](https://firebase.google.com/docs/firestore/security/rules-fields).
 
 ### S02 · P0 · Make trust fields, ratings, and rewards authoritative
 
@@ -311,7 +317,7 @@ These are delivery slices, not a requirement to move every Firestore write to Fu
 
 ### P03 · P1 · Make provider onboarding/editing recoverable
 
-- [ ] **Problem:** Provider creation and user-role update are separate operations. A partial failure can leave a provider record without the expected role; retry can overwrite initialized fields. Second-step drafts can be lost when going Back, and failed edit hydration can look like a blank new form.
+- [ ] **Problem remaining:** S01 made provider creation and user-role promotion atomic. Retry/idempotency still needs review to avoid overwriting initialized fields. Second-step drafts can be lost when going Back, and failed edit hydration can look like a blank new form.
 
   **Sources:** [registration route][registration-ui], [business form][business-form], [service form][services-form], [provider mapping][provider-repo], [auth context][auth-context].
 
@@ -513,7 +519,7 @@ These are delivery slices, not a requirement to move every Firestore write to Fu
 
   **Sources:** [CI workflow][ci], [existing rules tests][rules-tests], [package scripts][mobile-package].
 
-  **Required:** Convert all 11 audit probes into permanent deny tests; add legitimate counterparts so security fixes do not break chat/discovery. Add state-machine/schema/idempotency/mapping tests, Storage and Functions tests, component tests for error/draft/action states, and two-account E2E journeys. Cover migration/legacy records, concurrency, offline retries, account switching, and localization. Resolve warnings, then establish an enforced lint baseline.
+  **Required:** Convert all 11 audit probes into permanent deny tests; add legitimate counterparts so security fixes do not break chat/discovery. Add state-machine/schema/idempotency/mapping tests, Storage and Functions tests, component tests for error/draft/action states, and two-account E2E journeys. In a dedicated non-production environment, automate disposable signup → provider with immediate role refresh, bookmark add/remove, and a brand-new first-contact conversation. Cover migration/legacy records, concurrency, offline retries, account switching, and localization. Resolve warnings, then establish an enforced lint baseline. Require a linked commit/PR, supported-client validation, and reviewer sign-off for completed release slices.
 
   **Done when:** CI fails on the actual defects listed here, executes repeatably from frozen dependencies, and records useful artifacts without secrets. Native smoke/E2E tests cover both role perspectives, not just SDK operations. Every completed backlog item links its regression evidence.
 
@@ -622,7 +628,17 @@ Remaining caveats / approved scope decision:
 Reviewed by / date:
 ```
 
-No remaining item was completed by this audit. This update records findings and acceptance criteria; it does not authorize implementation, production deployment, or a release.
+### S01 progress record — updated 2026-09-19
+
+- **Implementation/deployment:** complete. S01 is closed; broader release-candidate automation and governance remain under E04.
+- **Owner:** repository owner with Codex implementation assistance.
+- **PR/commit:** implementation branch `fix/public-private-profiles`; core commits `090a2d4`, `c74bdcc`, and `5f7709a`, with the September 19 identity-listing/avatar/test follow-up included in the same branch and PR.
+- **Evidence:** TypeScript and emulator/migration suites passed; lint has 61 pre-existing warnings and no errors. Live client checks confirm provider discovery, direct public review-identity lookup, private-account denial, and requester identity-list denial. A French two-account smoke test passed on iPhone 15 / iOS 17.5: requester private-account display, discovery, sanitized provider detail, enrollment validation, booking entry, chat, completed history, review form, and reviewer identity; plus provider dashboard, requester capabilities, incoming/active booking access, requester chat, owner profile, business/service edit prefill, and provider-role persistence after reload. No live record was changed. Actual submission of a new requester-to-provider conversion remains a dedicated-test-environment release check; the transition passes the Auth/Firestore emulator suite.
+- **Migration/environment:** authorized backup, atomic migration, and Firestore-rules-only deployments to `lazonev1-5da5a`; no Functions or Storage deployment. Historical-copy inventory found no managed Firestore backup/schedule, no enabled PITR, and no document data in the tracked emulator export; [details](public-private-profile-rollout.md).
+- **Caveats:** five pre-existing providers need services (P02); new media uploads remain P01/S07; S02's rating/trust exceptions are not resolved. Disposable record-creating native automation remains E04 release work, not an S01 defect.
+- **Reviewer/sign-off:** pending.
+
+No other backlog item is marked complete by this S01 update. Public release is not approved.
 
 ## Source references
 

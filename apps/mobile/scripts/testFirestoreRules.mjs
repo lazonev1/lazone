@@ -1,5 +1,6 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
 
 const firebaseConfig = {
@@ -60,9 +61,27 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
   await batch.commit();
 }
 
+async function seedAdminDocument(documentPath, fields) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer owner',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
 const providerClient = createClient(`provider-${runId}`);
 const requesterClient = createClient(`requester-${runId}`);
 const outsiderClient = createClient(`outsider-${runId}`);
+const anonymousClient = createClient(`anonymous-${runId}`);
 
 try {
   const providerCredential = await createUserWithEmailAndPassword(
@@ -87,27 +106,120 @@ try {
   await expectAllowed('provider user profile creation', () => setDoc(doc(providerClient.db, 'users', providerId), {
     firstName: 'Test',
     lastName: 'Provider',
+    phoneNumber: '+22600000000',
+    dob: new Date('1990-01-01'),
+    bookmarked: ['private-bookmark'],
+    notificationTokens: ['private-push-token'],
   }));
   await expectAllowed('requester user profile creation', () => setDoc(doc(requesterClient.db, 'users', requesterId), {
     firstName: 'Test',
     lastName: 'Requester',
+    role: 'requester',
+    phoneNumber: '+22611111111',
+    bookmarked: [providerId],
+    notificationTokens: ['requester-token'],
+    subscriptionType: 'free',
+    preferences: { language: 'fr' },
   }));
 
-  await expectAllowed('provider creation', () => setDoc(doc(providerClient.db, 'providers', providerId), {
-    firstName: 'Test',
-    lastName: 'Provider',
-    services: [{ id: 'service-1', name: 'Test Service', price: '1000' }],
+  await expectAllowed('requester edits account name before becoming a provider', () => runTransaction(
+    requesterClient.db, async transaction => {
+      const userRef = doc(requesterClient.db, 'users', requesterId);
+      await transaction.get(userRef);
+      const provider = await transaction.get(doc(requesterClient.db, 'providers', requesterId));
+      assert.equal(provider.exists(), false);
+      transaction.update(userRef, { firstName: 'Test' });
+      transaction.set(doc(requesterClient.db, 'publicProfiles', requesterId), {
+        firstName: 'Test', lastName: 'Requester',
+      });
+    }
+  ));
+
+  await expectDenied('unrelated user cannot read private account', () => getDoc(doc(outsiderClient.db, 'users', providerId)));
+  await expectDenied('anonymous user cannot read private account', () => getDoc(doc(anonymousClient.db, 'users', providerId)));
+  await expectAllowed('owner reads private account', () => getDoc(doc(providerClient.db, 'users', providerId)));
+  await expectDenied('unrelated user cannot list accounts', () => getDocs(collection(outsiderClient.db, 'users')));
+  await expectAllowed('provider public identity creation', () => setDoc(doc(providerClient.db, 'publicProfiles', providerId), {
+    firstName: 'Test', lastName: 'Provider', avatar: 'https://example.test/provider.png',
   }));
+  await expectAllowed('requester public identity creation', () => setDoc(doc(requesterClient.db, 'publicProfiles', requesterId), {
+    firstName: 'Test', lastName: 'Requester',
+  }));
+  await expectAllowed('unrelated user reads public identity', () => getDoc(doc(outsiderClient.db, 'publicProfiles', providerId)));
+  await expectAllowed('anonymous user reads public identity', () => getDoc(doc(anonymousClient.db, 'publicProfiles', providerId)));
+  await expectDenied('unrelated user cannot list public identities', () => getDocs(collection(outsiderClient.db, 'publicProfiles')));
+  await expectDenied('anonymous user cannot list public identities', () => getDocs(collection(anonymousClient.db, 'publicProfiles')));
+  await expectDenied('public identity cannot contain private phone', () => updateDoc(
+    doc(providerClient.db, 'publicProfiles', providerId), { phoneNumber: '+22600000000' }
+  ));
+  await expectDenied('unrelated user cannot edit identity', () => updateDoc(
+    doc(outsiderClient.db, 'publicProfiles', providerId), { firstName: 'Impersonated' }
+  ));
+
+  await expectAllowed('provider creation and role promotion in one commit', () => {
+    const batch = writeBatch(providerClient.db);
+    batch.set(doc(providerClient.db, 'providers', providerId), {
+      publicSchemaVersion: 1,
+      firstName: 'Test',
+      lastName: 'Provider',
+      services: [{ id: 'service-1', name: 'Test Service', price: '1000' }],
+      location: { country: 'BF', city: 'Ouagadougou', coordinates: { latitude: 12.35, longitude: -1.23 } },
+    });
+    batch.update(doc(providerClient.db, 'users', providerId), { role: 'both' });
+    return batch.commit();
+  });
 
   await expectDenied('provider without services', () => setDoc(doc(outsiderClient.db, 'providers', outsiderId), {
+    publicSchemaVersion: 1,
     firstName: 'Empty',
     lastName: 'Provider',
     services: [],
   }));
+  await expectDenied('provider cannot publish account data', () => updateDoc(
+    doc(providerClient.db, 'providers', providerId), { dob: new Date('1990-01-01'), bookmarked: ['private-bookmark'] }
+  ));
+  await expectAllowed('public provider listing', () => getDocs(query(
+    collection(requesterClient.db, 'providers'), where('publicSchemaVersion', '==', 1)
+  )));
+  await expectAllowed('anonymous user reads public provider', () => getDoc(doc(anonymousClient.db, 'providers', providerId)));
+  await expectDenied('unfiltered provider listing', () => getDocs(collection(requesterClient.db, 'providers')));
   await expectDenied('non-owner cannot edit provider services', () => updateDoc(
     doc(outsiderClient.db, 'providers', providerId),
     { services: [{ id: 'attacker-service', name: 'Unauthorized service', price: '1' }] },
   ));
+  await expectAllowed('owner synchronizes private, public, and provider names atomically', () => runTransaction(
+    providerClient.db, async transaction => {
+      const userRef = doc(providerClient.db, 'users', providerId);
+      const providerRef = doc(providerClient.db, 'providers', providerId);
+      const publicProfileRef = doc(providerClient.db, 'publicProfiles', providerId);
+      await transaction.get(userRef);
+      await transaction.get(providerRef);
+      const publicProfile = await transaction.get(publicProfileRef);
+      transaction.update(userRef, { firstName: 'Updated' });
+      transaction.set(publicProfileRef, {
+        firstName: 'Updated', lastName: 'Provider', avatar: publicProfile.data().avatar,
+        updatedAt: serverTimestamp(),
+      });
+      transaction.update(providerRef, { firstName: 'Updated', updatedAt: serverTimestamp() });
+    }
+  ));
+  assert.equal((await getDoc(doc(providerClient.db, 'publicProfiles', providerId))).data().avatar, 'https://example.test/provider.png');
+
+  const earningId = `earning-${runId}`;
+  await seedAdminDocument(`earnings/${earningId}`, {
+    providerId: { stringValue: providerId },
+    amount: { integerValue: '1000' },
+  });
+  const earningRef = doc(providerClient.db, 'earnings', earningId);
+  await expectAllowed('earnings owner reads their record', () => getDoc(earningRef));
+  await expectDenied('unrelated user cannot read earnings', () => getDoc(doc(outsiderClient.db, 'earnings', earningId)));
+  await expectDenied('anonymous user cannot read earnings', () => getDoc(doc(anonymousClient.db, 'earnings', earningId)));
+  await expectAllowed('earnings owner queries their records', () => getDocs(query(
+    collection(providerClient.db, 'earnings'), where('providerId', '==', providerId)
+  )));
+  await expectDenied('unrelated user cannot query provider earnings', () => getDocs(query(
+    collection(outsiderClient.db, 'earnings'), where('providerId', '==', providerId)
+  )));
 
   const bookingId = `booking-${runId}`;
   const requesterBookingRef = doc(requesterClient.db, 'bookings', bookingId);
@@ -242,8 +354,8 @@ try {
     async (transaction) => {
       const snapshot = await transaction.get(conversationRef);
       if (!snapshot.exists()) {
-        const requesterProfile = await transaction.get(doc(requesterClient.db, 'users', requesterId));
-        const providerProfile = await transaction.get(doc(requesterClient.db, 'users', providerId));
+        const requesterProfile = await transaction.get(doc(requesterClient.db, 'publicProfiles', requesterId));
+        const providerProfile = await transaction.get(doc(requesterClient.db, 'publicProfiles', providerId));
         if (!requesterProfile.exists() || !providerProfile.exists()) {
           throw new Error('expected both participant profiles to exist');
         }
@@ -302,9 +414,57 @@ try {
   });
   await expectAllowed('provider sends message', () => providerMessageBatch.commit());
 
-  console.log('Firestore booking and messaging rules passed.');
+  // The same requester now enrolls as a provider. No account/history is replaced.
+  const accountRef = doc(requesterClient.db, 'users', requesterId);
+  const accountBefore = (await getDoc(accountRef)).data();
+  const invalidEnrollment = writeBatch(requesterClient.db);
+  invalidEnrollment.set(doc(requesterClient.db, 'providers', requesterId), {
+    publicSchemaVersion: 1, firstName: 'Test', lastName: 'Requester', services: [],
+  });
+  invalidEnrollment.update(accountRef, { role: 'both' });
+  await expectDenied('invalid enrollment cannot partially promote the account', () => invalidEnrollment.commit());
+  assert.equal((await getDoc(accountRef)).data().role, 'requester');
+  assert.equal((await getDoc(doc(requesterClient.db, 'providers', requesterId))).exists(), false);
+  const enrollment = writeBatch(requesterClient.db);
+  enrollment.set(doc(requesterClient.db, 'providers', requesterId), {
+    publicSchemaVersion: 1, firstName: 'Test', lastName: 'Requester',
+    services: [{ id: 'requester-service', name: 'Second service', price: '2000' }],
+  });
+  enrollment.update(accountRef, { role: 'both', updatedAt: serverTimestamp() });
+  await expectAllowed('existing requester enrolls as provider', () => enrollment.commit());
+  const accountAfter = (await getDoc(accountRef)).data();
+  assert.equal(accountAfter.role, 'both');
+  for (const [key, value] of Object.entries(accountBefore)) {
+    if (key !== 'role' && key !== 'updatedAt') assert.deepEqual(accountAfter[key], value, `${key} survives enrollment`);
+  }
+  await expectAllowed('provider can add a bookmark', () => updateDoc(accountRef, { bookmarked: arrayUnion(outsiderId) }));
+  assert.deepEqual((await getDoc(accountRef)).data().bookmarked, [providerId, outsiderId]);
+  await expectAllowed('provider can remove a bookmark', () => updateDoc(accountRef, { bookmarked: arrayRemove(outsiderId) }));
+  assert.deepEqual((await getDoc(accountRef)).data().bookmarked, [providerId]);
+  await expectAllowed('provider keeps notification registration', () => updateDoc(accountRef, { notificationTokens: arrayUnion('new-token') }));
+  await expectAllowed('provider reads their old requester booking', () => getDoc(requesterBookingRef));
+  await expectAllowed('provider lists their requester bookings', async () => {
+    const bookings = await getDocs(query(collection(requesterClient.db, 'bookings'), where('requesterId', '==', requesterId)));
+    assert.ok(bookings.docs.some(item => item.id === bookingId));
+  });
+  await expectAllowed('provider can book another provider', () => setDoc(doc(requesterClient.db, 'bookings', `after-enrollment-${runId}`), {
+    requesterId, providerId, serviceId: 'service-1', status: 'pending',
+    checklist: [{ id: 'one', description: 'New request', completed: false }],
+    checklistTotal: 1, checklistCompletedCount: 0, checklistProgress: { one: false },
+  }));
+  await expectAllowed('provider keeps existing conversations', () => getDoc(conversationRef));
+  await expectAllowed('provider continues an existing requester conversation', () => setDoc(
+    doc(collection(requesterClient.db, 'conversations', conversationId, 'messages')),
+    { conversationId, senderId: requesterId, text: 'Still the same account', createdAt: serverTimestamp() }
+  ));
+  await expectAllowed('provider can still edit their requester review', () => updateDoc(reviewRef, { comment: 'Updated after enrollment', updatedAt: serverTimestamp() }));
+  await expectAllowed('provider can edit their business profile', () => updateDoc(doc(requesterClient.db, 'providers', requesterId), { bio: 'Updated business description' }));
+  await expectDenied('other provider cannot read bookmarks after enrollment', () => getDoc(doc(providerClient.db, 'users', requesterId)));
+
+  console.log('Firestore booking, messaging, and requester-to-provider capability checks passed.');
 } finally {
   await deleteApp(providerClient.app);
   await deleteApp(requesterClient.app);
   await deleteApp(outsiderClient.app);
+  await deleteApp(anonymousClient.app);
 }

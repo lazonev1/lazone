@@ -12,7 +12,7 @@ import { db, COLLECTIONS } from "@/backend/main/src/config/firebase";
 import * as conversationService from "@/backend/main/src/services/conversationService";
 import { Message } from "@/backend/main/src/models/Message";
 import { Conversation } from "@/backend/main/src/models/Conversation";
-import { User } from "@/backend/main/src/models/User";
+import { PublicProfile } from "@/backend/main/src/models/PublicProfile";
 import {
   MessageViewModel,
   ConversationViewModel,
@@ -206,8 +206,8 @@ async function transformMessageToUI(
   message: Message
 ): Promise<MessageViewModel> {
   // Fetch sender details using the string userId
-  const senderDoc = await getDoc(doc(db, COLLECTIONS.USERS, message.senderId));
-  const senderData = senderDoc.exists() ? (senderDoc.data() as User) : null;
+  const senderDoc = await getDoc(doc(db, COLLECTIONS.PUBLIC_PROFILES, message.senderId));
+  const senderData = senderDoc.exists() ? (senderDoc.data() as PublicProfile) : null;
 
   return {
     _id: message._id,
@@ -245,9 +245,9 @@ async function transformConversationToUI(
     const lastMsgDoc = await getDoc(conversation.lastMessage);
     if (lastMsgDoc.exists()) {
       const msgData = lastMsgDoc.data() as Message;
-      const senderDoc = await getDoc(doc(db, COLLECTIONS.USERS, msgData.senderId));
+      const senderDoc = await getDoc(doc(db, COLLECTIONS.PUBLIC_PROFILES, msgData.senderId));
       const senderData = senderDoc.exists()
-        ? (senderDoc.data() as User)
+        ? (senderDoc.data() as PublicProfile)
         : null;
 
       lastMessage = {

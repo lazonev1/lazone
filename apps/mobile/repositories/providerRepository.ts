@@ -8,6 +8,7 @@ import {
   ServiceItem,
 } from "@/types/provider";
 import { calculateDistance, isValidCoordinates, Coordinates } from "@/backend/main/src/utils/geo";
+import { getPublicProfile } from "@/backend/main/src/services/publicProfileService";
 
 /**
  * Repository Layer - Transforms Database Models to UI ViewModels
@@ -190,8 +191,9 @@ export async function searchProviders(
 
     // Filter by max distance if specified and user location is available
     if (params.maxDistance !== undefined && params.userLocation) {
+      // Unknown distance must not masquerade as a nearby provider.
       results = results.filter(
-        (p) => p.distance === undefined || p.distance <= params.maxDistance!
+        (p) => p.distance !== undefined && p.distance <= params.maxDistance!
       );
     }
 
@@ -235,7 +237,7 @@ async function populateReviews(
       // Fetch requester details for client name
       let clientName = "Anonymous";
       if (review.requesterId) {
-        const requester = await ProviderService.getUserById(review.requesterId);
+        const requester = await getPublicProfile(review.requesterId);
         if (requester) {
           clientName = `${requester.firstName} ${requester.lastName}`;
         }
@@ -348,7 +350,6 @@ function transformToViewModel(
     id: provider._id,
     name: `${provider.firstName} ${provider.lastName}`,
     businessName: provider.businessName || undefined,
-    phoneNumber: provider.phoneNumber || undefined,
     profession: provider.profession,
     categoryName: provider.categoryName,
     remoteService: provider.remoteService,
@@ -386,6 +387,7 @@ export async function createOrUpdateProviderProfile(
   registrationData: ProviderRegistration
 ): Promise<string> {
   try {
+    if (providerId && providerId !== userId) throw new Error('Cannot edit another provider profile');
     // A provider without a published service cannot receive a booking. Keep
     // this invariant at the repository boundary as well as in the form and
     // Firestore rules so imports or future clients cannot create a dead-end
@@ -409,6 +411,7 @@ export async function createOrUpdateProviderProfile(
     if (providerId) {
       // UPDATE MODE: Only update provider-specific fields
       const providerData: any = {
+        publicSchemaVersion: 1,
         businessName: registrationData.businessName,
         profession: registrationData.serviceCategory,
         categoryName: registrationData.serviceCategory,
@@ -418,23 +421,12 @@ export async function createOrUpdateProviderProfile(
         services,
       };
 
-      // Only add location if coordinates are provided
-      if (registrationData.location.coordinates) {
-        providerData.location = {
-          formattedAddress: `${registrationData.location.city}, ${registrationData.location.country}`,
-          country: registrationData.location.country,
-          city: registrationData.location.city,
-          coordinates: {
-            longitude: registrationData.location.coordinates.longitude,
-            latitude: registrationData.location.coordinates.latitude,
-          },
-        };
-      }
+      providerData.location = publicServiceArea(registrationData.location);
 
-      return await ProviderService.createOrUpdateProvider(userId, providerId, providerData);
+      await ProviderService.updateProvider(providerId, providerData);
     } else {
       // CREATE MODE: Fetch user data and create complete provider document
-      const user = await ProviderService.getUserById(userId);
+      const user = await ProviderService.getOwnUserById(userId);
 
       if (!user) {
         throw new Error(`User not found with ID: ${userId}`);
@@ -442,17 +434,10 @@ export async function createOrUpdateProviderProfile(
 
       // Create complete provider document with all required fields
       const providerData: any = {
-        // User base fields (inherited from User)
-        phoneNumber: user.phoneNumber,
+        publicSchemaVersion: 1,
+        // Only identity fields intended for public display are copied.
         firstName: user.firstName,
         lastName: user.lastName,
-        dob: user.dob,
-        role: "both",
-        verified: user.verified,
-        subscriptionType: user.subscriptionType,
-        bookmarked: user.bookmarked || [],
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
 
         // Provider-specific fields from registration form
         businessName: registrationData.businessName,
@@ -475,33 +460,30 @@ export async function createOrUpdateProviderProfile(
         providerData.avatar = user.avatar;
       }
 
-      // Add location: prioritize registration location, fallback to user location
-      if (registrationData.location.coordinates) {
-        providerData.location = {
-          formattedAddress: `${registrationData.location.city}, ${registrationData.location.country}`,
-          country: registrationData.location.country,
-          city: registrationData.location.city,
-          coordinates: {
-            longitude: registrationData.location.coordinates.longitude,
-            latitude: registrationData.location.coordinates.latitude,
-          },
-        };
-      } else if (user.location) {
-        providerData.location = user.location;
-      }
+      // Never fall back to the account owner's private location. The selected
+      // service area is public and GPS is rounded to an approximate area.
+      providerData.location = publicServiceArea(registrationData.location);
 
       // Create the provider document (includes services)
-      const newProviderId = await ProviderService.createOrUpdateProvider(userId, null, providerData);
-      console.log('[ProviderRepo] Provider created with ID:', newProviderId);
-
-      // Update the user's role to "both" (can book services + provide services)
-      await ProviderService.updateUserRole(userId, "both");
-      console.log('[ProviderRepo] User role updated to "both"');
-
-      return newProviderId;
+      await ProviderService.createProviderAndPromote(userId, providerData);
     }
+    return providerId || userId;
   } catch (error) {
     console.error("Error creating or updating provider profile:", error);
     throw error;
   }
+}
+
+function publicServiceArea(location: ProviderRegistration['location']) {
+  const coordinates = location.coordinates;
+  return {
+    country: location.country,
+    city: location.city,
+    ...(coordinates && isValidCoordinates(coordinates) ? {
+      coordinates: {
+        latitude: Math.round(coordinates.latitude * 100) / 100,
+        longitude: Math.round(coordinates.longitude * 100) / 100,
+      },
+    } : {}),
+  };
 }

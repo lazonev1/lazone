@@ -85,8 +85,8 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       onChange({
         ...value,
         coordinates: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: Math.round(location.coords.latitude * 100) / 100,
+          longitude: Math.round(location.coords.longitude * 100) / 100,
         },
       });
     } catch (error) {
@@ -142,10 +142,11 @@ export function LocationPicker({ value = { country: '', city: '' }, onChange, co
       {value.coordinates && (
         <View style={styles.coordinatesContainer}>
           <ThemedText style={styles.coordinates}>
-            📍 {value.coordinates.latitude.toFixed(6)}, {value.coordinates.longitude.toFixed(6)}
+            📍 {value.coordinates.latitude.toFixed(2)}, {value.coordinates.longitude.toFixed(2)}
           </ThemedText>
         </View>
       )}
+      <ThemedText style={styles.coordinates}>{t('location.publicAreaNotice')}</ThemedText>
 
       {locationError && <ThemedText style={styles.error}>{locationError}</ThemedText>}
     </View>
