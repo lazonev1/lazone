@@ -108,8 +108,13 @@ try {
     lastName: 'Provider',
     phoneNumber: '+22600000000',
     dob: new Date('1990-01-01'),
+    role: 'requester',
+    verified: false,
+    subscriptionType: 'free',
     bookmarked: ['private-bookmark'],
     notificationTokens: ['private-push-token'],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   }));
   await expectAllowed('requester user profile creation', () => setDoc(doc(requesterClient.db, 'users', requesterId), {
     firstName: 'Test',
@@ -120,6 +125,25 @@ try {
     notificationTokens: ['requester-token'],
     subscriptionType: 'free',
     preferences: { language: 'fr' },
+    verified: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+
+  await expectDenied('new account cannot self-verify', () => setDoc(doc(outsiderClient.db, 'users', outsiderId), {
+    firstName: 'Unsafe', lastName: 'Account', phoneNumber: '', role: 'requester',
+    verified: true, subscriptionType: 'free', bookmarked: [],
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  await expectDenied('new account cannot claim a paid subscription', () => setDoc(doc(outsiderClient.db, 'users', outsiderId), {
+    firstName: 'Unsafe', lastName: 'Account', phoneNumber: '', role: 'requester',
+    verified: false, subscriptionType: 'enterprise', bookmarked: [],
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }));
+  await expectDenied('new account cannot add unknown privileged fields', () => setDoc(doc(outsiderClient.db, 'users', outsiderId), {
+    firstName: 'Unsafe', lastName: 'Account', phoneNumber: '', role: 'requester',
+    verified: false, subscriptionType: 'free', bookmarked: [], admin: true,
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   }));
 
   await expectAllowed('requester edits account name before becoming a provider', () => runTransaction(
@@ -128,7 +152,7 @@ try {
       await transaction.get(userRef);
       const provider = await transaction.get(doc(requesterClient.db, 'providers', requesterId));
       assert.equal(provider.exists(), false);
-      transaction.update(userRef, { firstName: 'Test' });
+      transaction.update(userRef, { firstName: 'Test', updatedAt: serverTimestamp() });
       transaction.set(doc(requesterClient.db, 'publicProfiles', requesterId), {
         firstName: 'Test', lastName: 'Requester',
       });
@@ -139,6 +163,21 @@ try {
   await expectDenied('anonymous user cannot read private account', () => getDoc(doc(anonymousClient.db, 'users', providerId)));
   await expectAllowed('owner reads private account', () => getDoc(doc(providerClient.db, 'users', providerId)));
   await expectDenied('unrelated user cannot list accounts', () => getDocs(collection(outsiderClient.db, 'users')));
+  await expectDenied('owner cannot orphan account data with a document-only delete', () => deleteDoc(
+    doc(requesterClient.db, 'users', requesterId)
+  ));
+  await expectDenied('owner cannot self-verify', () => updateDoc(
+    doc(requesterClient.db, 'users', requesterId), { verified: true, updatedAt: serverTimestamp() }
+  ));
+  await expectDenied('owner cannot assign a paid subscription', () => updateDoc(
+    doc(requesterClient.db, 'users', requesterId), { subscriptionType: 'premium', updatedAt: serverTimestamp() }
+  ));
+  await expectDenied('requester cannot change role without provider enrollment', () => updateDoc(
+    doc(requesterClient.db, 'users', requesterId), { role: 'both', updatedAt: serverTimestamp() }
+  ));
+  await expectDenied('owner cannot add an unrecognized account field', () => updateDoc(
+    doc(requesterClient.db, 'users', requesterId), { isAdmin: true, updatedAt: serverTimestamp() }
+  ));
   await expectAllowed('provider public identity creation', () => setDoc(doc(providerClient.db, 'publicProfiles', providerId), {
     firstName: 'Test', lastName: 'Provider', avatar: 'https://example.test/provider.png',
   }));
@@ -165,9 +204,14 @@ try {
       services: [{ id: 'service-1', name: 'Test Service', price: '1000' }],
       location: { country: 'BF', city: 'Ouagadougou', coordinates: { latitude: 12.35, longitude: -1.23 } },
     });
-    batch.update(doc(providerClient.db, 'users', providerId), { role: 'both' });
+    batch.update(doc(providerClient.db, 'users', providerId), {
+      role: 'both', updatedAt: serverTimestamp(),
+    });
     return batch.commit();
   });
+  await expectDenied('provider cannot downgrade or rewrite their account role', () => updateDoc(
+    doc(providerClient.db, 'users', providerId), { role: 'requester', updatedAt: serverTimestamp() }
+  ));
 
   await expectDenied('provider without services', () => setDoc(doc(outsiderClient.db, 'providers', outsiderId), {
     publicSchemaVersion: 1,
@@ -195,7 +239,7 @@ try {
       await transaction.get(userRef);
       await transaction.get(providerRef);
       const publicProfile = await transaction.get(publicProfileRef);
-      transaction.update(userRef, { firstName: 'Updated' });
+      transaction.update(userRef, { firstName: 'Updated', updatedAt: serverTimestamp() });
       transaction.set(publicProfileRef, {
         firstName: 'Updated', lastName: 'Provider', avatar: publicProfile.data().avatar,
         updatedAt: serverTimestamp(),
@@ -437,11 +481,17 @@ try {
   for (const [key, value] of Object.entries(accountBefore)) {
     if (key !== 'role' && key !== 'updatedAt') assert.deepEqual(accountAfter[key], value, `${key} survives enrollment`);
   }
-  await expectAllowed('provider can add a bookmark', () => updateDoc(accountRef, { bookmarked: arrayUnion(outsiderId) }));
+  await expectAllowed('provider can add a bookmark', () => updateDoc(accountRef, {
+    bookmarked: arrayUnion(outsiderId), updatedAt: serverTimestamp(),
+  }));
   assert.deepEqual((await getDoc(accountRef)).data().bookmarked, [providerId, outsiderId]);
-  await expectAllowed('provider can remove a bookmark', () => updateDoc(accountRef, { bookmarked: arrayRemove(outsiderId) }));
+  await expectAllowed('provider can remove a bookmark', () => updateDoc(accountRef, {
+    bookmarked: arrayRemove(outsiderId), updatedAt: serverTimestamp(),
+  }));
   assert.deepEqual((await getDoc(accountRef)).data().bookmarked, [providerId]);
-  await expectAllowed('provider keeps notification registration', () => updateDoc(accountRef, { notificationTokens: arrayUnion('new-token') }));
+  await expectAllowed('provider keeps notification registration', () => updateDoc(accountRef, {
+    notificationTokens: arrayUnion('new-token'), updatedAt: serverTimestamp(),
+  }));
   await expectAllowed('provider reads their old requester booking', () => getDoc(requesterBookingRef));
   await expectAllowed('provider lists their requester bookings', async () => {
     const bookings = await getDocs(query(collection(requesterClient.db, 'bookings'), where('requesterId', '==', requesterId)));

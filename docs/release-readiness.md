@@ -4,13 +4,15 @@ Last audited: **2026-09-17**
 
 S01 completed: **2026-09-19** (implementation, live migration, rules deployment, regression coverage, and two-account production-safe native smoke test). Other findings retain their audit-baseline status.
 
+S02 completed: **2026-09-20** (account allowlists, atomic provider promotion, live rules deployment, regression coverage, and disposable-account native verification). Ratings and referrals were explicitly separated into S10 and C03 rather than treated as completed.
+
 Baseline: **`develop` at `e2fb0aa`**, including merged French/English localization PR #79. `origin/develop` was fetched and matched this baseline.
 
 Decision: **Not ready for a public release.** The core marketplace journey exists, but security, data persistence, recovery, and visible product promises still have launch-blocking gaps.
 
 This is the working backlog for functionality, security/maintainability, and professional, frictionless UI/UX. It replaces the earlier checklist: some earlier “completed and verified” claims were broader than the implementation or tests support.
 
-**Next implementation slice:** S02 (authoritative trust fields, ratings, and rewards). S01 is complete. Read the [brief before/after guide](public-private-profile-changes.md) and [deployment evidence](public-private-profile-rollout.md).
+**Next implementation slice:** S03 review-vote integrity. Trusted rating aggregation is deliberately deferred to S10 until backend functions are adopted, but remains required before public launch. Referrals remain a separate C03 product decision. S01 and S02 are complete. Read the [brief before/after guide](public-private-profile-changes.md) and [deployment evidence](public-private-profile-rollout.md).
 
 Jump to: [implemented foundation](#implemented-foundation--keep-do-not-rebuild-blindly), [audit evidence](#audit-coverage-and-evidence), [delivery order](#recommended-delivery-order), [security](#remaining-work--security-and-data-integrity), [booking UX](#remaining-work--booking-journey-and-customer-experience), [providers/discovery](#remaining-work--provider-management-and-discovery), [accounts](#remaining-work--identity-account-and-trust), [messaging/notifications](#remaining-work--messaging-and-notifications), [UI/accessibility](#remaining-work--professional-ui-accessibility-and-localization), [engineering/release](#remaining-work--maintainability-performance-and-release-operations), [scope decisions](#conditional-scope--decide-explicitly-then-finish-or-defer), [acceptance matrix](#release-candidate-acceptance-matrix).
 
@@ -56,7 +58,7 @@ Cancellation/decline and support paths must be defined alongside this happy path
 - [x] Booking creation, pending-booking editing, acceptance, start, submission for review, requester confirmation, changes requested, cancellation, and timeline rendering exist.
 - [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. **New-event linkage is bypassable** (S04).
 - [x] First-contact conversation creation uses a canonical participant ID and a transaction in the client. Message creation and summary writes are batched. **Rules do not enforce all equivalent invariants** (S06).
-- [x] Completed-booking reviews, requester editing/deletion, provider responses, and helpful-vote UI exist. Aggregate/vote security and several UI paths remain incomplete (S02/S03/B09).
+- [x] Completed-booking reviews, requester editing/deletion, provider responses, and helpful-vote UI exist. Aggregate/vote security and several UI paths remain incomplete (S10/S03/B09).
 - [x] Centralized booking status labels/colors and a booking-request success screen exist. The full interaction still needs refinement (B05/B08/U01).
 - [x] English/French resources, language switching, and persisted language preference exist. Key parity passed; full localization and native runtime verification remain open (U04/E03).
 - [x] Push registration, message notification code, and some booking-status notification code exist. Delivery, preferences, coverage, and deployed versions are not signed off (N01/N02).
@@ -86,18 +88,18 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 | 1 | An unrelated authenticated user can read another user's phone, DOB, bookmarks, and notification tokens. | S01 |
 | 2 | A user can assign their own `verified` and subscription fields. This proves trust-field forgery, not a demonstrated admin-role takeover. | S02 |
 | 3 | An unauthenticated reader can read private fields placed in a public provider document; normal provider creation copies such fields. | S01 |
-| 4 | An unrelated authenticated user can set another provider's rating/count without a review. | S02 |
+| 4 | An unrelated authenticated user can set another provider's rating/count without a review. | S10 |
 | 5 | An unrelated authenticated user can replace helpful voters with other identities and duplicate entries. | S03 |
 | 6 | A conversation participant can change the other participant's typing/read metadata. | S06 |
 | 7 | A message with empty text, a non-timestamp date, and a mismatched conversation ID is accepted. | S06 |
 | 8 | A conversation with duplicate participants and fabricated participant details is accepted. | S06 |
 | 9 | A requester can reuse an older acceptance event when requesting changes, changing status without creating a new timeline event. | S04 |
 | 10 | A self-booking with a nonexistent service, negative price, invalid date, and `[null]` checklist is accepted. | S05 |
-| 11 | A user can create an already-rewarded referral with an arbitrary reward amount. | S02/C03 |
+| 11 | A user can create an already-rewarded referral with an arbitrary reward amount. | C03 |
 
 ## Recommended delivery order
 
-1. **Close the remaining trust boundary:** S02–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01 public/private profiles are complete; preserve their public-profile adapters and deny requester-directory access while addressing later security work.
+1. **Close the remaining active trust boundary:** S03–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01/S02 public-profile and account-trust work is complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
 2. **Finish the main requester/provider journey:** B01–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
@@ -119,17 +121,16 @@ These are delivery slices, not a requirement to move every Firestore write to Fu
 
 S01's implementation, migration, deployment, regression coverage, and production-safe native smoke test are complete. Disposable record-creating release-candidate journeys and general PR/build governance are tracked under E04 rather than leaving this implementation ticket open.
 
+### S02 · P0 · Account trust fields — complete
+
+- [x] Restrict new private accounts to the reviewed schema and safe defaults: requester role, unverified, and free subscription.
+- [x] Allow only ordinary owner-managed profile, bookmark, location, preference, and notification-token fields to change. Deny self-verification, paid-entitlement assignment, unknown top-level fields, and document-only account deletion.
+- [x] Permit requester-to-provider role promotion only in the same atomic commit as a valid, service-bearing public provider profile; deny unlinked role changes and later role rewrites.
+- [x] Preserve account edits, bookmarks, notification registration, and provider enrollment; require server-authored `updatedAt` on those account mutations.
+- [x] Pass TypeScript, lint (0 errors / 61 pre-existing warnings), and the full Auth/Firestore emulator suite. Deploy only Firestore rules to `lazonev1-5da5a`.
+- [x] Complete a disposable-account iPhone 15 / iOS 17.5 smoke test covering live signup, profile editing, bookmark add/remove, notification-token registration, provider registration with a required service, immediate Business-tab refresh, and stored trust values. Remove the disposable Auth account and all three test documents afterward.
+
 ## Remaining work — security and data integrity
-
-### S02 · P0 · Make trust fields, ratings, and rewards authoritative
-
-- [ ] **Problem:** Owners can write arbitrary user/provider fields, including trust fields; the temporary aggregate exception lets any signed-in user forge another provider's rating/count. Referral creation accepts arbitrary reward state. Client review aggregation can partially succeed or race.
-
-  **Sources:** [rules][rules], [review service][review-service], [referral service][referral-service], [Functions][functions].
-
-  **Required:** Add create/update field allowlists. Separate self-service provider enrollment from verified/approved status and paid entitlements. Use trusted, idempotent rating/reward/verification operations; rebuild aggregates from eligible reviews and handle create/edit/delete. Remove the development rating exception only when its replacement is working. Do not accept “verified” or “paid” merely because the client sent it.
-
-  **Done when:** Forged trust/aggregate/reward writes fail; duplicate/reordered retries do not change the final totals; aggregates reconcile; review success is not reported as failure because a later aggregate write failed. No privileged workflow depends on client-writable claims.
 
 ### S03 · P0 · Enforce helpful votes and review integrity
 
@@ -200,6 +201,18 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Record advisory IDs, installed versions, actual runtime/build reachability, remediation, and retest evidence. Update supported Expo/Firebase/React Native and Functions dependencies coherently; avoid blind forced upgrades/overrides. Include CI/build-machine exposure, not only code shipped to phones.
 
   **Done when:** Reachable critical/high issues are fixed; remaining non-applicable reports have evidence, owner, and review expiry. Clean install, native builds, rule tests, and journey tests pass after the dependency changes. Add continuous advisory monitoring.
+
+### S10 · P0 before public launch · Make rating aggregates authoritative
+
+- [ ] **Problem:** The temporary provider-rule exception lets any signed-in client write `averageRating` and `reviewCount`. Review create/edit/delete then recalculates aggregates on the reviewer's device, so the displayed aggregate can be forged, race, or fail after the review itself succeeds.
+
+  **Sources:** [rules][rules], [review service][review-service], [Functions][functions].
+
+  **Decision:** Deferred during the current development phase because the project has not adopted trusted backend functions. This is an explicit deferral, not an accepted production design. Do not build further ranking, verification, or commercial decisions on these client-written values.
+
+  **Required before launch:** Use a trusted, idempotent backend operation to rebuild aggregates from eligible reviews after create/edit/delete; make aggregate fields client read-only; reconcile existing provider totals; and separate review-write success from asynchronous aggregate processing.
+
+  **Done when:** Direct client aggregate writes fail; duplicate/reordered retries converge on the same totals; a reconciliation job matches eligible reviews; rating-based discovery uses only trusted values; and review submission remains successful when later aggregation is retried.
 
 ## Remaining work — booking journey and customer experience
 
@@ -573,6 +586,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 - [ ] **Decision needed:** These are not completed marketplace capabilities. Referral codes derive from truncated user IDs without a uniqueness guarantee; signup does not implement the advertised attribution/reward journey, rewards are client-forgeable, and displayed summaries can be limited. Follow has no behavior. Subscription fields lack an entitlement system.
 
+  **Planning status:** Deferred from the current engineering slice until the referral qualification/reward model is defined. This feature is not approved for release merely because its current UI exists. S02 protects subscription trust fields now; any future paid entitlement must use a trusted processor/backend.
+
   **Sources:** [referral service][referral-service], [referral UI][referral-ui], [referral hooks][referral-hooks], [provider profile][provider-ui], [rules][rules].
 
   **If included:** Implement collision-safe codes/links, verified attribution and qualification, fraud-resistant rewards, consistent currency units, reconciliation, and transparent eligibility. Define Follow separately from existing bookmarks and implement its notifications/privacy; protect subscription entitlements with trusted processing.
@@ -633,12 +648,23 @@ Reviewed by / date:
 - **Implementation/deployment:** complete. S01 is closed; broader release-candidate automation and governance remain under E04.
 - **Owner:** repository owner with Codex implementation assistance.
 - **PR/commit:** implementation branch `fix/public-private-profiles`; core commits `090a2d4`, `c74bdcc`, and `5f7709a`, with the September 19 identity-listing/avatar/test follow-up included in the same branch and PR.
-- **Evidence:** TypeScript and emulator/migration suites passed; lint has 61 pre-existing warnings and no errors. Live client checks confirm provider discovery, direct public review-identity lookup, private-account denial, and requester identity-list denial. A French two-account smoke test passed on iPhone 15 / iOS 17.5: requester private-account display, discovery, sanitized provider detail, enrollment validation, booking entry, chat, completed history, review form, and reviewer identity; plus provider dashboard, requester capabilities, incoming/active booking access, requester chat, owner profile, business/service edit prefill, and provider-role persistence after reload. No live record was changed. Actual submission of a new requester-to-provider conversion remains a dedicated-test-environment release check; the transition passes the Auth/Firestore emulator suite.
+- **Evidence:** TypeScript and emulator/migration suites passed; lint has 61 pre-existing warnings and no errors. Live client checks confirm provider discovery, direct public review-identity lookup, private-account denial, and requester identity-list denial. A French two-account smoke test passed on iPhone 15 / iOS 17.5: requester private-account display, discovery, sanitized provider detail, enrollment validation, booking entry, chat, completed history, review form, and reviewer identity; plus provider dashboard, requester capabilities, incoming/active booking access, requester chat, owner profile, business/service edit prefill, and provider-role persistence after reload. No live record was changed during S01 verification. The disposable live requester-to-provider submission was subsequently completed and cleaned up under S02.
 - **Migration/environment:** authorized backup, atomic migration, and Firestore-rules-only deployments to `lazonev1-5da5a`; no Functions or Storage deployment. Historical-copy inventory found no managed Firestore backup/schedule, no enabled PITR, and no document data in the tracked emulator export; [details](public-private-profile-rollout.md).
-- **Caveats:** five pre-existing providers need services (P02); new media uploads remain P01/S07; S02's rating/trust exceptions are not resolved. Disposable record-creating native automation remains E04 release work, not an S01 defect.
+- **Caveats:** five pre-existing providers need services (P02); new media uploads remain P01/S07; the temporary rating exception remains S10. Disposable record-creating native automation remains E04 release work, not an S01 defect.
 - **Reviewer/sign-off:** pending.
 
-No other backlog item is marked complete by this S01 update. Public release is not approved.
+### S02 progress record — updated 2026-09-20
+
+- **Implementation/deployment:** complete. S02 account trust-field hardening is closed; rating aggregation and referrals remain separately tracked under S10 and C03.
+- **Owner:** repository owner with Codex implementation assistance.
+- **PR/commit:** branch `fix/account-field-security`; implementation commit `5189b69`.
+- **Evidence:** TypeScript passed; lint passed with 0 errors and 61 pre-existing warnings; the complete authenticated Auth/Firestore emulator suite passed. Direct attempts to self-verify, claim paid subscriptions, add unknown privileged fields, change role without enrollment, downgrade role, or delete only the account document are denied. Normal signup, profile/name synchronization, bookmarks, notification tokens, and atomic provider enrollment remain allowed.
+- **Native/live verification:** on iPhone 15 / iOS 17.5, a disposable requester signed up, edited their name, added and removed a bookmark, enrolled as a provider with one required service, and immediately received the Business tab without logging out. Admin readback showed `role: both`, `verified: false`, `subscriptionType: free`, zero bookmarks, one notification token, `publicSchemaVersion: 1`, and one service.
+- **Migration/environment:** deployed only `firestore:rules` to `lazonev1-5da5a`; no Functions, Storage, index, or document migration was deployed. The disposable Auth account plus `users`, `providers`, and `publicProfiles` documents were deleted after verification; readback confirmed zero test documents remained.
+- **Caveats:** ratings remain intentionally client-aggregated during development and are a pre-launch S10 requirement. Referral/reward scope remains C03. Coordinated real account deletion remains A03.
+- **Reviewer/sign-off:** pending.
+
+No backlog item beyond S01 and S02 is marked complete. Public release is not approved.
 
 ## Source references
 

@@ -4,6 +4,7 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db, COLLECTIONS } from "../config/firebase";
 
@@ -29,6 +30,7 @@ export async function addBookmark(userId: string, providerId: string): Promise<v
   const userRef = doc(db, COLLECTIONS.USERS, userId);
   await updateDoc(userRef, {
     bookmarked: arrayUnion(providerId),
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -40,6 +42,7 @@ export async function removeBookmark(userId: string, providerId: string): Promis
   const userRef = doc(db, COLLECTIONS.USERS, userId);
   await updateDoc(userRef, {
     bookmarked: arrayRemove(providerId),
+    updatedAt: serverTimestamp(),
   });
 }
 

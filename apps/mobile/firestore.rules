@@ -74,9 +74,81 @@ service cloud.firestore {
         ));
     }
 
+    function isValidAccountCreate(data) {
+      return data.keys().hasOnly([
+          'firstName', 'lastName', 'phoneNumber', 'dob', 'role', 'avatar',
+          'verified', 'subscriptionType', 'bookmarked', 'location',
+          'notificationTokens', 'preferences', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'firstName', 'lastName', 'phoneNumber', 'role', 'verified',
+          'subscriptionType', 'bookmarked', 'createdAt', 'updatedAt'
+        ])
+        && data.firstName is string
+        && data.firstName.size() <= 80
+        && data.lastName is string
+        && data.lastName.size() <= 80
+        && data.phoneNumber is string
+        && data.phoneNumber.size() <= 32
+        && data.role == 'requester'
+        && data.verified == false
+        && data.subscriptionType == 'free'
+        && data.bookmarked is list
+        && data.bookmarked.size() <= 500
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && (!data.keys().hasAny(['dob']) || data.dob is timestamp)
+        && (!data.keys().hasAny(['avatar']) || (data.avatar is string && data.avatar.size() <= 2048))
+        && (!data.keys().hasAny(['location']) || data.location is map)
+        && (!data.keys().hasAny(['notificationTokens']) || (
+          data.notificationTokens is list && data.notificationTokens.size() <= 20
+        ))
+        && (!data.keys().hasAny(['preferences']) || data.preferences is map);
+    }
+
+    function hasValidEditableAccountFields(data) {
+      return (!data.keys().hasAny(['firstName']) || (data.firstName is string && data.firstName.size() <= 80))
+        && (!data.keys().hasAny(['lastName']) || (data.lastName is string && data.lastName.size() <= 80))
+        && (!data.keys().hasAny(['phoneNumber']) || (data.phoneNumber is string && data.phoneNumber.size() <= 32))
+        && (!data.keys().hasAny(['dob']) || data.dob is timestamp)
+        && (!data.keys().hasAny(['avatar']) || (data.avatar is string && data.avatar.size() <= 2048))
+        && (!data.keys().hasAny(['bookmarked']) || (
+          data.bookmarked is list && data.bookmarked.size() <= 500
+        ))
+        && (!data.keys().hasAny(['location']) || data.location is map)
+        && (!data.keys().hasAny(['notificationTokens']) || (
+          data.notificationTokens is list && data.notificationTokens.size() <= 20
+        ))
+        && (!data.keys().hasAny(['preferences']) || data.preferences is map);
+    }
+
+    function isSelfServiceAccountUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'firstName', 'lastName', 'phoneNumber', 'dob', 'avatar', 'bookmarked',
+          'location', 'notificationTokens', 'preferences', 'updatedAt'
+        ])
+        && request.resource.data.updatedAt == request.time
+        && hasValidEditableAccountFields(request.resource.data);
+    }
+
+    function isProviderRolePromotion(userId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'updatedAt'])
+        && resource.data.role == 'requester'
+        && request.resource.data.role == 'both'
+        && request.resource.data.updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/providers/$(userId))
+        && getAfter(/databases/$(database)/documents/providers/$(userId)).data.publicSchemaVersion == 1
+        && hasPublishedServices(getAfter(/databases/$(database)/documents/providers/$(userId)).data);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create, update, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidAccountCreate(request.resource.data);
+      allow update: if isOwner(userId)
+        && (isSelfServiceAccountUpdate() || isProviderRolePromotion(userId));
+      // Account deletion needs coordinated Auth/data cleanup (A03), not a
+      // client-side document delete that leaves bookings and messages orphaned.
+      allow delete: if false;
     }
 
     // Minimal identity used by chat and reviews. A caller may fetch a known
@@ -99,7 +171,9 @@ service cloud.firestore {
       allow get: if isOwner(providerId) || resource.data.publicSchemaVersion == 1;
       allow list: if resource.data.publicSchemaVersion == 1;
       allow create: if isOwner(providerId) && hasPublishedServices(request.resource.data)
-        && isPublicProvider(request.resource.data);
+        && isPublicProvider(request.resource.data)
+        && existsAfter(/databases/$(database)/documents/users/$(providerId))
+        && getAfter(/databases/$(database)/documents/users/$(providerId)).data.role in ['provider', 'both'];
       allow delete: if isOwner(providerId);
       allow update: if isAuthenticated()
         && hasPublishedServices(request.resource.data)
