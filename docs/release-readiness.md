@@ -6,6 +6,8 @@ S01 completed: **2026-09-19** (implementation, live migration, rules deployment,
 
 S02 completed: **2026-09-20** (account allowlists, atomic provider promotion, live rules deployment, regression coverage, and disposable-account native verification). Ratings and referrals were explicitly separated into S10 and C03 rather than treated as completed.
 
+S04 implementation completed locally: **2026-10-02** (new-event enforcement and adversarial/concurrency emulator coverage). Production deployment is still pending, so S04 remains unchecked until the live rules are intentionally deployed and verified.
+
 Baseline: **`develop` at `e2fb0aa`**, including merged French/English localization PR #79. `origin/develop` was fetched and matched this baseline.
 
 Decision: **Not ready for a public release.** The core marketplace journey exists, but security, data persistence, recovery, and visible product promises still have launch-blocking gaps.
@@ -56,7 +58,7 @@ Cancellation/decline and support paths must be defined alongside this happy path
 - [x] Provider registration/editing saves business information and embedded services; service presence is checked in the form, repository, and rules. Validation is not yet complete (S05/P02).
 - [x] Provider promotion refreshes the same account without requiring a new login. S01 now commits provider creation and role `both` atomically; draft/retry/auth recovery work remains (A01/P03).
 - [x] Booking creation, pending-booking editing, acceptance, start, submission for review, requester confirmation, changes requested, cancellation, and timeline rendering exist.
-- [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. **New-event linkage is bypassable** (S04).
+- [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. S04's local change also requires each transition event to be new; production deployment remains pending.
 - [x] First-contact conversation creation uses a canonical participant ID and a transaction in the client. Message creation and summary writes are batched. **Rules do not enforce all equivalent invariants** (S06).
 - [x] Completed-booking reviews, requester editing/deletion, provider responses, and helpful-vote UI exist. Aggregate/vote security and several UI paths remain incomplete (S10/S03/B09).
 - [x] Centralized booking status labels/colors and a booking-request success screen exist. The full interaction still needs refinement (B05/B08/U01).
@@ -151,6 +153,8 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Require nonexistence before the write, existence afterward, matching before/after statuses, actor/role, and server timestamp; alternatively make the entire command authoritative in trusted code. Keep booking/event changes atomic and events immutable. Avoid making obsolete clients silently lose transitions during rollout.
 
   **Done when:** Reusing any older event, cross-booking references, mismatched actor/status, standalone events, and status writes without an event all fail. Concurrent actions produce one valid outcome and one complete ordered history.
+
+  **Progress — 2026-10-02:** Implemented locally on `fix/booking-audit-events`. Rules now require the linked event to be absent before and present after the atomic write. The permanent emulator suite covers reuse of a genuinely older event, missing and cross-booking events, mismatched previous/target status, actor, role, and time, standalone event creation, valid lifecycle transitions, and competing concurrent transitions. Auth + Firestore emulators pass; TypeScript and full mobile lint pass with the existing warnings. Keep this item open until the rule is intentionally deployed and verified in the target Firebase project.
 
 ### S05 · P0 · Validate marketplace payloads at the trust boundary
 

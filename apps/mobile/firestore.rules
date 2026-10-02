@@ -19,6 +19,7 @@ service cloud.firestore {
       return request.resource.data.latestTransitionId is string
         && (!resource.data.keys().hasAll(['latestTransitionId'])
           || request.resource.data.latestTransitionId != resource.data.latestTransitionId)
+        && !exists(/databases/$(database)/documents/bookings/$(bookingId)/events/$(request.resource.data.latestTransitionId))
         && existsAfter(/databases/$(database)/documents/bookings/$(bookingId)/events/$(request.resource.data.latestTransitionId));
     }
 
