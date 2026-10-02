@@ -550,11 +550,15 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 - [ ] **Problem:** Documentation mixes npm and pnpm and suggests workflows incompatible with required native modules; permissive test-mode instructions are unsafe if applied to production. The mobile npm lockfile still describes an older Expo stack than the active pnpm project. `apps/.DS_Store` is tracked; sample hooks, template reset script, reference search code, and export metadata remain.
 
-  **Sources:** [root README][root-readme], [mobile README][mobile-readme], [mobile npm lock][npm-lock], [pnpm lock][lockfile], [reset script][reset-script].
+  **Sources:** [root README][root-readme], [mobile README][mobile-readme], [development runbook](development.md), [pnpm lock][lockfile]. The obsolete npm lockfile and template reset script were removed in the E06 implementation.
 
   **Required:** Document one supported package-manager/runtime setup, remote EAS workflow, fully isolated emulators, account fixtures, permission/deep-link testing, rules/index/Functions deployment, and rollback. Remove stale lock/OS artifacts and unused templates after checking references; retain only intentionally sanitized fixtures, with safe seeder project guards. Do not describe Firebase client configuration keys as a replacement for security rules or mistake them for Admin credentials.
 
   **Done when:** A new contributor can follow the README from a clean checkout without changing ignore rules or touching production accidentally; CI and local commands agree; the reset/seeding tools cannot be mistaken for routine release operations.
+
+  **Progress — 2026-10-02:** Implemented on `fix/developer-setup-safety`, independently from open security PRs. Replaced contradictory setup instructions with pnpm/remote EAS development-client guidance and explicit environment/deployment/rollback documentation. Added one pinned demo Auth/Firestore test command shared by CI and local development; removed implicit live Functions commands, unused Admin referral seeder, destructive template reset, stale npm lockfile, OS file, search reference, and emulator metadata. Root `.easignore` includes native Firebase client configs while excluding local state/backups/credentials; both configs remain Git-ignored. TypeScript, lint (0 errors / 61 existing warnings), Auth/Firestore suite, Functions syntax, and local EAS archive inspection pass. No native build or live deployment was performed. Full mobile Auth/Storage/messaging emulator isolation remains E04, not a capability claimed by the Firestore-only switch. Keep E06 open until clean-contributor/native setup acceptance is recorded.
+
+  **Additional verification:** A fresh `pnpm install --frozen-lockfile` in the inspected archive passed, followed by TypeScript without the working checkout's generated state. Guide links resolve. Native Firebase client files are present in the archive and still excluded from Git. No dependency versions or live rules changed.
 
 ## Conditional scope — decide explicitly, then finish or defer
 
@@ -758,8 +762,6 @@ No backlog item beyond S01 and S02 is marked complete. Public release is not app
 [eas-json]: ../apps/mobile/eas.json
 [mobile-package]: ../apps/mobile/package.json
 [lockfile]: ../pnpm-lock.yaml
-[npm-lock]: ../apps/mobile/package-lock.json
 [ci]: ../.github/workflows/mobile-checks.yml
 [root-readme]: ../README.md
 [mobile-readme]: ../apps/mobile/README.md
-[reset-script]: ../apps/mobile/scripts/reset-project.js
