@@ -1,4 +1,8 @@
 node_modules
+.DS_Store
+**/package-lock.json
+**/emulator-data/
+**/*-debug.log
 .idea/
 apps/mobile/google-services.json
 apps/mobile/GoogleService-Info.plist
