@@ -172,6 +172,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** First contact and legacy conversations work, while malformed messages, forged sender identity, peer metadata edits, spoofed previews, and unauthorized membership/ID creation fail. Include two simultaneous first-contact attempts and deleted/deactivated participant cases.
 
+  **Progress — 2026-10-02:** Implemented and reviewed locally on `fix/conversation-message-security`. New conversations use an authenticated, canonical two-user identity with public-profile-backed participant details while accepting the existing participant-array order. Participants can change only their own read/typing state. New messages use a bounded schema and server time, and are atomically bound by exact path to the parent summary without changing the stored schema. Emulator coverage includes malformed/forged/cross-collection writes, concurrent first contact, legacy maps, and a removed public profile. Auth + Firestore emulators, TypeScript, and full mobile lint pass (0 errors; existing warnings remain). Keep this item open until intentional rules deployment and native two-account verification are complete.
+
 ### S07 · P0 · Secure the media pipeline before enabling uploads
 
 - [ ] **Problem:** Storage checks UID ownership but does not limit content type/size; user/provider paths are publicly readable. That is unsuitable for private certification/identity evidence. Upload helpers lack resumable progress, cleanup, and a complete persisted media flow. Firebase configurations name different Storage buckets.
