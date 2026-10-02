@@ -1,180 +1,104 @@
-# LaZone Monorepo
+# LaZone
 
-This is the monorepo for the LaZone project, managed with `pnpm`.
+Expo / React Native marketplace in a pnpm monorepo. `apps/mobile` contains the app;
+`packages/ui` contains shared controls. Run commands below from the repository root.
 
-## Architecture
+## Supported setup
 
-The project follows a monorepo structure using `pnpm workspaces`:
+Use Node **20.19.4 or newer within 20.x** (matching CI's major and React Native's minimum),
+pnpm **10.11.0** (the root `packageManager`), and Java **21**
+for Firestore emulator tests. Java runs the local test database; it is not an app dependency.
+Runtime/toolchain upgrades remain tracked in E03.
 
-- **apps/**: Contains deployable applications.
-  - `mobile`: The mobile application source code (Expo + Firebase).
-- **packages/**: Shared libraries, UI components, and utilities used across applications.
-
-## Prerequisites
-
-- **Node.js** (v20+)
-- **pnpm** (v10+)
-- **Expo Account** - Sign up at [expo.dev](https://expo.dev)
-- **EAS CLI** - Installed locally in the project
-- **Firebase Project** - For backend services
-
-## Firebase Setup (One-time by Project Owner)
-
-These steps have already been completed for this project, but are documented here for reference:
-
-1. **Create Firebase Project** at [console.firebase.google.com](https://console.firebase.google.com)
-2. **Create 3 Apps in Firebase Console:**
-   - **iOS App**: Bundle ID `com.lazone.serviceApp`
-   - **Android App**: Package name `com.lazone.serviceApp`
-   - **Web App**: For the JS SDK configuration
-3. **Enable Firestore Database:**
-   - Go to Firestore Database → Create database
-   - Start in **test mode** for development
-4. **Download config files:**
-   - `google-services.json` (from Android app)
-   - `GoogleService-Info.plist` (from iOS app)
-
-## Getting Started (For New Team Members)
-
-### Step 1: Clone and Install
-
-```bash
-git clone <repository-url>
-cd lazone
-pnpm install
+```sh
+corepack enable
+corepack prepare pnpm@10.11.0 --activate
+pnpm install --frozen-lockfile
 ```
 
-### Step 2: Get Firebase Config Files
+`pnpm-lock.yaml` is the only workspace lockfile. Do not run `npm install` in subfolders.
+The Firebase CLI is pinned by the test script; no global installation is needed.
 
-**⚠️ These files are NOT in git (they contain API keys).**
+## Run the mobile app
 
-Ask the project owner for:
+Use an EAS **development build**, because the app uses native Firebase messaging and
+Expo Localization. Expo Go is not the supported runtime.
 
-- `google-services.json`
-- `GoogleService-Info.plist`
+1. Obtain `google-services.json` and `GoogleService-Info.plist` from the project owner
+   and place them in `apps/mobile/`. These are Firebase client configuration, not Admin
+   credentials. They stay Git-ignored; the root `.easignore` includes them in EAS archives.
+   Access control comes from deployed rules, not secrecy of client API keys.
+2. Sign in and install a compatible iOS simulator build:
 
-Place both files in:
+   ```sh
+   pnpm eas:login
+   pnpm --filter ./apps/mobile exec eas build:run --platform ios
+   ```
 
-```
-apps/mobile/google-services.json
-apps/mobile/GoogleService-Info.plist
-```
+3. Start Metro and open the installed app:
 
-### Step 3: Login to EAS
+   ```sh
+   pnpm dev:mobile
+   ```
 
-```bash
-pnpm eas:login
-```
+   Keep that terminal running. Press `i` to open iOS or use the development-client
+   link on a configured physical device. Stop Metro with Ctrl+C.
 
-Enter your Expo account credentials.
+The mobile client currently targets **lazonev1-5da5a** by default. Native testing can
+create real accounts/data. Use agreed disposable accounts and clean up only their IDs.
+The automated rule tests below never use this shared project.
 
-### Step 4: Install the App on Simulator/Emulator
+## Remote builds
 
-**For iOS Simulator:**
+Build on EAS; a local native prebuild is not required for the normal workflow.
 
-```bash
+```sh
+# Only iOS simulator — remote compilation
+pnpm build:simulator:ios
 pnpm --filter ./apps/mobile exec eas build:run --platform ios
 ```
 
-**For Android Emulator:**
+| Command | Target |
+| --- | --- |
+| `pnpm build:simulator:ios` | iOS simulator development client |
+| `pnpm build:simulator:android` | Android development APK |
+| `pnpm build:ios` | Physical iOS development build; Apple provisioning required |
+| `pnpm build:android` | Android development build |
+| `pnpm build:mobile:prod` | Both store platforms; release-owner action |
 
-```bash
-pnpm --filter ./apps/mobile exec eas build:run --platform android
+Rebuild after adding/changing native dependencies or native app configuration. JS,
+TypeScript, styling, and route changes normally reload through Metro. A missing native
+module such as `ExpoLocalization` usually means the installed binary needs rebuilding;
+restarting Metro cannot add a native module to an existing binary.
+
+Do not remove Firebase files from `.gitignore` to fix uploads. See the
+[development runbook](docs/development.md) for archive inspection, testing, permissions,
+deep links, deployments, and rollback.
+
+## Checks before a PR
+
+```sh
+pnpm --filter ./apps/mobile typecheck
+pnpm --filter ./apps/mobile lint
+pnpm --filter ./apps/mobile test:rules:emulator
+node --check apps/mobile/backend/main/src/functions/index.js
+git diff --check
 ```
 
-This downloads the latest build from EAS and installs it on your simulator/emulator.
+CI uses the same commands. Emulator tests create synthetic requester/provider/outsider
+accounts, assert allowed and denied writes, and stop afterward. They do not establish
+native UI behavior or live deployment correctness.
 
-### Step 5: Start Development Server
+## Code map
 
-```bash
-pnpm dev:mobile
-```
+- `apps/mobile/app/`: Expo Router screens
+- `apps/mobile/components/`, `hooks/`, `contexts/`: presentation and state
+- `apps/mobile/repositories/`: Firestore-to-UI adapters
+- `apps/mobile/backend/main/src/services/`: client data operations
+- `apps/mobile/backend/main/src/config/firebase.ts`: active Firebase client configuration
+- `apps/mobile/firestore.rules`, `storage.rules`: authorization boundaries
+- `apps/mobile/backend/main/src/functions/`: notification functions; separate rollout
+- `docs/release-readiness.md`: release backlog and verification evidence
 
-The app on your simulator will connect to the dev server. Code changes will hot-reload automatically.
-
-## Available Scripts
-
-| Script                   | Description                                                       |
-| ------------------------ | ----------------------------------------------------------------- |
-| `pnpm dev:mobile`        | Start the Expo development server                                 |
-| `pnpm eas:login`         | Login to your Expo/EAS account                                    |
-| `pnpm prebuild:mobile`   | Generate native iOS/Android folders locally                       |
-| `pnpm build:simulator`   | Build for iOS Simulator + Android APK (no Apple account needed)   |
-| `pnpm build:android`     | Build Android only                                                |
-| `pnpm build:ios`         | Build iOS only (requires Apple account for real devices)          |
-| `pnpm build:mobile:dev`  | Build for real devices (requires Apple Developer account for iOS) |
-| `pnpm build:mobile:prod` | Production build for App Store / Play Store                       |
-
-## Build Profiles (eas.json)
-
-| Profile       | iOS                   | Android               | Use Case                            |
-| ------------- | --------------------- | --------------------- | ----------------------------------- |
-| `simulator`   | Simulator only        | APK                   | Local testing without Apple account |
-| `development` | Real device           | APK                   | Testing on physical devices         |
-| `preview`     | Internal distribution | Internal distribution | Beta testing                        |
-| `production`  | App Store             | Play Store            | Release                             |
-
-## When Do I Need to Rebuild?
-
-**NO rebuild needed for:**
-
-- JavaScript/TypeScript code changes
-- React component changes
-- Styling changes
-- Adding new screens/routes
-
-**Rebuild IS needed for:**
-
-- Adding/removing native packages (e.g., `react-native-*`)
-- Changing `app.json` native settings
-- Changing `eas.json` build configuration
-- Modifying native code (ios/ or android/ folders)
-
-## Troubleshooting
-
-### "Command eas not found"
-
-Run `pnpm eas:login` from the root directory, not inside `apps/mobile`.
-
-### App doesn't connect to dev server
-
-1. Make sure dev server is running: `pnpm dev:mobile`
-2. Shake device or press `m` in terminal to open menu
-3. Check that your computer and simulator are on the same network
-
-### Firebase errors
-
-1. Verify `google-services.json` and `GoogleService-Info.plist` exist in `apps/mobile/`
-2. Check that Firestore is enabled in Firebase Console
-3. Ensure Firestore rules allow read/write (test mode)
-
-### iOS build asks for Apple ID
-
-Use the `simulator` profile instead:
-
-```bash
-pnpm build:simulator
-```
-
-## Project Structure
-
-```
-lazone/
-├── apps/
-│   └── mobile/
-│       ├── app/                    # Expo Router screens
-│       │   ├── (auth)/             # Auth screens
-│       │   ├── (tabs)/             # Tab screens
-│       │   └── _layout.tsx         # Root layout
-│       ├── components/             # React components
-│       ├── contexts/               # React contexts (auth, etc.)
-│       ├── hooks/                  # Custom hooks
-│       ├── constants/              # Colors, config
-│       ├── firebaseConfig.js       # Firebase initialization
-│       ├── app.json                # Expo config
-│       ├── eas.json                # EAS Build config
-│       └── metro.config.js         # Metro bundler config
-├── packages/                       # Shared packages
-├── package.json                    # Root package.json with scripts
-└── pnpm-workspace.yaml             # Workspace config
-```
+For permission errors, inspect identity, payload, and deployed rules. Never enable
+permissive Firestore test mode to make a failing app flow work.
