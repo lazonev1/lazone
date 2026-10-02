@@ -61,6 +61,46 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
   await batch.commit();
 }
 
+function conversationPayload(participants, participantDetails) {
+  return {
+    participants,
+    participantDetails,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastRead: {},
+    typing: {},
+  };
+}
+
+async function writeMessageWithSummary(
+  db,
+  conversationId,
+  senderId,
+  text,
+  messageOverrides = {},
+  summaryOverrides = {},
+  summaryActorId = senderId,
+) {
+  const conversationRef = doc(db, 'conversations', conversationId);
+  const messageRef = doc(collection(db, 'conversations', conversationId, 'messages'));
+  const batch = writeBatch(db);
+  batch.set(messageRef, {
+    conversationId,
+    senderId,
+    text,
+    createdAt: serverTimestamp(),
+    ...messageOverrides,
+  });
+  batch.update(conversationRef, {
+    lastMessage: messageRef,
+    updatedAt: serverTimestamp(),
+    [`lastRead.${summaryActorId}`]: serverTimestamp(),
+    ...summaryOverrides,
+  });
+  await batch.commit();
+  return messageRef;
+}
+
 async function seedAdminDocument(documentPath, fields) {
   const response = await fetch(
     `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
@@ -75,6 +115,19 @@ async function seedAdminDocument(documentPath, fields) {
   );
   if (!response.ok) {
     throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
+async function deleteAdminDocument(documentPath) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer owner' },
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to delete ${documentPath}: ${response.status} ${await response.text()}`);
   }
 }
 
@@ -387,6 +440,11 @@ try {
   ));
 
   const conversationId = [providerId, requesterId].sort().join('_');
+  const participants = [providerId, requesterId].sort();
+  const participantDetails = {
+    [requesterId]: { name: 'Test Requester', avatar: '' },
+    [providerId]: { name: 'Updated Provider', avatar: 'https://example.test/provider.png' },
+  };
   const conversationRef = doc(requesterClient.db, 'conversations', conversationId);
   const missingConversationRef = doc(requesterClient.db, 'conversations', `missing-${runId}`);
   await expectAllowed('nonexistent conversation lookup', async () => {
@@ -403,19 +461,20 @@ try {
         if (!requesterProfile.exists() || !providerProfile.exists()) {
           throw new Error('expected both participant profiles to exist');
         }
-        transaction.set(conversationRef, {
-          participants: [requesterId, providerId],
-          participantDetails: {
-            [requesterId]: { name: 'Test Requester', avatar: '' },
-            [providerId]: { name: 'Test Provider', avatar: '' },
-          },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          lastRead: {},
-          typing: {},
-        });
+        transaction.set(conversationRef, conversationPayload(participants, participantDetails));
       }
     },
+  ));
+  await expectDenied('conversation cannot contain the same participant twice', () => setDoc(
+    doc(requesterClient.db, 'conversations', `${requesterId}_${requesterId}`),
+    conversationPayload(
+      [requesterId, requesterId],
+      { [requesterId]: { name: 'Test Requester', avatar: '' } },
+    ),
+  ));
+  await expectDenied('conversation ID must match its participants', () => setDoc(
+    doc(requesterClient.db, 'conversations', `arbitrary-${runId}`),
+    conversationPayload(participants, participantDetails),
   ));
   await expectAllowed('conversation read', () => getDoc(conversationRef));
   await expectAllowed('conversation list', () => getDocs(query(
@@ -427,36 +486,219 @@ try {
     'conversations',
     conversationId,
   )));
-  const requesterMessageRef = doc(collection(requesterClient.db, 'conversations', conversationId, 'messages'));
-  const requesterMessageBatch = writeBatch(requesterClient.db);
-  requesterMessageBatch.set(requesterMessageRef, {
-    conversationId,
-    senderId: requesterId,
-    text: 'Hello provider',
-    createdAt: serverTimestamp(),
-  });
-  requesterMessageBatch.update(conversationRef, {
-    lastMessage: requesterMessageRef,
-    updatedAt: serverTimestamp(),
+  await expectAllowed('requester updates own read status', () => updateDoc(conversationRef, {
     [`lastRead.${requesterId}`]: serverTimestamp(),
-  });
-  await expectAllowed('requester sends message', () => requesterMessageBatch.commit());
-
+  }));
   const providerConversationRef = doc(providerClient.db, 'conversations', conversationId);
-  const providerMessageRef = doc(collection(providerClient.db, 'conversations', conversationId, 'messages'));
-  const providerMessageBatch = writeBatch(providerClient.db);
-  providerMessageBatch.set(providerMessageRef, {
-    conversationId,
-    senderId: providerId,
-    text: 'Hello requester',
-    createdAt: serverTimestamp(),
-  });
-  providerMessageBatch.update(providerConversationRef, {
-    lastMessage: providerMessageRef,
-    updatedAt: serverTimestamp(),
+  await expectAllowed('provider updates own typing status', () => updateDoc(providerConversationRef, {
+    [`typing.${providerId}`]: true,
+  }));
+  await expectDenied('requester cannot change provider read status', () => updateDoc(conversationRef, {
     [`lastRead.${providerId}`]: serverTimestamp(),
+  }));
+  await expectDenied('provider cannot change requester typing status', () => updateDoc(providerConversationRef, {
+    [`typing.${requesterId}`]: true,
+  }));
+  await expectDenied('participant details cannot be fabricated after creation', () => updateDoc(conversationRef, {
+    [`participantDetails.${providerId}.name`]: 'Impersonated Provider',
+  }));
+
+  const standaloneMessageRef = doc(collection(requesterClient.db, 'conversations', conversationId, 'messages'));
+  await expectDenied('message requires a matching conversation summary update', () => setDoc(
+    standaloneMessageRef,
+    { conversationId, senderId: requesterId, text: 'Orphan message', createdAt: serverTimestamp() },
+  ));
+  await expectDenied('message text cannot be empty', () => writeMessageWithSummary(
+    requesterClient.db, conversationId, requesterId, '',
+  ));
+  await expectDenied('message text cannot contain only whitespace', () => writeMessageWithSummary(
+    requesterClient.db, conversationId, requesterId, '   ',
+  ));
+  await expectDenied('message must name its parent conversation', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Wrong parent',
+    { conversationId: `different-${conversationId}` },
+  ));
+  await expectDenied('message sender cannot be forged', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    providerId,
+    'Forged sender',
+    {},
+    {},
+    requesterId,
+  ));
+  await expectDenied('message timestamp must be server-authored', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Wrong timestamp',
+    { createdAt: new Date('2020-01-01') },
+  ));
+  await expectDenied('message cannot add unreviewed fields', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Unexpected payload',
+    { isAdmin: true },
+  ));
+  const missingSummaryMessageRef = doc(
+    requesterClient.db,
+    'conversations',
+    conversationId,
+    'messages',
+    `missing-summary-${runId}`,
+  );
+  await expectDenied('conversation summary cannot point to a missing message', () => updateDoc(
+    conversationRef,
+    {
+      lastMessage: missingSummaryMessageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    },
+  ));
+  await expectDenied('conversation summary cannot point outside its message collection', () => {
+    const unrelatedRef = doc(requesterClient.db, 'referrals', `spoofed-message-${runId}`);
+    const batch = writeBatch(requesterClient.db);
+    batch.set(unrelatedRef, {
+      referrerId: requesterId,
+      conversationId,
+      senderId: requesterId,
+      createdAt: serverTimestamp(),
+    });
+    batch.update(conversationRef, {
+      lastMessage: unrelatedRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    });
+    return batch.commit();
   });
-  await expectAllowed('provider sends message', () => providerMessageBatch.commit());
+
+  let requesterMessageRef;
+  await expectAllowed('requester sends message atomically', async () => {
+    requesterMessageRef = await writeMessageWithSummary(
+      requesterClient.db,
+      conversationId,
+      requesterId,
+      'Hello provider',
+    );
+  });
+  await expectAllowed('provider sends message atomically', () => writeMessageWithSummary(
+    providerClient.db,
+    conversationId,
+    providerId,
+    'Hello requester',
+  ));
+  await expectDenied('conversation summary cannot be rolled back to an old message', () => updateDoc(
+    conversationRef,
+    {
+      lastMessage: requesterMessageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    },
+  ));
+
+  const legacyConversationId = `legacy-${conversationId}`;
+  await seedAdminDocument(`conversations/${legacyConversationId}`, {
+    participants: {
+      arrayValue: { values: participants.map(value => ({ stringValue: value })) },
+    },
+    participantDetails: {
+      mapValue: {
+        fields: {
+          [requesterId]: {
+            mapValue: {
+              fields: {
+                name: { stringValue: 'Test Requester' },
+                avatar: { stringValue: '' },
+              },
+            },
+          },
+          [providerId]: {
+            mapValue: {
+              fields: {
+                name: { stringValue: 'Updated Provider' },
+                avatar: { stringValue: 'https://example.test/provider.png' },
+              },
+            },
+          },
+        },
+      },
+    },
+    createdAt: { timestampValue: '2026-01-01T00:00:00Z' },
+    updatedAt: { timestampValue: '2026-01-01T00:00:00Z' },
+  });
+  const legacyRequesterRef = doc(requesterClient.db, 'conversations', legacyConversationId);
+  await expectAllowed('legacy conversation can initialize caller read status', () => updateDoc(
+    legacyRequesterRef,
+    { [`lastRead.${requesterId}`]: serverTimestamp() },
+  ));
+  await expectAllowed('legacy conversation can initialize caller typing status', () => updateDoc(
+    legacyRequesterRef,
+    { [`typing.${requesterId}`]: true },
+  ));
+  await expectAllowed('legacy conversation supports secure atomic messages', () => writeMessageWithSummary(
+    requesterClient.db,
+    legacyConversationId,
+    requesterId,
+    'Legacy chat still works',
+  ));
+
+  await expectAllowed('outsider public identity creation for first-contact tests', () => setDoc(
+    doc(outsiderClient.db, 'publicProfiles', outsiderId),
+    { firstName: 'Test', lastName: 'Outsider' },
+  ));
+  const firstContactParticipants = [requesterId, outsiderId].sort();
+  const firstContactId = firstContactParticipants.join('_');
+  const firstContactDetails = {
+    [requesterId]: { name: 'Test Requester', avatar: '' },
+    [outsiderId]: { name: 'Test Outsider', avatar: '' },
+  };
+  const firstContactRequesterRef = doc(requesterClient.db, 'conversations', firstContactId);
+  const firstContactOutsiderRef = doc(outsiderClient.db, 'conversations', firstContactId);
+  await expectDenied('conversation cannot use fabricated participant identity', () => setDoc(
+    firstContactRequesterRef,
+    conversationPayload(firstContactParticipants, {
+      ...firstContactDetails,
+      [outsiderId]: { name: 'Fabricated Name', avatar: '' },
+    }),
+  ));
+  const missingParticipantId = `missing-user-${runId}`;
+  const missingProfileParticipants = [requesterId, missingParticipantId].sort();
+  await expectDenied('new conversation requires both public identities', () => setDoc(
+    doc(requesterClient.db, 'conversations', missingProfileParticipants.join('_')),
+    conversationPayload(missingProfileParticipants, {
+      [requesterId]: { name: 'Test Requester', avatar: '' },
+      [missingParticipantId]: { name: 'Missing User', avatar: '' },
+    }),
+  ));
+  const firstContactResults = await Promise.allSettled([
+    setDoc(
+      firstContactRequesterRef,
+      conversationPayload(firstContactParticipants, firstContactDetails),
+    ),
+    setDoc(
+      firstContactOutsiderRef,
+      conversationPayload([...firstContactParticipants].reverse(), firstContactDetails),
+    ),
+  ]);
+  assert.equal(
+    firstContactResults.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one simultaneous first-contact creation should succeed',
+  );
+  await deleteAdminDocument(`publicProfiles/${outsiderId}`);
+  await expectAllowed('existing conversation survives a missing participant profile', () => getDoc(
+    firstContactRequesterRef,
+  ));
+  await expectAllowed('existing participants can message after a public profile is removed', () => writeMessageWithSummary(
+    requesterClient.db,
+    firstContactId,
+    requesterId,
+    'Existing conversation remains usable',
+  ));
 
   // The same requester now enrolls as a provider. No account/history is replaced.
   const accountRef = doc(requesterClient.db, 'users', requesterId);
@@ -503,9 +745,11 @@ try {
     checklistTotal: 1, checklistCompletedCount: 0, checklistProgress: { one: false },
   }));
   await expectAllowed('provider keeps existing conversations', () => getDoc(conversationRef));
-  await expectAllowed('provider continues an existing requester conversation', () => setDoc(
-    doc(collection(requesterClient.db, 'conversations', conversationId, 'messages')),
-    { conversationId, senderId: requesterId, text: 'Still the same account', createdAt: serverTimestamp() }
+  await expectAllowed('provider continues an existing requester conversation', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Still the same account',
   ));
   await expectAllowed('provider can still edit their requester review', () => updateDoc(reviewRef, { comment: 'Updated after enrollment', updatedAt: serverTimestamp() }));
   await expectAllowed('provider can edit their business profile', () => updateDoc(doc(requesterClient.db, 'providers', requesterId), { bio: 'Updated business description' }));

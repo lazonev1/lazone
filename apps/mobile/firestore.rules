@@ -22,6 +22,103 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/bookings/$(bookingId)/events/$(request.resource.data.latestTransitionId));
     }
 
+    function hasValidConversationParticipantDetails(details, userId) {
+      let profilePath = /databases/$(database)/documents/publicProfiles/$(userId);
+      let profile = get(profilePath).data;
+      return exists(profilePath)
+        && details is map
+        && details.keys().hasOnly(['name', 'avatar'])
+        && details.keys().hasAll(['name', 'avatar'])
+        && details.name == profile.firstName + ' ' + profile.lastName
+        && details.avatar == profile.get('avatar', '');
+    }
+
+    function isValidConversationCreate(conversationId) {
+      let participants = request.resource.data.participants;
+      let details = request.resource.data.participantDetails;
+      return request.resource.data.keys().hasOnly([
+          'participants', 'participantDetails', 'createdAt', 'updatedAt', 'lastRead', 'typing'
+        ])
+        && request.resource.data.keys().hasAll([
+          'participants', 'participantDetails', 'createdAt', 'updatedAt', 'lastRead', 'typing'
+        ])
+        && participants is list
+        && participants.size() == 2
+        && participants[0] is string
+        && participants[1] is string
+        && participants[0] != participants[1]
+        && participants[0].size() > 0
+        && participants[0].size() <= 128
+        && participants[1].size() > 0
+        && participants[1].size() <= 128
+        && conversationId == (participants[0] < participants[1]
+          ? participants[0] + '_' + participants[1]
+          : participants[1] + '_' + participants[0])
+        && request.auth.uid in participants
+        && details is map
+        && details.keys().hasOnly([participants[0], participants[1]])
+        && details.keys().hasAll([participants[0], participants[1]])
+        && hasValidConversationParticipantDetails(details[participants[0]], participants[0])
+        && hasValidConversationParticipantDetails(details[participants[1]], participants[1])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastRead is map
+        && request.resource.data.lastRead.size() == 0
+        && request.resource.data.typing is map
+        && request.resource.data.typing.size() == 0;
+    }
+
+    function isCallerReadStatusUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastRead'])
+        && request.resource.data.lastRead is map
+        && (
+          (!resource.data.keys().hasAny(['lastRead'])
+            && request.resource.data.lastRead.keys().hasOnly([request.auth.uid]))
+          || (resource.data.keys().hasAny(['lastRead'])
+            && request.resource.data.lastRead.diff(resource.data.lastRead).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.lastRead.keys().hasAll([request.auth.uid])
+        && request.resource.data.lastRead[request.auth.uid] == request.time;
+    }
+
+    function isCallerTypingStatusUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typing'])
+        && request.resource.data.typing is map
+        && (
+          (!resource.data.keys().hasAny(['typing'])
+            && request.resource.data.typing.keys().hasOnly([request.auth.uid]))
+          || (resource.data.keys().hasAny(['typing'])
+            && request.resource.data.typing.diff(resource.data.typing).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.typing.keys().hasAll([request.auth.uid])
+        && request.resource.data.typing[request.auth.uid] is bool;
+    }
+
+    function isLinkedMessageSummaryUpdate(conversationId) {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let messagePath = request.resource.data.lastMessage;
+      return changedKeys.hasOnly(['lastMessage', 'lastRead', 'updatedAt'])
+        && changedKeys.hasAll(['lastMessage', 'lastRead', 'updatedAt'])
+        && request.resource.data.lastRead is map
+        && (
+          (!resource.data.keys().hasAny(['lastRead'])
+            && request.resource.data.lastRead.keys().hasOnly([request.auth.uid]))
+          || (resource.data.keys().hasAny(['lastRead'])
+            && request.resource.data.lastRead.diff(resource.data.lastRead).affectedKeys().hasOnly([request.auth.uid]))
+        )
+        && request.resource.data.lastRead.keys().hasAll([request.auth.uid])
+        && request.resource.data.lastRead[request.auth.uid] == request.time
+        && request.resource.data.updatedAt == request.time
+        && messagePath is path
+        && (!resource.data.keys().hasAny(['lastMessage']) || messagePath != resource.data.lastMessage)
+        && !exists(messagePath)
+        && existsAfter(messagePath)
+        && messagePath == /databases/$(database)/documents/conversations/$(conversationId)/messages/$(getAfter(messagePath).id)
+        && getAfter(messagePath).data.conversationId == conversationId
+        && getAfter(messagePath).data.senderId == request.auth.uid
+        && getAfter(messagePath).data.createdAt == request.time;
+    }
+
     function hasPublishedServices(providerData) {
       return providerData.keys().hasAll(['services'])
         && providerData.services is list
@@ -384,17 +481,17 @@ service cloud.firestore {
         && (!exists(/databases/$(database)/documents/conversations/$(conversationId))
           || request.auth.uid in resource.data.participants);
       allow list: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      allow create: if isAuthenticated()
-        && request.auth.uid in request.resource.data.participants
-        && request.resource.data.participants.size() == 2;
+      allow create: if isAuthenticated() && isValidConversationCreate(conversationId);
       allow update: if isAuthenticated()
         && request.auth.uid in resource.data.participants
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.participantDetails == resource.data.participantDetails
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'lastMessage', 'lastRead', 'typing', 'updatedAt'
-        ]);
+        && (
+          isCallerReadStatusUpdate()
+          || isCallerTypingStatusUpdate()
+          || isLinkedMessageSummaryUpdate(conversationId)
+        );
       allow delete: if false;
 
       match /messages/{messageId} {
@@ -402,7 +499,16 @@ service cloud.firestore {
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
         allow create: if isAuthenticated()
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
-          && request.resource.data.senderId == request.auth.uid;
+          && request.resource.data.keys().hasOnly(['conversationId', 'senderId', 'text', 'createdAt'])
+          && request.resource.data.keys().hasAll(['conversationId', 'senderId', 'text', 'createdAt'])
+          && request.resource.data.conversationId == conversationId
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.trim().size() > 0
+          && request.resource.data.text.size() <= 4000
+          && request.resource.data.createdAt == request.time
+          && getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.lastMessage
+            == /databases/$(database)/documents/conversations/$(conversationId)/messages/$(messageId);
         allow update, delete: if false;
       }
     }
