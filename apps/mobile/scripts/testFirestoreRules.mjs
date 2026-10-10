@@ -61,6 +61,25 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
   await batch.commit();
 }
 
+async function writeStatusTransitionWithEvent(
+  db,
+  bookingRef,
+  eventId,
+  toStatus,
+  event,
+  extraFields = {},
+) {
+  const batch = writeBatch(db);
+  batch.update(bookingRef, {
+    status: toStatus,
+    latestTransitionId: eventId,
+    updatedAt: serverTimestamp(),
+    ...extraFields,
+  });
+  batch.set(doc(db, 'bookings', bookingRef.id, 'events', eventId), event);
+  await batch.commit();
+}
+
 async function seedAdminDocument(documentPath, fields) {
   const response = await fetch(
     `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
@@ -322,6 +341,67 @@ try {
   await expectAllowed('provider submits completion for confirmation', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-submitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectDenied('requester cannot reuse an older event for a new transition', () => updateDoc(
+    requesterBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-confirmed',
+      requesterChangeRequest: 'This update must create its own audit event.',
+      updatedAt: serverTimestamp(),
+    }
+  ));
+  await expectDenied('status transition without an event', () => updateDoc(
+    requesterBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-missing',
+      requesterChangeRequest: 'Please finish the remaining detail.',
+      updatedAt: serverTimestamp(),
+    }
+  ));
+  await expectDenied('transition event with mismatched previous status', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-from', 'confirmed', 'in_progress', requesterId, 'requester', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with mismatched target status', () => writeStatusTransitionWithEvent(
+    requesterClient.db,
+    requesterBookingRef,
+    'event-wrong-to',
+    'in_progress',
+    {
+      fromStatus: 'awaiting_confirmation',
+      toStatus: 'completed',
+      actorId: requesterId,
+      actorRole: 'requester',
+      occurredAt: serverTimestamp(),
+    },
+    { requesterChangeRequest: 'Please finish the remaining detail.' },
+  ));
+  await expectDenied('transition event with mismatched actor', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-actor', 'awaiting_confirmation', 'in_progress', providerId, 'requester', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with mismatched actor role', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-role', 'awaiting_confirmation', 'in_progress', requesterId, 'provider', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with a client timestamp', () => writeStatusTransitionWithEvent(
+    requesterClient.db,
+    requesterBookingRef,
+    'event-wrong-time',
+    'in_progress',
+    {
+      fromStatus: 'awaiting_confirmation',
+      toStatus: 'in_progress',
+      actorId: requesterId,
+      actorRole: 'requester',
+      occurredAt: new Date('2020-01-01'),
+    },
+    { requesterChangeRequest: 'Please finish the remaining detail.' },
+  ));
   await expectDenied('provider cannot confirm their own completion', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-provider-completed', 'awaiting_confirmation', 'completed', providerId, 'provider'
   ));
@@ -336,6 +416,107 @@ try {
   await expectAllowed('requester confirms completion', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef, 'event-completed', 'awaiting_confirmation', 'completed', requesterId, 'requester'
   ));
+
+  const standaloneEventRef = doc(
+    requesterClient.db,
+    'bookings',
+    bookingId,
+    'events',
+    'event-standalone',
+  );
+  await expectDenied('standalone transition event', () => setDoc(standaloneEventRef, {
+    fromStatus: 'completed',
+    toStatus: 'cancelled',
+    actorId: requesterId,
+    actorRole: 'requester',
+    occurredAt: serverTimestamp(),
+  }));
+
+  const crossBookingId = `cross-booking-${runId}`;
+  const crossRequesterBookingRef = doc(requesterClient.db, 'bookings', crossBookingId);
+  const crossProviderBookingRef = doc(providerClient.db, 'bookings', crossBookingId);
+  await expectAllowed('cross-reference test booking creation', () => setDoc(crossRequesterBookingRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    checklist: [{ id: 'cross-item', description: 'Cross-reference test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'cross-item': false },
+  }));
+  await expectAllowed('cross-reference test booking acceptance', () => writeStatusTransition(
+    providerClient.db,
+    crossProviderBookingRef,
+    'cross-booking-event',
+    'pending',
+    'confirmed',
+    providerId,
+    'provider',
+  ));
+  await expectDenied('event from another booking cannot authorize a transition', () => updateDoc(
+    crossProviderBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-started',
+      updatedAt: serverTimestamp(),
+    },
+  ));
+
+  const concurrentBookingId = `concurrent-booking-${runId}`;
+  const concurrentRequesterBookingRef = doc(requesterClient.db, 'bookings', concurrentBookingId);
+  const concurrentProviderBookingRef = doc(providerClient.db, 'bookings', concurrentBookingId);
+  await expectAllowed('concurrency test booking creation', () => setDoc(concurrentRequesterBookingRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    checklist: [{ id: 'concurrent-item', description: 'Concurrency test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'concurrent-item': false },
+  }));
+  await expectAllowed('concurrency test booking acceptance', () => writeStatusTransition(
+    providerClient.db,
+    concurrentProviderBookingRef,
+    'concurrent-accepted',
+    'pending',
+    'confirmed',
+    providerId,
+    'provider',
+  ));
+  const concurrentResults = await Promise.allSettled([
+    writeStatusTransition(
+      providerClient.db,
+      concurrentProviderBookingRef,
+      'concurrent-start-a',
+      'confirmed',
+      'in_progress',
+      providerId,
+      'provider',
+    ),
+    writeStatusTransition(
+      providerClient.db,
+      concurrentProviderBookingRef,
+      'concurrent-start-b',
+      'confirmed',
+      'in_progress',
+      providerId,
+      'provider',
+    ),
+  ]);
+  assert.equal(
+    concurrentResults.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one concurrent status transition should succeed',
+  );
+  const concurrentEvents = await getDocs(collection(
+    providerClient.db,
+    'bookings',
+    concurrentBookingId,
+    'events',
+  ));
+  assert.equal(concurrentEvents.size, 2, 'accepted and started events should be the complete history');
 
   const reviewRef = doc(requesterClient.db, 'reviews', bookingId);
   const reviewData = {
