@@ -26,6 +26,7 @@ import EditableField from '@/components/account/EditableField';
 import { ThemedText } from '@/components/ThemedText';
 import CheckBox from '@/components/ui/CheckBox';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import PasswordRecoveryScreen from '@/components/auth/PasswordRecoveryScreen';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_WIDTH = (SCREEN_WIDTH - 48 - 8) / 2;
@@ -39,6 +40,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const router = useRouter();
   const { login, signup } = useAuth();
   const { t } = useTranslation(['auth', 'common']);
@@ -47,9 +49,6 @@ export default function LoginScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(false);
-
-  // ── Login-only state ──
-  const [rememberMe, setRememberMe] = useState(false);
 
   // ── Animated pill indicator ──
   const tabOffset = useSharedValue(0);
@@ -74,7 +73,7 @@ export default function LoginScreen() {
     }
     setIsLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
     } catch (error: any) {
       Alert.alert(t('login.errors.loginFailedTitle'), error.message || t('login.errors.loginFailedMessage'));
     } finally {
@@ -105,6 +104,14 @@ export default function LoginScreen() {
   const isLogin = mode === 'login';
   const title = isLogin ? t('login.title') : t('signup.title');
   const subtitle = isLogin ? t('login.subtitle') : t('signup.subtitle');
+
+  if (showRecovery) {
+    return <PasswordRecoveryScreen initialEmail={email} onBack={(recoveryEmail) => {
+      setEmail(recoveryEmail);
+      setPassword('');
+      setShowRecovery(false);
+    }} />;
+  }
 
   return (
     <View style={styles.screen}>
@@ -194,7 +201,7 @@ export default function LoginScreen() {
             <EditableField
               placeholder={
                 isLogin
-                  ? t('login.emailPhone')
+                  ? t('login.emailAddress')
                   : t('signup.emailAddress')
               }
               value={email}
@@ -241,7 +248,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Login-only: Remember me / Forgot password */}
+            {/* Login-only: Password recovery */}
             {isLogin && (
               <Animated.View
                 entering={FadeInDown.duration(250)}
@@ -249,22 +256,10 @@ export default function LoginScreen() {
                 style={styles.optionsRow}
               >
                 <TouchableOpacity
-                  style={styles.rememberMe}
-                  onPress={() => setRememberMe((v) => !v)}
-                  activeOpacity={0.7}
-                >
-                  <CheckBox
-                    isChecked={rememberMe}
-                    setChecked={() => setRememberMe((v) => !v)}
-                  />
-                  <ThemedText style={styles.smallText}>
-                    {t('login.rememberMe')}
-                  </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    Alert.alert(t('login.resetTitle'), t('login.resetMessage'))
-                  }
+                  accessibilityRole="button"
+                  disabled={isLoading}
+                  style={styles.recoveryLink}
+                  onPress={() => setShowRecovery(true)}
                   activeOpacity={0.7}
                 >
                   <ThemedText style={styles.forgotText}>
@@ -436,17 +431,10 @@ const styles = StyleSheet.create({
   optionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 8,
   },
-  rememberMe: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  smallText: {
-    fontSize: 13,
-    color: '#aaa',
-  },
+  recoveryLink: { minHeight: 48, justifyContent: 'center' },
   forgotText: {
     fontSize: 13,
     color: '#fcbd02',
@@ -534,4 +522,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
-

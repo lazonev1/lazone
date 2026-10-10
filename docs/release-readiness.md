@@ -388,6 +388,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 ### A02 · P1 · Finish credential and profile-edit promises
 
+  **Progress — 2026-10-03:** Password recovery slice implemented on `fix/password-recovery`: real Firebase reset requests, email prefill/draft recovery, generic account-existence confirmation, safe retry/loading states, EN/FR copy, truthful email-only login label, and removal of the nonfunctional Remember me control. Auth emulator coverage exercises reset-code generation/redemption, rejection of reuse and old passwords, and successful new-password login; validation/error/locale tests run in CI. See the [flow, data boundary, and acceptance steps](password-recovery.md). No Firestore or live Auth configuration change is required. Keep A02 open: native/inbox verification and the broader email-change/profile/avatar work remain outstanding.
+
 - [ ] **Problem:** Login advertises phone or email but uses email/password only; Remember me does not control persistence; password reset is an alert. Account email is editable but ignored on save. Password change and avatar/account controls are incomplete; identity copies can diverge across users/providers/conversations.
 
   **Sources:** [login screen][login-ui], [account editor][account-editor], [account information][account-info], [auth service][auth-service].
