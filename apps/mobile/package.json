@@ -4,16 +4,14 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:rules": "node scripts/testFirestoreRules.mjs",
-    "serve": "firebase emulators:start --only functions,firestore --import=./emulator-data --export-on-exit",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "test:rules:emulator": "pnpm dlx firebase-tools@15.5.1 emulators:exec --project demo-rules --only firestore,auth \"pnpm test:rules\"",
+    "serve": "pnpm dlx firebase-tools@15.5.1 emulators:start --project demo-rules --only firestore,auth"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

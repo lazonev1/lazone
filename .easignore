@@ -1,0 +1,36 @@
+# EAS uses this root file instead of all .gitignore files.
+node_modules/
+.git/
+.idea/
+.DS_Store
+.private-backups/
+**/.expo/
+**/expo-env.d.ts
+**/.metro-health-check*
+**/dist/
+**/web-build/
+**/ios/
+**/android/
+**/.kotlin/
+**/emulator-data/
+**/*-debug.log
+**/npm-debug.*
+**/yarn-debug.*
+**/yarn-error.*
+**/.env*
+**/*.pem
+**/*.key
+**/*.p8
+**/*.p12
+**/*.jks
+**/*.mobileprovision
+**/*.orig.*
+**/*.tsbuildinfo
+**/package-lock.json
+**/app-example/
+**/*service-account*.json
+**/*serviceAccount*.json
+**/*firebase-adminsdk*.json
+# Firebase CLIENT configuration, never Admin credentials.
+!apps/mobile/google-services.json
+!apps/mobile/GoogleService-Info.plist

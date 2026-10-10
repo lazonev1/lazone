@@ -22,10 +22,10 @@ expo-env.d.ts
 ios/
 android/
 
-# Firebase config files (contain API keys - keep local only)
-# EAS Build will use these from your local machine
-# google-services.json
-# GoogleService-Info.plist
+# Firebase client configuration stays local; the root .easignore includes it
+# in remote build archives. This is not an Admin credential or a security rule.
+google-services.json
+GoogleService-Info.plist
 
 # Metro
 .metro-health-check*
