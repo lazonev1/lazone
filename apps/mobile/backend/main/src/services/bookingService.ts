@@ -13,7 +13,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { auth, db, COLLECTIONS } from '../config/firebase';
-import { BookingChecklistItem, BookingStatus } from '@/types/booking';
+import { BookingChecklistItem, BookingEditError, BookingStatus } from '@/types/booking';
 
 /**
  * Booking Service — Firebase Firestore Operations
@@ -205,14 +205,9 @@ export async function updateBooking(
   console.log('[BookingService] Updating booking:', bookingId);
 
   try {
-    // Verify booking exists and is pending
-    const existing = await getBookingById(bookingId);
-    if (!existing) {
-      throw new Error('Booking not found');
-    }
-    if (existing.status !== 'pending') {
-      throw new Error('Only pending bookings can be edited');
-    }
+    const actorId = auth.currentUser?.uid;
+    if (!actorId) throw new BookingEditError('unauthenticated');
+    const bookingRef = doc(db, COLLECTIONS.BOOKINGS, bookingId);
 
     // Build the update payload — only include fields that were provided
     const payload: Record<string, unknown> = {
@@ -231,11 +226,26 @@ export async function updateBooking(
       payload.checklistProgress = Object.fromEntries(updates.checklist.map((item) => [item.id, false]));
     }
 
-    await updateDoc(doc(db, COLLECTIONS.BOOKINGS, bookingId), payload);
+    // The status and ownership check must be in the same transaction as the
+    // edit. If the provider accepts while this screen is open, Firestore
+    // retries this transaction against the accepted record and rejects the
+    // edit instead of overwriting agreed terms.
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(bookingRef);
+      if (!snapshot.exists()) throw new BookingEditError('not-found');
+      const existing = snapshot.data() as BookingDocument;
+      if (existing.requesterId !== actorId) throw new BookingEditError('not-requester');
+      if (existing.status !== 'pending') {
+        throw new BookingEditError('not-pending', existing.status);
+      }
+      transaction.update(bookingRef, payload);
+    });
 
     console.log('[BookingService] Booking updated successfully');
   } catch (error) {
-    console.error('[BookingService] Error updating booking:', error);
+    if (!(error instanceof BookingEditError)) {
+      console.error('[BookingService] Error updating booking:', error);
+    }
     throw error;
   }
 }
