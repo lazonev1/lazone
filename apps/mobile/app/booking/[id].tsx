@@ -151,15 +151,7 @@ export default function BookingDetailsScreen() {
 
     router.push({
       pathname: '/booking/edit',
-      params: {
-        bookingId: b.id,
-        providerId: b.providerId,
-        currentDate: b.bookingDate,
-        currentPrice: String(b.price),
-        currentService: b.serviceId,
-        description: b.notes || '',
-        checklist: JSON.stringify(b.checklist.map((item) => item.description)),
-      },
+      params: { bookingId: b.id },
     });
   };
 
