@@ -35,8 +35,11 @@
     "errors": {
       "service": "Please select a service",
       "date": "Please select a date",
-      "price": "Please enter your proposed price",
-      "checklist": "Add a description for each checklist item"
+      "dateRange": "Choose a time between five minutes and one year from now",
+      "price": "Enter a positive price within the supported CFA range",
+      "checklist": "Add a description for each checklist item",
+      "checklistLimit": "Add one to {{count}} clear checklist items",
+      "detailsTooLong": "Keep additional details to 2,000 characters or fewer"
     }
   },
   "review": {
