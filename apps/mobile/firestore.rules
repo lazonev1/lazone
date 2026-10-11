@@ -120,13 +120,142 @@ service cloud.firestore {
         && getAfter(messagePath).data.createdAt == request.time;
     }
 
-    function hasPublishedServices(providerData) {
+    function hasMatchingServiceDocument(providerId, services, index) {
+      return services.size() <= index || (
+        services[index] is map
+        && services[index].keys().hasOnly(['id', 'name', 'description', 'price', 'availability'])
+        && services[index].keys().hasAll(['id', 'name', 'description', 'price'])
+        && existsAfter(/databases/$(database)/documents/providers/$(providerId)/services/$(services[index].id))
+        && getAfter(/databases/$(database)/documents/providers/$(providerId)/services/$(services[index].id)).data == services[index]
+      );
+    }
+
+    function hasPublishedServices(providerId, providerData) {
+      let services = providerData.services;
+      return providerData.keys().hasAll(['services'])
+        && services is list
+        && services.size() > 0
+        && services.size() <= 5
+        && hasMatchingServiceDocument(providerId, services, 0)
+        && hasMatchingServiceDocument(providerId, services, 1)
+        && hasMatchingServiceDocument(providerId, services, 2)
+        && hasMatchingServiceDocument(providerId, services, 3)
+        && hasMatchingServiceDocument(providerId, services, 4);
+    }
+
+    function hasServiceProjection(providerData) {
       return providerData.keys().hasAll(['services'])
         && providerData.services is list
         && providerData.services.size() > 0
-        && providerData.services[0].keys().hasAll(['name'])
-        && providerData.services[0].name is string
-        && providerData.services[0].name.size() > 0;
+        && providerData.services.size() <= 5;
+    }
+
+    function isValidProviderService(serviceId, data) {
+      return data.keys().hasOnly(['id', 'name', 'description', 'price', 'availability'])
+        && data.keys().hasAll(['id', 'name', 'description', 'price'])
+        && data.id == serviceId
+        && serviceId.size() > 0
+        && serviceId.size() <= 128
+        && serviceId.matches('^[A-Za-z0-9_-]+$')
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 120
+        && data.name.matches('.*[^ ].*')
+        && data.description is string
+        && data.description.size() <= 1000
+        && data.price is string
+        && data.price.matches('^[1-9][0-9]{0,8}$')
+        && (!data.keys().hasAny(['availability'])
+          || data.availability == null
+          || (data.availability is string && data.availability.size() <= 200));
+    }
+
+    function isValidPendingChecklistItemAt(checklist, progress, index, expectedId) {
+      return checklist.size() <= index || (
+        checklist[index] is map
+        && checklist[index].keys().hasOnly(['id', 'description', 'completed'])
+        && checklist[index].keys().hasAll(['id', 'description', 'completed'])
+        && checklist[index].id == expectedId
+        && checklist[index].description is string
+        && checklist[index].description.size() > 0
+        && checklist[index].description.size() <= 300
+        && checklist[index].description.matches('.*[^ ].*')
+        && checklist[index].completed == false
+        && progress[expectedId] == false
+      );
+    }
+
+    function isValidPendingChecklist(data) {
+      let checklist = data.checklist;
+      let progress = data.checklistProgress;
+      return checklist is list
+        && checklist.size() > 0
+        && checklist.size() <= 5
+        && progress is map
+        && progress.size() == checklist.size()
+        && data.checklistTotal == checklist.size()
+        && data.checklistCompletedCount == 0
+        && isValidPendingChecklistItemAt(checklist, progress, 0, 'item-1')
+        && isValidPendingChecklistItemAt(checklist, progress, 1, 'item-2')
+        && isValidPendingChecklistItemAt(checklist, progress, 2, 'item-3')
+        && isValidPendingChecklistItemAt(checklist, progress, 3, 'item-4')
+        && isValidPendingChecklistItemAt(checklist, progress, 4, 'item-5');
+    }
+
+    function hasValidPendingBookingFields(data) {
+      return data.serviceId is string
+        && data.serviceId.size() > 0
+        && data.serviceId.size() <= 128
+        && data.serviceName is string
+        && data.serviceName.size() > 0
+        && data.serviceName.size() <= 120
+        && data.bookingDate is timestamp
+        && data.price is int
+        && data.price > 0
+        && data.price <= 999999999
+        && (data.notes == null || (data.notes is string && data.notes.size() <= 2000))
+        && data.updatedAt == request.time
+        && isValidPendingChecklist(data);
+    }
+
+    function providerServiceMatches(providerId, serviceId, serviceName) {
+      let providerPath = /databases/$(database)/documents/providers/$(providerId);
+      let servicePath = /databases/$(database)/documents/providers/$(providerId)/services/$(serviceId);
+      return exists(providerPath)
+        && get(providerPath).data.publicSchemaVersion == 1
+        && exists(servicePath)
+        && get(servicePath).data.name == serviceName
+        && get(servicePath).data in get(providerPath).data.services;
+    }
+
+    function isValidBookingCreate(data) {
+      return data.keys().hasOnly([
+          'requesterId', 'requesterName', 'providerId', 'providerName',
+          'serviceId', 'serviceName', 'bookingDate', 'price', 'notes',
+          'status', 'checklist', 'checklistTotal', 'checklistCompletedCount',
+          'checklistProgress', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'requesterId', 'requesterName', 'providerId', 'providerName',
+          'serviceId', 'serviceName', 'bookingDate', 'price', 'notes',
+          'status', 'checklist', 'checklistTotal', 'checklistCompletedCount',
+          'checklistProgress', 'createdAt', 'updatedAt'
+        ])
+        && data.requesterId == request.auth.uid
+        && data.providerId is string
+        && data.providerId != request.auth.uid
+        && data.requesterName is string
+        && data.requesterName.size() > 0
+        && data.requesterName.size() <= 160
+        && data.providerName is string
+        && data.providerName.size() > 0
+        && data.providerName.size() <= 160
+        && data.status == 'pending'
+        && data.bookingDate >= request.time + duration.value(5, 'm')
+        && data.bookingDate <= request.time + duration.value(365, 'd')
+        && data.createdAt == request.time
+        && hasValidPendingBookingFields(data)
+        && providerServiceMatches(data.providerId, data.serviceId, data.serviceName);
     }
 
     function isRatingAggregateUpdate() {
@@ -236,7 +365,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && existsAfter(/databases/$(database)/documents/providers/$(userId))
         && getAfter(/databases/$(database)/documents/providers/$(userId)).data.publicSchemaVersion == 1
-        && hasPublishedServices(getAfter(/databases/$(database)/documents/providers/$(userId)).data);
+        && hasServiceProjection(getAfter(/databases/$(database)/documents/providers/$(userId)).data);
     }
 
     match /users/{userId} {
@@ -268,15 +397,25 @@ service cloud.firestore {
       // before enrollment. Other readers and list queries see migrated profiles.
       allow get: if isOwner(providerId) || resource.data.publicSchemaVersion == 1;
       allow list: if resource.data.publicSchemaVersion == 1;
-      allow create: if isOwner(providerId) && hasPublishedServices(request.resource.data)
+      allow create: if isOwner(providerId) && hasPublishedServices(providerId, request.resource.data)
         && isPublicProvider(request.resource.data)
         && existsAfter(/databases/$(database)/documents/users/$(providerId))
         && getAfter(/databases/$(database)/documents/users/$(providerId)).data.role in ['provider', 'both'];
       allow delete: if isOwner(providerId);
       allow update: if isAuthenticated()
-        && hasPublishedServices(request.resource.data)
+        && hasPublishedServices(providerId, request.resource.data)
         && isPublicProvider(request.resource.data)
         && (isOwner(providerId) || isRatingAggregateUpdate());
+
+      match /services/{serviceId} {
+        allow read: if exists(/databases/$(database)/documents/providers/$(providerId))
+          && get(/databases/$(database)/documents/providers/$(providerId)).data.publicSchemaVersion == 1;
+        allow create, update: if isOwner(providerId)
+          && isValidProviderService(serviceId, request.resource.data)
+          && request.resource.data in getAfter(/databases/$(database)/documents/providers/$(providerId)).data.services;
+        allow delete: if isOwner(providerId)
+          && !(resource.data in getAfter(/databases/$(database)/documents/providers/$(providerId)).data.services);
+      }
     }
 
     match /services/{serviceId} {
@@ -286,16 +425,7 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isBookingParticipant(resource.data);
-      allow create: if isAuthenticated()
-        && request.resource.data.requesterId == request.auth.uid
-        && request.resource.data.status == 'pending'
-        && request.resource.data.checklist is list
-        && request.resource.data.checklist.size() > 0
-        && request.resource.data.checklistTotal == request.resource.data.checklist.size()
-        && request.resource.data.checklistCompletedCount == 0
-        && request.resource.data.checklistProgress is map
-        && exists(/databases/$(database)/documents/providers/$(request.resource.data.providerId))
-        && hasPublishedServices(get(/databases/$(database)/documents/providers/$(request.resource.data.providerId)).data);
+      allow create: if isAuthenticated() && isValidBookingCreate(request.resource.data);
       allow update: if isBookingParticipant(resource.data)
         && (
           (
@@ -305,11 +435,11 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'serviceId', 'serviceName', 'bookingDate', 'price', 'notes', 'checklist', 'checklistTotal', 'checklistCompletedCount', 'checklistProgress', 'updatedAt'
             ])
-            && request.resource.data.checklist is list
-            && request.resource.data.checklist.size() > 0
-            && request.resource.data.checklistTotal == request.resource.data.checklist.size()
-            && request.resource.data.checklistCompletedCount == 0
-            && request.resource.data.checklistProgress is map
+            && hasValidPendingBookingFields(request.resource.data)
+            && (request.resource.data.bookingDate == resource.data.bookingDate
+              || (request.resource.data.bookingDate >= request.time + duration.value(5, 'm')
+                && request.resource.data.bookingDate <= request.time + duration.value(365, 'd')))
+            && providerServiceMatches(resource.data.providerId, request.resource.data.serviceId, request.resource.data.serviceName)
           )
           || (
             request.auth.uid == resource.data.providerId
