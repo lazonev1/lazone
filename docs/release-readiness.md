@@ -58,6 +58,7 @@ Cancellation/decline and support paths must be defined alongside this happy path
 - [x] Provider registration/editing saves business information and embedded services; service presence is checked in the form, repository, and rules. Validation is not yet complete (S05/P02).
 - [x] Provider promotion refreshes the same account without requiring a new login. S01 now commits provider creation and role `both` atomically; draft/retry/auth recovery work remains (A01/P03).
 - [x] Booking creation, pending-booking editing, acceptance, start, submission for review, requester confirmation, changes requested, cancellation, and timeline rendering exist.
+- [x] Pending-booking editing routes by ID, loads authoritative current data, and transactionally rejects edits that lose a race with provider acceptance (B02).
 - [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. S04's local change also requires each transition event to be new; production deployment remains pending.
 - [x] First-contact conversation creation uses a canonical participant ID and a transaction in the client. Message creation and summary writes are batched. **Rules do not enforce all equivalent invariants** (S06).
 - [x] Completed-booking reviews, requester editing/deletion, provider responses, and helpful-vote UI exist. Aggregate/vote security and several UI paths remain incomplete (S10/S03/B09).
@@ -102,7 +103,7 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 ## Recommended delivery order
 
 1. **Close the remaining active trust boundary:** S03–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01/S02 public-profile and account-trust work is complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
-2. **Finish the main requester/provider journey:** B01–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
+2. **Finish the main requester/provider journey:** B01, B03–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
 5. **Prove release readiness:** E02–E06 and the final acceptance matrix, including both native platforms in the selected launch scope.
@@ -232,15 +233,17 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Double tap, slow response, app backgrounding, network loss before/after commit, stale service, invalid amount, and retry produce at most one booking with accurate feedback. Valid users can enter and submit all required information without extra entrance friction.
 
-### B02 · P1 · Load editable bookings from the authoritative record
+### B02 · P1 · Load editable bookings from the authoritative record — complete
 
-- [ ] **Problem:** The edit route consumes serialized booking fields from route parameters and parses checklist JSON without a recovery boundary. Malformed links can crash; stale form values can conflict with a booking already accepted by the provider.
+- [x] **Resolved:** Booking editing now routes by ID, reloads the authorized current record, and cannot overwrite terms after provider acceptance.
 
   **Sources:** [edit booking][booking-edit], [booking hooks][booking-hooks].
 
   **Required:** Route using the booking ID, load the current authorized record, validate route values, and gate editing by current role/status. Preserve a draft on conflict and explain that acceptance changed what can be edited. Do not put full personal/request data into navigation parameters.
 
   **Done when:** Invalid/deleted/unauthorized IDs have safe recovery screens, edits open prefilled, and an acceptance/edit race never overwrites accepted terms or silently loses input.
+
+  **Completed — 2026-10-11:** Implemented on `fix/authoritative-booking-edit`. Edit navigation carries only the booking ID; the screen loads the latest authorized booking/provider records, validates ownership/status/data, and provides bounded loading, retry, not-found, unauthorized, stale-status, and legacy-data recovery states. Saving is a Firestore transaction that rechecks requester ownership and `pending` status. EN/FR copy and emulator coverage prove valid requester edits, provider/outsider denial, post-acceptance denial, and deterministic edit/accept races. An isolated iPhone 15 / iOS 17.5 smoke test verified authoritative prefill, a successful save reflected back on details, and the provider-acceptance conflict preserving the visible requester draft while disabling another invalid submission. No production data or rules were changed. See [the before/after flow](authoritative-booking-edit.md).
 
 ### B03 · P1 · Keep both participants synchronized without navigation tricks
 

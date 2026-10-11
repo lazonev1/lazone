@@ -120,6 +120,15 @@ async function writeStatusTransitionWithEvent(
   await batch.commit();
 }
 
+async function editPendingBooking(db, bookingRef, updates) {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(bookingRef);
+    if (!snapshot.exists()) throw new Error('booking not found');
+    if (snapshot.data().status !== 'pending') throw new Error('booking is no longer pending');
+    transaction.update(bookingRef, { ...updates, updatedAt: serverTimestamp() });
+  });
+}
+
 async function seedAdminDocument(documentPath, fields) {
   const response = await fetch(
     `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
@@ -361,6 +370,20 @@ try {
     updatedAt: serverTimestamp(),
   }));
 
+  await expectAllowed('requester edits current pending booking terms', () => editPendingBooking(
+    requesterClient.db,
+    requesterBookingRef,
+    { notes: 'Updated before acceptance', price: 1100 },
+  ));
+  await expectDenied('provider cannot edit requester booking terms', () => updateDoc(
+    providerBookingRef,
+    { notes: 'Provider-authored terms', updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('unrelated user cannot edit booking terms', () => updateDoc(
+    doc(outsiderClient.db, 'bookings', bookingId),
+    { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
+  ));
+
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
@@ -374,6 +397,45 @@ try {
     providerBookingRef,
     { status: 'in_progress', latestTransitionId: 'event-confirmed', updatedAt: serverTimestamp() }
   ));
+  await expectDenied('accepted booking terms cannot be overwritten', () => updateDoc(
+    requesterBookingRef,
+    { notes: 'Attempted stale edit', updatedAt: serverTimestamp() },
+  ));
+
+  const editRaceId = `edit-race-${runId}`;
+  const editRaceRequesterRef = doc(requesterClient.db, 'bookings', editRaceId);
+  const editRaceProviderRef = doc(providerClient.db, 'bookings', editRaceId);
+  await expectAllowed('edit-race booking creation', () => setDoc(editRaceRequesterRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    notes: 'Original terms',
+    checklist: [{ id: 'race-item', description: 'Race test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'race-item': false },
+  }));
+  const editRaceResults = await Promise.allSettled([
+    editPendingBooking(requesterClient.db, editRaceRequesterRef, { notes: 'Requester edit' }),
+    writeStatusTransition(
+      providerClient.db,
+      editRaceProviderRef,
+      'edit-race-accepted',
+      'pending',
+      'confirmed',
+      providerId,
+      'provider',
+    ),
+  ]);
+  assert.equal(editRaceResults[1].status, 'fulfilled', 'provider acceptance should succeed');
+  const editRaceSnapshot = await getDoc(editRaceRequesterRef);
+  assert.equal(editRaceSnapshot.data().status, 'confirmed');
+  assert.equal(
+    editRaceSnapshot.data().notes,
+    editRaceResults[0].status === 'fulfilled' ? 'Requester edit' : 'Original terms',
+    'an accepted booking must contain either the committed edit or the original terms, never a later overwrite',
+  );
 
   await expectAllowed('provider starts service', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-started', 'confirmed', 'in_progress', providerId, 'provider'
