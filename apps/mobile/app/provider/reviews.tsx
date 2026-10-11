@@ -34,12 +34,12 @@ export default function ProviderReviewsScreen() {
           showFilters={true}
           currentUserId={currentUserId}
           onRespondToReview={async (reviewId, responseText) => {
-            try { await respondToReview(reviewId, responseText); showToast(t('reviews.toasts.responseSubmitted'), 'success'); }
-            catch { showToast(t('reviews.toasts.responseFailed'), 'error'); }
+            await respondToReview(reviewId, responseText);
+            showToast(t('reviews.toasts.responseSubmitted'), 'success');
           }}
           onUpdateReview={async (reviewId, data) => {
-            try { await updateReview(reviewId, data); showToast(t('reviews.toasts.reviewUpdated'), 'success'); }
-            catch { showToast(t('reviews.toasts.reviewUpdateFailed'), 'error'); }
+            await updateReview(reviewId, data);
+            showToast(t('reviews.toasts.reviewUpdated'), 'success');
           }}
           onMarkHelpful={async (reviewId) => {
             if (!requireAuth(currentUserId, t('reviews.signInToVote'))) return;
