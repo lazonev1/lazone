@@ -154,6 +154,9 @@ export async function createProviderAndPromote(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  providerData.services.forEach((service) => {
+    batch.set(doc(db, 'providers', userId, 'services', service.id), service);
+  });
   batch.update(doc(db, 'users', userId), { role: 'both', updatedAt: serverTimestamp() });
   await batch.commit();
   return userId;
@@ -167,10 +170,28 @@ export async function updateProvider(
   updates: Partial<Provider>
 ): Promise<void> {
   try {
-    await updateDoc(doc(db, "providers", providerId), {
+    if (!updates.services) {
+      await updateDoc(doc(db, "providers", providerId), {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const currentServices = await getDocs(collection(db, 'providers', providerId, 'services'));
+    const nextServiceIds = new Set(updates.services.map((service) => service.id));
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'providers', providerId), {
       ...updates,
       updatedAt: serverTimestamp(),
     });
+    updates.services.forEach((service) => {
+      batch.set(doc(db, 'providers', providerId, 'services', service.id), service);
+    });
+    currentServices.docs.forEach((service) => {
+      if (!nextServiceIds.has(service.id)) batch.delete(service.ref);
+    });
+    await batch.commit();
   } catch (error) {
     console.error("Error updating provider:", error);
     throw error;

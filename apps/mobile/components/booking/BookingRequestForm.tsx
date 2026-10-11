@@ -9,6 +9,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useTranslation } from 'react-i18next';
+import {
+  createMaximumBookingDate,
+  createMinimumBookingDate,
+  isValidCfaAmount,
+  MARKETPLACE_LIMITS,
+} from '@/constants/Marketplace';
 
 interface Props {
   providerId: string;
@@ -34,7 +40,9 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
   const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
 
   const [selectedService, setSelectedService] = useState(initialValues?.serviceId || '');
-  const [date, setDate] = useState(initialValues?.scheduledDate || new Date());
+  const [minimumDate] = useState(createMinimumBookingDate);
+  const [maximumDate] = useState(createMaximumBookingDate);
+  const [date, setDate] = useState(initialValues?.scheduledDate || new Date(Date.now() + 30 * 60_000));
   const [price, setPrice] = useState(initialValues?.price || '');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [checklist, setChecklist] = useState<string[]>(initialValues?.checklist?.length ? initialValues.checklist : ['']);
@@ -54,10 +62,15 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!selectedService) newErrors.service = t('form.errors.service');
-    if (!date) newErrors.date = t('form.errors.date');
-    if (!price) newErrors.price = t('form.errors.price');
-    if (checklist.some((item) => !item.trim())) newErrors.checklist = t('form.errors.checklist');
+    if (!selectedService || !services.some((service) => service.id === selectedService)) newErrors.service = t('form.errors.service');
+    if (!date || date < createMinimumBookingDate() || date > maximumDate) newErrors.date = t('form.errors.dateRange');
+    if (!isValidCfaAmount(price)) newErrors.price = t('form.errors.price');
+    if (
+      checklist.length === 0
+      || checklist.length > MARKETPLACE_LIMITS.maxChecklistItems
+      || checklist.some((item) => !item.trim() || item.trim().length > MARKETPLACE_LIMITS.maxChecklistDescriptionLength)
+    ) newErrors.checklist = t('form.errors.checklistLimit', { count: MARKETPLACE_LIMITS.maxChecklistItems });
+    if (description.length > MARKETPLACE_LIMITS.maxBookingNotesLength) newErrors.description = t('form.errors.detailsTooLong');
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -83,6 +96,13 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
   };
 
   const addChecklistItem = () => {
+    if (checklist.length >= MARKETPLACE_LIMITS.maxChecklistItems) {
+      setErrors((current) => ({
+        ...current,
+        checklist: t('form.errors.checklistLimit', { count: MARKETPLACE_LIMITS.maxChecklistItems }),
+      }));
+      return;
+    }
     setChecklist((items) => [...items, '']);
     // Keep the newly-created field reachable while the keyboard is open.
     requestAnimationFrame(() => requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })));
@@ -121,7 +141,8 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                   value={date}
                   mode="datetime"
                   onChange={(_, selectedDate) => setDate(selectedDate || date)}
-                  minimumDate={new Date()}
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate}
                 />
               ) : (
                 <>
@@ -153,7 +174,8 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                         setShowDatePicker(false);
                         if (selectedDate) setDate(selectedDate);
                       }}
-                      minimumDate={new Date()}
+                      minimumDate={minimumDate}
+                      maximumDate={maximumDate}
                     />
                   )}
                   {showTimePicker && (
@@ -190,12 +212,15 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                     onChangeText={(value) => setChecklist((items) => items.map((current, i) => i === index ? value : current))}
                     onFocus={index > 0 ? () => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50) : undefined}
                     placeholder={t('form.itemPlaceholder', { number: index + 1 })}
+                    maxLength={MARKETPLACE_LIMITS.maxChecklistDescriptionLength}
                   />
                   {checklist.length > 1 && <TouchableOpacity onPress={() => setChecklist((items) => items.filter((_, i) => i !== index))}><ThemedText style={styles.remove}>{t('form.remove')}</ThemedText></TouchableOpacity>}
                 </View>
               ))}
               {errors.checklist && <ThemedText style={styles.error}>{errors.checklist}</ThemedText>}
-              <TouchableOpacity onPress={addChecklistItem}><ThemedText style={styles.add}>{t('form.addChecklistItem')}</ThemedText></TouchableOpacity>
+              {checklist.length < MARKETPLACE_LIMITS.maxChecklistItems && (
+                <TouchableOpacity onPress={addChecklistItem}><ThemedText style={styles.add}>{t('form.addChecklistItem')}</ThemedText></TouchableOpacity>
+              )}
             </View>
 
             <TextBox
@@ -205,6 +230,8 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
               multiline
               numberOfLines={4}
               placeholder={t('form.additionalDetailsPlaceholder')}
+              maxLength={MARKETPLACE_LIMITS.maxBookingNotesLength}
+              error={errors.description}
             />
             
             <View style={styles.buttons}>
