@@ -100,12 +100,8 @@ export default function ProviderProfileScreen() {
 
   // Handler for provider responding to reviews
   const handleRespondToReview = async (reviewId: string, responseText: string) => {
-    try {
-      await respondToReview(reviewId, responseText);
-      showToast(t('reviews.toasts.responseSubmitted'), 'success');
-    } catch {
-      showToast(t('reviews.toasts.responseFailed'), 'error');
-    }
+    await respondToReview(reviewId, responseText);
+    showToast(t('reviews.toasts.responseSubmitted'), 'success');
   };
 
   // Loading state

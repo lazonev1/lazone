@@ -1,20 +1,22 @@
 # LaZone release readiness
 
-Last audited: **2026-09-17**
+Last audited: **2026-09-17**. Delivery status reconciled with `develop`: **2026-10-10**.
 
 S01 completed: **2026-09-19** (implementation, live migration, rules deployment, regression coverage, and two-account production-safe native smoke test). Other findings retain their audit-baseline status.
 
 S02 completed: **2026-09-20** (account allowlists, atomic provider promotion, live rules deployment, regression coverage, and disposable-account native verification). Ratings and referrals were explicitly separated into S10 and C03 rather than treated as completed.
 
-S04 implementation completed locally: **2026-10-02** (new-event enforcement and adversarial/concurrency emulator coverage). Production deployment is still pending, so S04 remains unchecked until the live rules are intentionally deployed and verified.
+S04 and S06 completed: **2026-10-10** (merged implementation, adversarial/concurrency emulator coverage, native two-account verification where applicable, and Firestore-rules deployment to `lazonev1-5da5a`).
 
-Baseline: **`develop` at `e2fb0aa`**, including merged French/English localization PR #79. `origin/develop` was fetched and matched this baseline.
+Current delivery baseline: **`develop` at `f1d6495`**, including merged PRs #86–#89. Audit findings still refer to the explicitly identified 2026-09-17 baseline unless their progress records say otherwise.
 
 Decision: **Not ready for a public release.** The core marketplace journey exists, but security, data persistence, recovery, and visible product promises still have launch-blocking gaps.
 
 This is the working backlog for functionality, security/maintainability, and professional, frictionless UI/UX. It replaces the earlier checklist: some earlier “completed and verified” claims were broader than the implementation or tests support.
 
-**Next implementation slice:** S03 review-vote integrity. Trusted rating aggregation is deliberately deferred to S10 until backend functions are adopted, but remains required before public launch. Referrals remain a separate C03 product decision. S01 and S02 are complete. Read the [brief before/after guide](public-private-profile-changes.md) and [deployment evidence](public-private-profile-rollout.md).
+**Current implementation slice:** S03 review-vote integrity on `fix/review-integrity`. Local implementation and emulator coverage are complete; legacy review migration, intentional rules deployment, and native requester/provider verification remain before S03 can close. Trusted rating aggregation remains deferred to S10 until backend functions are adopted. Referrals remain a separate C03 product decision.
+
+**Urgent product priority — agreed 2026-10-03:** A04, equal phone-only and email-only account access, is the next authentication implementation task. Email must not be required for phone users, nor phone for email users. PR #89 implements email password recovery only; it does **not** deliver A04.
 
 Jump to: [implemented foundation](#implemented-foundation--keep-do-not-rebuild-blindly), [audit evidence](#audit-coverage-and-evidence), [delivery order](#recommended-delivery-order), [security](#remaining-work--security-and-data-integrity), [booking UX](#remaining-work--booking-journey-and-customer-experience), [providers/discovery](#remaining-work--provider-management-and-discovery), [accounts](#remaining-work--identity-account-and-trust), [messaging/notifications](#remaining-work--messaging-and-notifications), [UI/accessibility](#remaining-work--professional-ui-accessibility-and-localization), [engineering/release](#remaining-work--maintainability-performance-and-release-operations), [scope decisions](#conditional-scope--decide-explicitly-then-finish-or-defer), [acceptance matrix](#release-candidate-acceptance-matrix).
 
@@ -33,6 +35,7 @@ Jump to: [implemented foundation](#implemented-foundation--keep-do-not-rebuild-b
 LaZone connects a requester with a provider, helps them agree on work, tracks delivery, supports communication, and collects feedback about a completed booking.
 
 - A provider is also a requester. Becoming a provider must not require logging out or remove booking capabilities.
+- Phone-only and email-only users must both be able to create an account and use the app. When both credentials are verified, they must link to one account/UID; each authenticated phone number or email may belong to only one account.
 - Keep **one tap on Book Now to open the booking form**. The form submission is the commitment; do not add another confirmation just to enter it.
 - A request is not an accepted appointment. Show who must act next and whether the time/price is proposed or agreed.
 - The provider submits work for review; **only the requester confirms completion**. Checklist progress is supporting information, not a second approval workflow that traps either person.
@@ -58,8 +61,8 @@ Cancellation/decline and support paths must be defined alongside this happy path
 - [x] Provider registration/editing saves business information and embedded services; service presence is checked in the form, repository, and rules. Validation is not yet complete (S05/P02).
 - [x] Provider promotion refreshes the same account without requiring a new login. S01 now commits provider creation and role `both` atomically; draft/retry/auth recovery work remains (A01/P03).
 - [x] Booking creation, pending-booking editing, acceptance, start, submission for review, requester confirmation, changes requested, cancellation, and timeline rendering exist.
-- [x] Rules reject direct provider completion and prevent non-participants reading bookings. Existing events cannot be edited/deleted. S04's local change also requires each transition event to be new; production deployment remains pending.
-- [x] First-contact conversation creation uses a canonical participant ID and a transaction in the client. Message creation and summary writes are batched. **Rules do not enforce all equivalent invariants** (S06).
+- [x] Rules reject direct provider completion, prevent non-participant reads, require every transition to create a new matching immutable audit event, and were deployed after S04 regression coverage.
+- [x] First-contact conversations, participant-owned read/typing state, bounded messages, and atomically linked summaries are enforced by deployed rules and covered by S06 concurrency/adversarial tests plus native two-account verification.
 - [x] Completed-booking reviews, requester editing/deletion, provider responses, and helpful-vote UI exist. Aggregate/vote security and several UI paths remain incomplete (S10/S03/B09).
 - [x] Centralized booking status labels/colors and a booking-request success screen exist. The full interaction still needs refinement (B05/B08/U01).
 - [x] English/French resources, language switching, and persisted language preference exist. Key parity passed; full localization and native runtime verification remain open (U04/E03).
@@ -101,7 +104,7 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 
 ## Recommended delivery order
 
-1. **Close the remaining active trust boundary:** S03–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01/S02 public-profile and account-trust work is complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
+1. **Close the remaining active trust boundary:** S03, S05, S07, and S09, with schema/migration work from E01 and regression tests from E04. S01/S02/S04/S06 are complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
 2. **Finish the main requester/provider journey:** B01–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
@@ -132,21 +135,23 @@ S01's implementation, migration, deployment, regression coverage, and production
 - [x] Pass TypeScript, lint (0 errors / 61 pre-existing warnings), and the full Auth/Firestore emulator suite. Deploy only Firestore rules to `lazonev1-5da5a`.
 - [x] Complete a disposable-account iPhone 15 / iOS 17.5 smoke test covering live signup, profile editing, bookmark add/remove, notification-token registration, provider registration with a required service, immediate Business-tab refresh, and stored trust values. Remove the disposable Auth account and all three test documents afterward.
 
-## Remaining work — security and data integrity
+## Security and data integrity
 
 ### S03 · P0 · Enforce helpful votes and review integrity
 
 - [ ] **Problem:** Helpful-vote rules check the resulting list/count, not that only the caller's single vote changed. Other voters can be impersonated or removed. Review URLs and response metadata also need bounded validation; delete/recreate semantics can erase response/vote context.
 
-  **Sources:** [rules][rules], [review service][review-service], [review models][review-model].
+  **Sources:** [rules][rules], [review service][review-service], [review models][review-model], [review integrity guide](review-integrity.md).
 
   **Required:** Use unique per-user vote records or equivalent strict delta validation, with protected counts and appropriate voter privacy. Enforce author/provider response permissions, immutable booking associations, text/date/URL constraints, and a documented deletion/history policy. Keep review uploads disabled until C02/S07 is complete.
 
   **Done when:** Double votes, duplicate IDs, forged voters, mass reset, unauthorized responses, invalid payloads, and concurrent retries are rejected or handled deterministically. Legacy review IDs cannot produce a second review for one booking.
 
-### S04 · P0 · Make every status transition create a matching new audit event
+  **Progress — 2026-10-10:** Implemented locally on `fix/review-integrity`. Public reviews now expose only a protected helpful count; private per-user vote records can be read/toggled only by that voter and must atomically change the parent count by exactly one. New reviews atomically create an immutable booking claim that survives deletion and prevents a second review. Provider responses remain limited to the reviewed provider with bounded text and a server-authored timestamp; review image URLs remain disabled pending S07/C02. UI adds synchronous duplicate-tap protection, visible pending state, a 44-point Helpful control, accessibility state, rollback/error behavior, and EN/FR copy. A dry-run-by-default Admin migration creates claims for legacy review IDs, deduplicates/private-migrates legacy voters, and removes public voter lists. TypeScript, lint (0 errors / 61 existing warnings), migration checks, and the full Auth/Firestore emulator suite pass, including forged identity, standalone/mass-reset, private-read/list, duplicate, concurrent, author/provider, response-metadata, deletion/recreation, and legitimate-path cases. Keep S03 open until the live dry-run is reviewed, migration and matching rules are intentionally deployed in the safe order, and native requester/provider review/vote/response paths pass.
 
-- [ ] **Problem:** `hasNewLinkedBookingStatusEvent` checks that the ID differs from the current latest ID and exists after the write. It does not prove that the event is newly created or matches this transition. Reusing an older event bypasses the intended audit guarantee. The current regression test only attempts reuse of the latest ID.
+### S04 · P0 · Make every status transition create a matching new audit event — complete
+
+- [x] **Resolved:** Every booking status transition must atomically create a new matching event; older/cross-booking/mismatched events cannot be reused.
 
   **Sources:** [rules][rules], [booking service][booking-service], [current rule tests][rules-tests].
 
@@ -154,7 +159,7 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Reusing any older event, cross-booking references, mismatched actor/status, standalone events, and status writes without an event all fail. Concurrent actions produce one valid outcome and one complete ordered history.
 
-  **Progress — 2026-10-02:** Implemented locally on `fix/booking-audit-events`. Rules now require the linked event to be absent before and present after the atomic write. The permanent emulator suite covers reuse of a genuinely older event, missing and cross-booking events, mismatched previous/target status, actor, role, and time, standalone event creation, valid lifecycle transitions, and competing concurrent transitions. Auth + Firestore emulators pass; TypeScript and full mobile lint pass with the existing warnings. Keep this item open until the rule is intentionally deployed and verified in the target Firebase project.
+  **Completed — 2026-10-10:** Merged in PR #86. The permanent emulator suite covers reuse of a genuinely older event, missing and cross-booking events, mismatched previous/target status, actor, role, time, standalone creation, valid lifecycle transitions, and competing transitions. Matching rules were deployed to `lazonev1-5da5a`.
 
 ### S05 · P0 · Validate marketplace payloads at the trust boundary
 
@@ -166,9 +171,9 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Valid edge cases work and hostile/malformed payloads fail in direct SDK tests, independent of UI. Data migrations handle legacy missing IDs/checklists without rendering crashes or fabricated history.
 
-### S06 · P0 · Enforce conversation/message invariants in rules or trusted commands
+### S06 · P0 · Enforce conversation/message invariants in rules or trusted commands — complete
 
-- [ ] **Problem:** The client enforces canonical conversations and text limits, but rules allow duplicate participants, fabricated participant details, arbitrary conversation IDs, malformed messages, peer read/typing edits, and unverified summary metadata.
+- [x] **Resolved:** Canonical two-user conversations, participant-owned presence/read state, bounded messages, and exact message-summary linkage are enforced at the trust boundary.
 
   **Sources:** [rules][rules], [conversation service][conversation-service], [message mapping][message-repo].
 
@@ -176,7 +181,7 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** First contact and legacy conversations work, while malformed messages, forged sender identity, peer metadata edits, spoofed previews, and unauthorized membership/ID creation fail. Include two simultaneous first-contact attempts and deleted/deactivated participant cases.
 
-  **Progress — 2026-10-02:** Implemented and reviewed locally on `fix/conversation-message-security`. New conversations use an authenticated, canonical two-user identity with public-profile-backed participant details while accepting the existing participant-array order. Participants can change only their own read/typing state. New messages use a bounded schema and server time, and are atomically bound by exact path to the parent summary without changing the stored schema. Emulator coverage includes malformed/forged/cross-collection writes, concurrent first contact, legacy maps, and a removed public profile. Auth + Firestore emulators, TypeScript, and full mobile lint pass (0 errors; existing warnings remain). Keep this item open until intentional rules deployment and native two-account verification are complete.
+  **Completed — 2026-10-10:** Merged in PR #87. Emulator coverage includes malformed/forged/cross-collection writes, concurrent first contact, legacy maps, and a removed public profile. Matching rules were deployed to `lazonev1-5da5a`, and requester/provider native messaging was verified with two accounts.
 
 ### S07 · P0 · Secure the media pipeline before enabling uploads
 
@@ -388,9 +393,9 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 ### A02 · P1 · Finish credential and profile-edit promises
 
-  **Progress — 2026-10-03:** Password recovery slice implemented on `fix/password-recovery`: real Firebase reset requests, email prefill/draft recovery, generic account-existence confirmation, safe retry/loading states, EN/FR copy, truthful email-only login label, and removal of the nonfunctional Remember me control. Auth emulator coverage exercises reset-code generation/redemption, rejection of reuse and old passwords, and successful new-password login; validation/error/locale tests run in CI. See the [flow, data boundary, and acceptance steps](password-recovery.md). No Firestore or live Auth configuration change is required. Keep A02 open: native/inbox verification and the broader email-change/profile/avatar work remain outstanding.
+  **Progress — 2026-10-10:** Password recovery slice merged in PR #89: real Firebase reset requests, email prefill/draft recovery, generic account-existence confirmation, safe retry/loading states, EN/FR copy, truthful email-only login label, and removal of the nonfunctional Remember me control. Auth emulator coverage exercises reset-code generation/redemption, rejection of reuse and old passwords, and successful new-password login; validation/error/locale tests run in CI. See the [flow, data boundary, and acceptance steps](password-recovery.md). No Firestore or live Auth configuration change is required. Keep A02 open: native/inbox verification and broader email-change/profile/avatar work remain outstanding.
 
-- [ ] **Problem:** Login advertises phone or email but uses email/password only; Remember me does not control persistence; password reset is an alert. Account email is editable but ignored on save. Password change and avatar/account controls are incomplete; identity copies can diverge across users/providers/conversations.
+- [ ] **Problem remaining:** Email password recovery is implemented, but native/inbox verification is not signed off. Account email is editable but ignored on save; password change and avatar/account controls remain incomplete, and identity copies can diverge across users/providers/conversations. Phone authentication is separately specified in A04.
 
   **Sources:** [login screen][login-ui], [account editor][account-editor], [account information][account-info], [auth service][auth-service].
 
@@ -407,6 +412,20 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Provide accessible Terms/Privacy/support contacts, explain data use and moderation, record consent where needed, and implement in-app deletion with reauthentication and a clear retained-data policy. Remove/revoke auth, tokens, private profile/media, and public visibility while preserving/anonymizing necessary shared records appropriately. Define provider verification criteria, review/appeal ownership, and restrictions on regulated service categories before exposing trust claims.
 
   **Done when:** Deletion is tested with active/completed bookings, conversations, reviews, uploads, multiple devices, and partial failures; support is reachable without a placeholder. Store/privacy submissions match actual behavior. See [Apple account deletion guidance](https://developer.apple.com/support/offering-account-deletion-in-your-app/) and [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) for account and user-generated-content requirements; obtain jurisdiction-specific review where applicable.
+
+### A04 · P1 · Urgent: equal phone/email access with one account per identity
+
+- [ ] **Problem:** Signup currently requires email/password. The optional phone number is private profile data, not a verified Firebase Auth credential. People without email cannot register, and entering both contact details does not enable both login methods. PR #89 implements email password recovery only.
+
+  **Agreed behavior:** Give “Continue with phone” and “Continue with email” equal prominence. Phone-only users verify an SMS code without email/password; email-only users use email/password with verification and recovery without requiring a phone. Adding the other method is optional and must link the verified credential to the same Firebase UID. Both methods grant identical requester/provider capabilities.
+
+  **Identity safety:** Enforce uniqueness through Firebase Authentication, normalize phones to E.164, and never create a second profile when an existing credential signs in. Linking a credential already owned by another account must fail into an authenticated recovery path; accounts must never be silently merged from matching profile contact fields. Preserve UID, provider status, bookings, messages, bookmarks, and reviews.
+
+  **Prerequisites and UX:** Audit legacy unverified phone values/conflicts; verify enabled Auth providers, SMS regions/quotas/costs, consent, abuse controls, and native iOS/Android app verification. Support country selection, SMS autofill, expired/incorrect codes, resend cooldown, throttling, cancellation/retry, interrupted linking, reauthentication for credential changes, and full EN/FR copy. Any native dependency/build follows the remote EAS workflow.
+
+  **Done when:** Emulator and native tests cover phone-only, email-only, and linked-method signup/login; duplicate/normalized credentials; concurrent attempts; linking conflicts; legacy profile numbers; interruption; expiry/reuse; and loss/change of a login method. Both linked methods return the same UID and preserve all requester/provider data. Record build IDs, actual delivery evidence, Auth configuration, and migration/rollback evidence.
+
+  **Sources:** [auth service][auth-service], [auth context][auth-context], [login screen][login-ui], [Firebase account linking](https://firebase.google.com/docs/auth/web/account-linking), [Firebase phone authentication](https://firebase.google.com/docs/auth/ios/phone-auth).
 
 ## Remaining work — messaging and notifications
 
@@ -554,9 +573,9 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** A staged rollout can detect a broken journey, stop safely, restore supported data, and explain the incident without exposing private content. Record the production deployment evidence separately from passing local tests; do not assume historical rule deployment matches current source.
 
-### E06 · P2 · Clean developer documentation and repository hygiene
+### E06 · P2 · Clean developer documentation and repository hygiene — complete
 
-- [ ] **Problem:** Documentation mixes npm and pnpm and suggests workflows incompatible with required native modules; permissive test-mode instructions are unsafe if applied to production. The mobile npm lockfile still describes an older Expo stack than the active pnpm project. `apps/.DS_Store` is tracked; sample hooks, template reset script, reference search code, and export metadata remain.
+- [x] **Resolved:** The supported pnpm/remote-EAS workflow, safe Firebase environments, repository hygiene, and clean-checkout verification are documented and aligned with CI.
 
   **Sources:** [root README][root-readme], [mobile README][mobile-readme], [development runbook](development.md), [pnpm lock][lockfile]. The obsolete npm lockfile and template reset script were removed in the E06 implementation.
 
@@ -564,7 +583,7 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** A new contributor can follow the README from a clean checkout without changing ignore rules or touching production accidentally; CI and local commands agree; the reset/seeding tools cannot be mistaken for routine release operations.
 
-  **Progress — 2026-10-02:** Implemented on `fix/developer-setup-safety`, independently from open security PRs. Replaced contradictory setup instructions with pnpm/remote EAS development-client guidance and explicit environment/deployment/rollback documentation. Added one pinned demo Auth/Firestore test command shared by CI and local development; removed implicit live Functions commands, unused Admin referral seeder, destructive template reset, stale npm lockfile, OS file, search reference, and emulator metadata. Root `.easignore` includes native Firebase client configs while excluding local state/backups/credentials; both configs remain Git-ignored. TypeScript, lint (0 errors / 61 existing warnings), Auth/Firestore suite, Functions syntax, and local EAS archive inspection pass. No native build or live deployment was performed. Full mobile Auth/Storage/messaging emulator isolation remains E04, not a capability claimed by the Firestore-only switch. Keep E06 open until clean-contributor/native setup acceptance is recorded.
+  **Completed — 2026-10-10:** Merged in PR #88. Contradictory instructions were replaced with pnpm/remote-EAS guidance and explicit environment/deployment/rollback documentation. CI and local development share one pinned demo Auth/Firestore test command; unsafe/stale scripts, lockfiles, OS files, search reference, and emulator metadata were removed. TypeScript, lint, Auth/Firestore tests, Functions syntax, archive inspection, and a frozen clean install passed. Full Auth/Storage/messaging journey isolation remains E04 rather than reopening E06.
 
   **Additional verification:** A fresh `pnpm install --frozen-lockfile` in the inspected archive passed, followed by TypeScript without the working checkout's generated state. Guide links resolve. Native Firebase client files are present in the archive and still excluded from Git. No dependency versions or live rules changed.
 
