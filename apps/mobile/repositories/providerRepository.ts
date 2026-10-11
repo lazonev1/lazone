@@ -265,7 +265,9 @@ async function populateReviews(
           review.responses && review.responses.length > 0
             ? {
                 text: review.responses[0].text,
-                date: review.responses[0].date.toDate().toISOString(),
+                date: (review.responseUpdatedAt || review.responses[0].date || review.updatedAt)
+                  .toDate()
+                  .toISOString(),
               }
             : undefined,
       };
