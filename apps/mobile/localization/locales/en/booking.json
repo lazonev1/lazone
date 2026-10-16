@@ -127,7 +127,6 @@
     "viewProfile": "View Profile",
     "message": "Message",
     "requestChecklist": "Request Checklist",
-    "reviewChecklistNotice": "Review these requested outcomes. The provider progress is shown for reference; use the actions below to confirm or request changes.",
     "changesRequested": "Changes requested: {{reason}}",
     "additionalDetails": "Additional Details",
     "timelineTitle": "Booking Timeline",
@@ -154,18 +153,33 @@
       "submitting": "Submitting...",
       "editBooking": "Edit Booking",
       "cancelBooking": "Cancel Booking",
+      "cancelling": "Cancelling...",
       "confirmWorkCompleted": "Confirm Work Completed",
+      "confirming": "Confirming...",
       "requestChanges": "Request Changes",
+      "sendRequest": "Send Request",
       "sending": "Sending...",
       "leaveReview": "Leave a Review"
     },
     "changeRequest": {
       "label": "Need changes?",
-      "placeholder": "Describe what is still missing"
+      "placeholder": "Describe what is still missing",
+      "hint": "Explain what the provider still needs to complete before you can confirm the work."
     },
     "notices": {
-      "awaitingRequesterReview": "Submitted for requester review. You will be notified when they confirm or request changes.",
-      "providerSubmitted": "The provider submitted this work for your review. Check each requested outcome before confirming."
+      "provider": {
+        "pending": "Review the request, then accept or decline it.",
+        "confirmed": "The request is accepted. Start the service when work begins.",
+        "in_progress": "Update the checklist as you work, then submit it for requester review.",
+        "awaiting_confirmation": "Submitted for requester review. You will be notified when they confirm or request changes."
+      },
+      "requester": {
+        "pending": "Waiting for the provider to respond. You can edit or cancel while the request is pending.",
+        "confirmed": "The provider accepted your request. You can cancel before work starts.",
+        "in_progress": "Work is in progress. The provider will submit it when it is ready for your review.",
+        "awaiting_confirmation": "Review the requested outcomes, then confirm the work or ask for changes.",
+        "completed": "The work is complete. Share your experience with a review."
+      }
     },
     "alerts": {
       "cancelTitle": "Cancel Booking",
