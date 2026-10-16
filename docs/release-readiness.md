@@ -430,6 +430,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Backgrounded screens do not mark unseen messages read; typing clears after disconnect; rapid switching never shows another conversation's data; denied reads, malformed legacy data, and reconnects produce useful recovery rather than silence/spinners.
 
+  **Progress — 2026-10-16:** Implemented on `fix/realtime-chat-recovery`. Chat identity now comes from the authorized conversation record rather than caller-controlled route parameters; invalid/denied conversations retain a localized Retry state and expose no unusable composer. Read receipts require a focused foreground screen and a new incoming message. Typing writes are one transition per burst, clear on idle/background/unmount, and stale remote indicators expire locally. Sequenced, cancellable async mapping prevents old snapshots/account switches from overwriting newer data, while list/message failures preserve prior content and surface Retry. TypeScript, full lint (0 errors; existing warnings only), EN/FR parity, the Auth/Firestore emulator suite, and iPhone simulator valid/invalid/forged-route smoke tests pass. See [flow and verification](realtime-chat-recovery.md). Keep M02 open only for the final simultaneous two-account foreground/background observation; no Firebase deployment is required.
+
 ### N01 · P1 · Complete and verify lifecycle notification delivery
 
 - [ ] **Problem:** Server code covers new messages and selected completion-related status changes, not the entire booking journey. There is no proven fresh deployment/device delivery matrix. The UI promises notifications/reminders that may have no producer.
