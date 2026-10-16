@@ -1,4 +1,4 @@
-import { SafeAreaView, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { SafeAreaView, StyleSheet, View, ActivityIndicator, TouchableOpacity, Appearance } from 'react-native';
 import { ScrollView } from "react-native-gesture-handler";
 import { ConversationItem } from "@/components/messages/ConversationItem";
 import { useRouter, useNavigation } from 'expo-router';
@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/auth';
 import { formatMessageTime } from '@/backend/main/src/utils/utils';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { LoginPrompt } from "@/components/auth/LoginPrompt";
 import SearchBar from '@/components/ui/SearchBar';
@@ -24,13 +23,13 @@ export default function Messages() {
 
   const { user } = useAuth();
   const userId = user?.uid ?? '';
-  const { conversations, loading } = useConversationsList(userId);
+  const { conversations, loading, error, retry } = useConversationsList(userId);
 
   useEffect(() => {
     navigation.setOptions({
       headerShown: false
     });
-  }, []);
+  }, [navigation]);
 
   if (!user) { return <LoginPrompt title={t('list.loginTitle')} message={t('list.loginMessage')} />; }
 
@@ -59,10 +58,25 @@ export default function Messages() {
 
         {/* Conversation List */}
         <ScrollView style={styles.scrollView}>
-          {loading ? (
+          {error && conversations.length > 0 && (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <ThemedText style={styles.errorText}>{t('list.loadError')}</ThemedText>
+              <TouchableOpacity onPress={retry} accessibilityRole="button">
+                <ThemedText style={styles.retryText}>{t('list.retry')}</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+          {loading && conversations.length === 0 ? (
             <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={theme.tint} />
             </View>
+          ) : error && conversations.length === 0 ? (
+            <ThemedView style={styles.emptyState} accessibilityRole="alert">
+              <ThemedText style={styles.emptyText}>{t('list.loadError')}</ThemedText>
+              <TouchableOpacity style={styles.retryButton} onPress={retry} accessibilityRole="button">
+                <ThemedText style={styles.retryButtonText}>{t('list.retry')}</ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
           ) : filteredConversations.length === 0 ? (
             <ThemedView style={styles.emptyState}>
               <ThemedText style={styles.emptyText}>
@@ -89,11 +103,7 @@ export default function Messages() {
                   isTyping={conversation.isTyping}
                   onPress={() => router.push({
                     pathname: '/messages/[id]',
-                    params: {
-                      id: conversation._id,
-                      name: conversation.otherUser.name,
-                      avatar: conversation.otherUser.avatar ?? '',
-                    }
+                    params: { id: conversation._id }
                   })}
                 />
               );
@@ -136,6 +146,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     opacity: 0.6,
+  },
+  errorBanner: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FDECEA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  errorText: {
+    flex: 1,
+    color: '#922B21',
+  },
+  retryText: {
+    color: '#0A58A5',
+    fontWeight: '700',
+  },
+  retryButton: {
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    backgroundColor: '#0A58A5',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   infoButton: {
     padding: 8
