@@ -272,6 +272,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Each role/status has one obvious next action, no duplicated instructions, no hidden button behind the keyboard, and no action the role cannot perform. A requester can understand and complete confirmation without assistance.
 
+  **Progress — 2026-10-16:** Implemented on `fix/booking-action-area`. Booking details now use one safe-area-aware action panel outside the scrollable content, with concise role/status guidance and only valid actions. Requester-review guidance is no longer duplicated above the checklist; the change-request field appears only after that option is chosen, keeps the draft on failure, and stays paired with its controls when the keyboard opens. Action-specific loading labels prevent misleading feedback. TypeScript, focused lint, EN/FR booking-key parity, and native iPhone 15 launch pass. See [the before/after flow](booking-action-area.md). Keep B05 open until a two-account native pass verifies every role/status layout and keyboard path with existing or explicitly disposable booking data.
+
 ### B06 · P1 · Preserve a complete, useful booking history
 
 - [ ] **Problem:** Status events exist, but change-request text lives on the booking and is cleared on resubmission; edits lack corresponding history. Cancellation can leave the loaded timeline stale. Legacy data does not necessarily have earlier events.

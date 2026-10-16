@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
@@ -17,6 +17,9 @@ import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/auth';
 import { TextBox } from '@/components/ui/TextBox';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+type BookingAction = 'accept' | 'decline' | 'start' | 'submit' | 'cancel' | 'confirm' | 'requestChanges';
 
 function formatStatus(status: BookingStatus): string {
   return getStatusLabel(status);
@@ -53,12 +56,21 @@ export default function BookingDetailsScreen() {
   const { toast, showToast, hideToast } = useToast();
   const { t, i18n } = useTranslation(['booking', 'common']);
   const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
-  const [actionInFlight, setActionInFlight] = useState(false);
+  const [actionInFlight, setActionInFlight] = useState<BookingAction | null>(null);
   const [changeRequest, setChangeRequest] = useState('');
+  const [showChangeRequest, setShowChangeRequest] = useState(false);
   const colorScheme = Appearance.getColorScheme() || 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { user } = useAuth();
   const isProvider = booking?.providerId === user?.uid;
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (booking?.status !== 'awaiting_confirmation') {
+      setShowChangeRequest(false);
+      setChangeRequest('');
+    }
+  }, [booking?.status]);
 
   const handleMessage = async (otherUserId: string, otherUserName: string, otherUserAvatar?: string) => {
     if (!user?.uid) return;
@@ -131,11 +143,14 @@ export default function BookingDetailsScreen() {
           text: t('details.actions.cancelBooking'),
           style: 'destructive',
           onPress: async () => {
+            setActionInFlight('cancel');
             try {
               await cancelBooking();
               showToast(t('details.toasts.cancelled'), 'success');
             } catch {
               showToast(t('details.toasts.cancelFailed'), 'error');
+            } finally {
+              setActionInFlight(null);
             }
           },
         },
@@ -165,7 +180,7 @@ export default function BookingDetailsScreen() {
 
   const handleAcceptBooking = async () => {
     if (!bookingId) return;
-    setActionInFlight(true);
+    setActionInFlight('accept');
     try {
       await bookingRepo.confirmBooking(bookingId);
       showToast(t('details.toasts.accepted'), 'success');
@@ -173,7 +188,7 @@ export default function BookingDetailsScreen() {
     } catch {
       showToast(t('details.toasts.acceptFailed'), 'error');
     } finally {
-      setActionInFlight(false);
+      setActionInFlight(null);
     }
   };
 
@@ -188,7 +203,7 @@ export default function BookingDetailsScreen() {
           text: t('details.actions.decline'),
           style: 'destructive',
           onPress: async () => {
-            setActionInFlight(true);
+            setActionInFlight('decline');
             try {
               await bookingRepo.declineBooking(bookingId);
               showToast(t('details.toasts.declined'), 'success');
@@ -196,7 +211,7 @@ export default function BookingDetailsScreen() {
             } catch {
               showToast(t('details.toasts.declineFailed'), 'error');
             } finally {
-              setActionInFlight(false);
+              setActionInFlight(null);
             }
           },
         },
@@ -205,10 +220,11 @@ export default function BookingDetailsScreen() {
   };
 
   const handleProviderStatusChange = (
-    nextStatus: 'in_progress' | 'awaiting_confirmation' | 'completed',
+    nextStatus: 'in_progress' | 'awaiting_confirmation',
     title: string,
     message: string,
-    successMessage: string
+    successMessage: string,
+    action: Extract<BookingAction, 'start' | 'submit'>
   ) => {
     if (!bookingId) return;
 
@@ -217,17 +233,16 @@ export default function BookingDetailsScreen() {
       {
         text: t('common:actions.confirm'),
         onPress: async () => {
-          setActionInFlight(true);
+          setActionInFlight(action);
           try {
             if (nextStatus === 'in_progress') await startBooking();
-            else if (nextStatus === 'awaiting_confirmation') await submitForConfirmation();
-            else await confirmCompletion();
+            else await submitForConfirmation();
             showToast(successMessage, 'success');
             await refreshBooking();
           } catch {
             showToast(t('details.toasts.statusUpdateFailed'), 'error');
           } finally {
-            setActionInFlight(false);
+            setActionInFlight(null);
           }
         },
       },
@@ -243,16 +258,16 @@ export default function BookingDetailsScreen() {
 
   const handleConfirmCompletion = () => Alert.alert(t('details.alerts.confirmCompletionTitle'), t('details.alerts.confirmCompletionMessage'), [
     { text: t('details.alerts.notYet'), style: 'cancel' },
-    { text: t('common:actions.confirm'), onPress: async () => { setActionInFlight(true); try { await confirmCompletion(); showToast(t('details.toasts.completionConfirmed'), 'success'); await refreshBooking(); } catch (error) { showToast(error instanceof Error ? error.message : t('details.toasts.completionFailed'), 'error'); } finally { setActionInFlight(false); } } },
+    { text: t('common:actions.confirm'), onPress: async () => { setActionInFlight('confirm'); try { await confirmCompletion(); showToast(t('details.toasts.completionConfirmed'), 'success'); await refreshBooking(); } catch (error) { showToast(error instanceof Error ? error.message : t('details.toasts.completionFailed'), 'error'); } finally { setActionInFlight(null); } } },
   ]);
 
   const handleRequestChanges = async () => {
     const reason = changeRequest.trim();
     if (!reason) { showToast(t('details.toasts.describeChanges'), 'error'); return; }
-    setActionInFlight(true);
-    try { await requestChanges(reason); setChangeRequest(''); showToast(t('details.toasts.changesRequested'), 'success'); }
+    setActionInFlight('requestChanges');
+    try { await requestChanges(reason); setChangeRequest(''); setShowChangeRequest(false); showToast(t('details.toasts.changesRequested'), 'success'); }
     catch (error) { showToast(error instanceof Error ? error.message : t('details.toasts.changeRequestFailed'), 'error'); }
-    finally { setActionInFlight(false); }
+    finally { setActionInFlight(null); }
   };
 
   // Loading state
@@ -277,76 +292,105 @@ export default function BookingDetailsScreen() {
 
   const statusColor = getStatusColor(booking.status);
 
-  const renderActionButtons = () => {
+  const renderActionPanel = () => {
+    const isActing = actionInFlight !== null;
+
     if (isProvider) {
+      if (booking.status === 'completed' || booking.status === 'cancelled') return null;
+
       return (
-        <View style={styles.bottomButtons}>
+        <View
+          style={[
+            styles.actionPanel,
+            { backgroundColor: theme.background, borderTopColor: colorScheme === 'dark' ? '#333' : '#E5E5E5', paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
+          <ThemedText style={styles.actionNotice} accessibilityLiveRegion="polite">
+            {t(`details.notices.provider.${booking.status}`)}
+          </ThemedText>
           {booking.status === 'pending' && (
-            <>
+            <View style={styles.actionRow}>
               <Button
-                label={actionInFlight ? t('details.actions.accepting') : t('details.actions.acceptBooking')}
+                label={actionInFlight === 'accept' ? t('details.actions.accepting') : t('details.actions.acceptBooking')}
                 onPress={handleAcceptBooking}
                 variant="success"
-                style={styles.actionButton}
-                disabled={actionInFlight}
+                style={styles.flexButton}
+                disabled={isActing}
               />
               <Button
-                label={actionInFlight ? t('details.actions.declining') : t('details.actions.decline')}
+                label={actionInFlight === 'decline' ? t('details.actions.declining') : t('details.actions.decline')}
                 onPress={handleDeclineBooking}
                 variant="secondary"
-                style={styles.cancelButton}
-                disabled={actionInFlight}
+                style={styles.flexButton}
+                disabled={isActing}
               />
-            </>
+            </View>
           )}
           {booking.status === 'confirmed' && (
             <Button
-              label={actionInFlight ? t('details.actions.starting') : t('details.actions.startService')}
+              label={actionInFlight === 'start' ? t('details.actions.starting') : t('details.actions.startService')}
               onPress={() => handleProviderStatusChange(
                 'in_progress',
                 t('details.alerts.startTitle'),
                 t('details.alerts.startMessage'),
-                t('details.toasts.serviceInProgress')
+                t('details.toasts.serviceInProgress'),
+                'start'
               )}
               variant="primary"
               style={styles.actionButton}
-              disabled={actionInFlight}
+              disabled={isActing}
             />
           )}
           {booking.status === 'in_progress' && (
-            <Button label={actionInFlight ? t('details.actions.submitting') : t('details.actions.submitForConfirmation')} onPress={() => handleProviderStatusChange('awaiting_confirmation', t('details.alerts.submitTitle'), t('details.alerts.submitMessage'), t('details.toasts.workSubmitted'))} variant="success" style={styles.actionButton} disabled={actionInFlight} />
-          )}
-          {booking.status === 'awaiting_confirmation' && (
-            <ThemedText style={styles.pendingNotice}>{t('details.notices.awaitingRequesterReview')}</ThemedText>
+            <Button label={actionInFlight === 'submit' ? t('details.actions.submitting') : t('details.actions.submitForConfirmation')} onPress={() => handleProviderStatusChange('awaiting_confirmation', t('details.alerts.submitTitle'), t('details.alerts.submitMessage'), t('details.toasts.workSubmitted'), 'submit')} variant="success" style={styles.actionButton} disabled={isActing} />
           )}
         </View>
       );
     }
 
+    if (booking.status === 'cancelled') return null;
+
     return (
-      <View style={styles.bottomButtons}>
+      <View
+        style={[
+          styles.actionPanel,
+          { backgroundColor: theme.background, borderTopColor: colorScheme === 'dark' ? '#333' : '#E5E5E5', paddingBottom: Math.max(insets.bottom, 12) },
+        ]}
+      >
+        <ThemedText style={styles.actionNotice} accessibilityLiveRegion="polite">
+          {t(`details.notices.requester.${booking.status}`)}
+        </ThemedText>
         {booking.status === 'pending' && (
-          <Button
-            label={t('details.actions.editBooking')}
-            onPress={() => handleEditBooking(booking)}
-            variant="primary"
-            style={styles.actionButton}
-          />
+          <View style={styles.actionRow}>
+            <Button label={t('details.actions.editBooking')} onPress={() => handleEditBooking(booking)} variant="primary" style={styles.flexButton} disabled={isActing} />
+            <Button label={actionInFlight === 'cancel' ? t('details.actions.cancelling') : t('details.actions.cancelBooking')} onPress={handleCancelBooking} variant="secondary" style={styles.flexButton} disabled={isActing} />
+          </View>
         )}
-        {(booking.status === 'pending' || booking.status === 'confirmed') && (
-          <Button
-            label={t('details.actions.cancelBooking')}
-            onPress={handleCancelBooking}
-            variant="secondary"
-            style={styles.cancelButton}
-          />
+        {booking.status === 'confirmed' && (
+          <Button label={actionInFlight === 'cancel' ? t('details.actions.cancelling') : t('details.actions.cancelBooking')} onPress={handleCancelBooking} variant="secondary" style={styles.actionButton} disabled={isActing} />
         )}
-        {booking.status === 'awaiting_confirmation' && (
-          <View style={styles.reviewActions}>
-            <ThemedText style={styles.reviewNotice}>{t('details.notices.providerSubmitted')}</ThemedText>
-            <Button label={t('details.actions.confirmWorkCompleted')} onPress={handleConfirmCompletion} variant="success" style={styles.actionButton} disabled={actionInFlight} />
-            <TextBox label={t('details.changeRequest.label')} value={changeRequest} onChangeText={setChangeRequest} multiline numberOfLines={3} placeholder={t('details.changeRequest.placeholder')} />
-            <Button label={actionInFlight ? t('details.actions.sending') : t('details.actions.requestChanges')} onPress={handleRequestChanges} variant="secondary" style={styles.cancelButton} disabled={actionInFlight || !changeRequest.trim()} />
+        {booking.status === 'awaiting_confirmation' && !showChangeRequest && (
+          <View style={styles.actionStack}>
+            <Button label={actionInFlight === 'confirm' ? t('details.actions.confirming') : t('details.actions.confirmWorkCompleted')} onPress={handleConfirmCompletion} variant="success" style={styles.actionButton} disabled={isActing} />
+            <Button label={t('details.actions.requestChanges')} onPress={() => setShowChangeRequest(true)} variant="secondary" style={styles.actionButton} disabled={isActing} />
+          </View>
+        )}
+        {booking.status === 'awaiting_confirmation' && showChangeRequest && (
+          <View style={styles.changeRequestForm}>
+            <TextBox
+              label={t('details.changeRequest.label')}
+              value={changeRequest}
+              onChangeText={setChangeRequest}
+              multiline
+              numberOfLines={3}
+              placeholder={t('details.changeRequest.placeholder')}
+              autoFocus
+              accessibilityHint={t('details.changeRequest.hint')}
+            />
+            <View style={styles.actionRow}>
+              <Button label={t('common:actions.back')} onPress={() => setShowChangeRequest(false)} variant="secondary" style={styles.flexButton} disabled={isActing} />
+              <Button label={actionInFlight === 'requestChanges' ? t('details.actions.sending') : t('details.actions.sendRequest')} onPress={handleRequestChanges} variant="primary" style={styles.flexButton} disabled={isActing || !changeRequest.trim()} />
+            </View>
           </View>
         )}
         {booking.status === 'completed' && (
@@ -362,8 +406,8 @@ export default function BookingDetailsScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Status Banner */}
         <View style={styles.header}>
           <Ionicons name="calendar" size={32} color={statusColor} />
@@ -452,7 +496,6 @@ export default function BookingDetailsScreen() {
         <View style={styles.section}>
           <ThemedText type="subtitle">{t('details.requestChecklist')}</ThemedText>
           <ThemedView style={[styles.card, { backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#f5f5f5' }]}>
-            {booking.status === 'awaiting_confirmation' && !isProvider && <ThemedText style={styles.confirmedNotice}>{t('details.reviewChecklistNotice')}</ThemedText>}
             {booking.checklist.map((item) => (
               <Pressable key={item.id} style={styles.checklistItem} disabled={!isProvider || booking.status !== 'in_progress'} onPress={() => toggleChecklistItem(item.id)}>
                 <Ionicons name={item.completed ? 'checkbox' : 'square-outline'} size={22} color={item.completed ? '#4CAF50' : theme.icon} />
@@ -522,12 +565,9 @@ export default function BookingDetailsScreen() {
           </ThemedView>
         </View>
 
-        {/* Action Buttons */}
-        {renderActionButtons()}
-
-        {/* Bottom spacing */}
-        <View style={{ height: 40 }} />
       </ScrollView>
+
+      {renderActionPanel()}
 
       <Toast
         visible={toast.visible}
@@ -535,14 +575,20 @@ export default function BookingDetailsScreen() {
         type={toast.type}
         onDismiss={hideToast}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 32,
   },
   centered: {
     justifyContent: 'center',
@@ -649,20 +695,35 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#B26A00',
   },
-  bottomButtons: {
-    marginTop: 8,
+  actionPanel: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 14,
+    paddingHorizontal: 20,
     gap: 12,
   },
-  actionButton: {},
-  cancelButton: {
-    backgroundColor: '#FF9900',
+  actionNotice: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionStack: {
+    gap: 10,
+  },
+  actionButton: {
+    width: '100%',
+  },
+  flexButton: {
+    flex: 1,
+  },
+  changeRequestForm: {
+    gap: 12,
   },
   checklistItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   checklistText: { flex: 1 },
   completedText: { textDecorationLine: 'line-through', opacity: 0.65 },
-  pendingNotice: { textAlign: 'center', opacity: 0.7, padding: 8 },
-  confirmedNotice: { color: '#2E7D32', marginTop: 8, fontWeight: '600' },
   changeNotice: { color: '#B26A00', marginTop: 8 },
-  reviewActions: { gap: 12, marginTop: 8 },
-  reviewNotice: { opacity: 0.75, lineHeight: 20 },
 });

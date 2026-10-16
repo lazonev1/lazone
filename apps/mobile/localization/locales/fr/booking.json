@@ -127,7 +127,6 @@
     "viewProfile": "Voir le profil",
     "message": "Message",
     "requestChecklist": "Liste des demandes",
-    "reviewChecklistNotice": "Vérifiez les résultats demandés. La progression du prestataire est affichée à titre indicatif ; utilisez les actions ci-dessous pour confirmer ou demander des modifications.",
     "changesRequested": "Modifications demandées : {{reason}}",
     "additionalDetails": "Détails supplémentaires",
     "timelineTitle": "Historique de la réservation",
@@ -154,18 +153,33 @@
       "submitting": "Envoi...",
       "editBooking": "Modifier la réservation",
       "cancelBooking": "Annuler la réservation",
+      "cancelling": "Annulation...",
       "confirmWorkCompleted": "Confirmer le travail terminé",
+      "confirming": "Confirmation...",
       "requestChanges": "Demander des modifications",
+      "sendRequest": "Envoyer la demande",
       "sending": "Envoi...",
       "leaveReview": "Laisser un avis"
     },
     "changeRequest": {
       "label": "Besoin de modifications ?",
-      "placeholder": "Décrivez ce qui manque encore"
+      "placeholder": "Décrivez ce qui manque encore",
+      "hint": "Expliquez ce que le prestataire doit encore accomplir avant que vous puissiez confirmer le travail."
     },
     "notices": {
-      "awaitingRequesterReview": "Soumis pour vérification par le demandeur. Vous serez notifié lorsqu'il confirmera ou demandera des modifications.",
-      "providerSubmitted": "Le prestataire a soumis ce travail pour votre vérification. Vérifiez chaque résultat demandé avant de confirmer."
+      "provider": {
+        "pending": "Vérifiez la demande, puis acceptez-la ou refusez-la.",
+        "confirmed": "La demande est acceptée. Commencez le service lorsque le travail débute.",
+        "in_progress": "Mettez la liste à jour pendant le travail, puis soumettez-la au demandeur.",
+        "awaiting_confirmation": "Travail soumis au demandeur. Vous serez notifié lorsqu'il confirmera ou demandera des modifications."
+      },
+      "requester": {
+        "pending": "En attente de la réponse du prestataire. Vous pouvez modifier ou annuler la demande entre-temps.",
+        "confirmed": "Le prestataire a accepté votre demande. Vous pouvez l'annuler avant le début du travail.",
+        "in_progress": "Le travail est en cours. Le prestataire le soumettra lorsqu'il sera prêt pour votre vérification.",
+        "awaiting_confirmation": "Vérifiez les résultats demandés, puis confirmez le travail ou demandez des modifications.",
+        "completed": "Le travail est terminé. Partagez votre expérience en laissant un avis."
+      }
     },
     "alerts": {
       "cancelTitle": "Annuler la réservation",
