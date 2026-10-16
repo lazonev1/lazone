@@ -5,12 +5,16 @@
     "loginMessage": "Connectez-vous pour voir vos messages et discuter avec les prestataires.",
     "searchPlaceholder": "Rechercher des messages",
     "noResults": "Aucun message correspondant à « {{query}} »",
-    "empty": "Vos messages apparaîtront ici."
+    "empty": "Vos messages apparaîtront ici.",
+    "loadError": "Impossible d’actualiser vos conversations.",
+    "retry": "Réessayer"
   },
   "chat": {
     "loading": "Chargement de la conversation...",
     "defaultTitle": "Conversation",
-    "loadError": "Impossible de charger les messages. Rouvrez cette discussion pour vous reconnecter.",
+    "loadError": "Impossible d’actualiser cette discussion. Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer",
+    "unavailableParticipant": "Participant indisponible",
     "inputPlaceholder": "Message",
     "comingSoon": "Bientôt disponible",
     "sendFailed": "Impossible d'envoyer le message. Veuillez réessayer.",

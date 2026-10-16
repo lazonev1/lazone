@@ -5,12 +5,16 @@
     "loginMessage": "Log in to view your messages and chat with providers.",
     "searchPlaceholder": "Search messages",
     "noResults": "No messages found matching \"{{query}}\"",
-    "empty": "Your messages will appear here."
+    "empty": "Your messages will appear here.",
+    "loadError": "We couldn't refresh your conversations.",
+    "retry": "Retry"
   },
   "chat": {
     "loading": "Loading conversation...",
     "defaultTitle": "Conversation",
-    "loadError": "Unable to load messages. Reopen this chat to reconnect.",
+    "loadError": "Unable to refresh this conversation. Check your connection and retry.",
+    "retry": "Retry",
+    "unavailableParticipant": "Unavailable participant",
     "inputPlaceholder": "Message",
     "comingSoon": "Coming soon",
     "sendFailed": "Failed to send message. Please try again.",
