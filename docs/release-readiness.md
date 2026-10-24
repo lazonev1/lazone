@@ -2,6 +2,8 @@
 
 Last audited: **2026-09-17**
 
+S09 completed locally: **2026-10-23** (supported mobile/Functions upgrades, production audit gate, remote iOS and Android builds, installed platform smoke tests, and an authenticated two-account requester/provider journey).
+
 S01 completed: **2026-09-19** (implementation, live migration, rules deployment, regression coverage, and two-account production-safe native smoke test). Other findings retain their audit-baseline status.
 
 S02 completed: **2026-09-20** (account allowlists, atomic provider promotion, live rules deployment, regression coverage, and disposable-account native verification). Ratings and referrals were explicitly separated into S10 and C03 rather than treated as completed.
@@ -101,7 +103,7 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 
 ## Recommended delivery order
 
-1. **Close the remaining active trust boundary:** S03–S07 and S09, with schema/migration work from E01 and regression tests from E04. S01/S02 public-profile and account-trust work is complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
+1. **Close the remaining active trust boundary:** S03–S07, with schema/migration work from E01 and regression tests from E04. S01/S02 account-boundary work and S09 dependency remediation are complete; preserve those gains while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
 2. **Finish the main requester/provider journey:** B01–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
@@ -131,6 +133,17 @@ S01's implementation, migration, deployment, regression coverage, and production
 - [x] Preserve account edits, bookmarks, notification registration, and provider enrollment; require server-authored `updatedAt` on those account mutations.
 - [x] Pass TypeScript, lint (0 errors / 61 pre-existing warnings), and the full Auth/Firestore emulator suite. Deploy only Firestore rules to `lazonev1-5da5a`.
 - [x] Complete a disposable-account iPhone 15 / iOS 17.5 smoke test covering live signup, profile editing, bookmark add/remove, notification-token registration, provider registration with a required service, immediate Business-tab refresh, and stored trust values. Remove the disposable Auth account and all three test documents afterward.
+
+### S09 · P0 · Dependency advisories — complete
+
+- [x] Upgrade the supported runtime coherently to Expo 57, React Native 0.86, React 19.2, Firebase JS 13, RNFirebase 26, Firebase Admin 14, Functions 7, and Node 22.
+- [x] Replace deprecated audio and namespaced Firebase APIs, align the Android SDK/Kotlin toolchain, and make remote native build inputs reproducible.
+- [x] Reduce the production audit from 149 findings (4 critical) to 0 critical, 2 accepted high, 0 moderate, and 0 low. Time-box the two unpatched build-tool exceptions to 2026-11-17 and enforce exact-ID audit checks in PR and weekly CI.
+- [x] Pass frozen offline install, TypeScript, lint (0 errors / 108 warnings), Auth/Firestore emulator rules, production iOS/Android exports, and remote EAS iOS/Android builds.
+- [x] Complete installed native smoke tests on iOS and Android, then an authenticated iOS two-account journey: provider discovery, booking, acceptance, start, submission, requester confirmation, complete five-event timeline, first-contact messaging, completed history, provider metrics, and review-form eligibility.
+- [x] Fix the Expo Audio chat-unmount crash found by that journey and verify that both participants can open and leave the conversation safely. Correct discovery so its default radius does not silently hide providers without coordinates and provider services participate in text search.
+
+Detailed versions, advisory decisions, build IDs, and verification evidence are recorded in [dependency security remediation](dependency-security-remediation.md).
 
 ## Remaining work — security and data integrity
 
@@ -197,16 +210,6 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Provide block/report from profiles, conversations, and reviews; define effects on existing bookings and notifications. Add trusted throttling/quotas, appropriate verification gates, App Check as defense in depth, and least-privilege staff tooling with audit logs. Define handling of abusive content, impersonation, no-shows, disputes, and appeals; avoid exposing reports to the reported user.
 
   **Done when:** Reports reach a real queue, staff can act, blocked users cannot bypass enforcement, rate limits have clear recoverable UX, and support has a documented response path. App Check must not substitute for authorization.
-
-### S09 · P0 · Triage and remediate dependency advisories
-
-- [ ] **Problem:** The production dependency graph audit reports 149 findings: 4 critical, 89 high, 48 moderate, 8 low. The graph includes build tooling and unused package branches, so this is **not 149 demonstrated app exploits**. Critical reported modules include `protobufjs`, `shell-quote`, `websocket-driver`, and `tar`; server dependency chains also have advisories.
-
-  **Sources:** [pnpm lockfile][lockfile], [mobile package][mobile-package], [Functions package][functions-package].
-
-  **Required:** Record advisory IDs, installed versions, actual runtime/build reachability, remediation, and retest evidence. Update supported Expo/Firebase/React Native and Functions dependencies coherently; avoid blind forced upgrades/overrides. Include CI/build-machine exposure, not only code shipped to phones.
-
-  **Done when:** Reachable critical/high issues are fixed; remaining non-applicable reports have evidence, owner, and review expiry. Clean install, native builds, rule tests, and journey tests pass after the dependency changes. Add continuous advisory monitoring.
 
 ### S10 · P0 before public launch · Make rating aggregates authoritative
 

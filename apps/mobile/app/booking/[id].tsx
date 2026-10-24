@@ -1,6 +1,5 @@
 import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator, Pressable } from 'react-native';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBookingDetail } from '@/hooks/useBookings';

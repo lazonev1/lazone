@@ -28,7 +28,7 @@ export default function EditableField({ label, value, onChangeText, ...props }: 
   );
 }
 
-function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' | null | undefined) {
+function createStyles(theme: typeof Colors.light, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
   return StyleSheet.create({
     field: {
       marginBottom: 16,

@@ -160,7 +160,7 @@ export default function AccountScreen() {
   );
 }
 
-function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+function createStyles(theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
   const cardBg = colorScheme === 'dark' ? '#1c1c1e' : theme.background;
   const borderClr = colorScheme === 'dark' ? '#333' : '#ccc';
 
