@@ -391,6 +391,27 @@ service cloud.firestore {
       }
     }
 
+    // Immutable one-review-per-booking marker. It is intentionally retained
+    // after a review is deleted so delete/recreate cannot erase review history.
+    match /reviewBookingClaims/{bookingId} {
+      allow get: if isAuthenticated()
+        && exists(/databases/$(database)/documents/bookings/$(bookingId))
+        && get(/databases/$(database)/documents/bookings/$(bookingId)).data.requesterId == request.auth.uid;
+      allow list: if false;
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['bookingId', 'reviewId', 'requesterId', 'createdAt'])
+        && request.resource.data.bookingId == bookingId
+        && request.resource.data.reviewId == bookingId
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/bookings/$(bookingId))
+        && get(/databases/$(database)/documents/bookings/$(bookingId)).data.requesterId == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/reviews/$(request.resource.data.reviewId))
+        && getAfter(/databases/$(database)/documents/reviews/$(request.resource.data.reviewId)).data.bookingId == bookingId
+        && getAfter(/databases/$(database)/documents/reviews/$(request.resource.data.reviewId)).data.requesterId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /reviews/{reviewId} {
       allow read: if true;
       // A review is an immutable, booking-scoped trust signal. New reviews use
@@ -400,7 +421,7 @@ service cloud.firestore {
         && reviewId == request.resource.data.bookingId
         && request.resource.data.keys().hasOnly([
           'bookingId', 'providerId', 'requesterId', 'serviceId', 'rating', 'comment',
-          'images', 'responses', 'isHelpful', 'helpfulBy', 'createdAt', 'updatedAt'
+          'images', 'responses', 'responseUpdatedAt', 'isHelpful', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.bookingId is string
         && request.resource.data.providerId is string
@@ -410,14 +431,18 @@ service cloud.firestore {
         && request.resource.data.comment is string
         && request.resource.data.comment.size() <= 500
         && request.resource.data.images is list
-        && request.resource.data.images.size() <= 5
+        // Review uploads remain disabled until the Storage/media security
+        // ticket is complete. Clients cannot inject arbitrary public URLs.
+        && request.resource.data.images.size() == 0
         && request.resource.data.responses is list
         && request.resource.data.responses.size() == 0
+        && request.resource.data.responseUpdatedAt == null
         && request.resource.data.isHelpful == 0
-        && request.resource.data.helpfulBy is list
-        && request.resource.data.helpfulBy.size() == 0
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
+        && !exists(/databases/$(database)/documents/reviewBookingClaims/$(request.resource.data.bookingId))
+        && existsAfter(/databases/$(database)/documents/reviewBookingClaims/$(request.resource.data.bookingId))
+        && getAfter(/databases/$(database)/documents/reviewBookingClaims/$(request.resource.data.bookingId)).data.reviewId == reviewId
         && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
         && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed'
         && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.requesterId == request.auth.uid
@@ -434,33 +459,72 @@ service cloud.firestore {
           && request.resource.data.comment is string
           && request.resource.data.comment.size() <= 500
           && request.resource.data.images is list
-          && request.resource.data.images.size() <= 5
+          && request.resource.data.images.size() == 0
           && request.resource.data.updatedAt == request.time
         )
         || (
           request.auth.uid == resource.data.providerId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responses', 'updatedAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responses', 'responseUpdatedAt', 'updatedAt'])
           && request.resource.data.responses is list
           && request.resource.data.responses.size() == 1
+          && request.resource.data.responses[0].keys().hasOnly(['text'])
           && request.resource.data.responses[0].text is string
           && request.resource.data.responses[0].text.size() > 0
           && request.resource.data.responses[0].text.size() <= 500
-          && request.resource.data.responses[0].date is timestamp
+          && request.resource.data.responseUpdatedAt == request.time
           && request.resource.data.updatedAt == request.time
         )
         || (
           request.auth.uid != resource.data.requesterId
           && request.auth.uid != resource.data.providerId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHelpful', 'helpfulBy', 'updatedAt'])
-          && request.resource.data.helpfulBy is list
-          && request.resource.data.isHelpful == request.resource.data.helpfulBy.size()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHelpful', 'updatedAt'])
+          && request.resource.data.isHelpful is int
           && request.resource.data.isHelpful >= 0
-          && request.resource.data.isHelpful <= 1000
           && request.resource.data.updatedAt == request.time
+          && (
+            (
+              request.resource.data.isHelpful == resource.data.isHelpful + 1
+              && !exists(/databases/$(database)/documents/reviews/$(reviewId)/helpfulVotes/$(request.auth.uid))
+              && existsAfter(/databases/$(database)/documents/reviews/$(reviewId)/helpfulVotes/$(request.auth.uid))
+            )
+            || (
+              request.resource.data.isHelpful == resource.data.isHelpful - 1
+              && exists(/databases/$(database)/documents/reviews/$(reviewId)/helpfulVotes/$(request.auth.uid))
+              && !existsAfter(/databases/$(database)/documents/reviews/$(reviewId)/helpfulVotes/$(request.auth.uid))
+            )
+          )
         )
       );
 
       allow delete: if isAuthenticated() && request.auth.uid == resource.data.requesterId;
+
+      // One private document per voter/review. A caller can check and toggle
+      // only their own record; listing voter identities is always denied.
+      match /helpfulVotes/{voterId} {
+        allow get: if isAuthenticated()
+          && voterId == request.auth.uid
+          && exists(/databases/$(database)/documents/reviews/$(reviewId));
+        allow list: if false;
+        allow create: if isAuthenticated()
+          && voterId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['reviewId', 'voterId', 'createdAt'])
+          && request.resource.data.reviewId == reviewId
+          && request.resource.data.voterId == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && exists(/databases/$(database)/documents/reviews/$(reviewId))
+          && get(/databases/$(database)/documents/reviews/$(reviewId)).data.requesterId != request.auth.uid
+          && get(/databases/$(database)/documents/reviews/$(reviewId)).data.providerId != request.auth.uid
+          && getAfter(/databases/$(database)/documents/reviews/$(reviewId)).data.isHelpful
+            == get(/databases/$(database)/documents/reviews/$(reviewId)).data.isHelpful + 1;
+        allow delete: if isAuthenticated()
+          && voterId == request.auth.uid
+          && resource.data.voterId == request.auth.uid
+          && resource.data.reviewId == reviewId
+          && exists(/databases/$(database)/documents/reviews/$(reviewId))
+          && getAfter(/databases/$(database)/documents/reviews/$(reviewId)).data.isHelpful
+            == get(/databases/$(database)/documents/reviews/$(reviewId)).data.isHelpful - 1;
+        allow update: if false;
+      }
     }
 
     match /portfolios/{portfolioId} {
