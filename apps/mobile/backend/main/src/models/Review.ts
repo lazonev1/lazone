@@ -2,8 +2,6 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface ReviewResponse {
   text: string;
-  /** @deprecated Legacy response timestamp; new writes use responseUpdatedAt. */
-  date?: Timestamp;
 }
 
 export interface Review {

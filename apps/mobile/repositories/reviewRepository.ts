@@ -40,9 +40,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
   const latestResponse = review.responses && review.responses.length > 0
     ? review.responses[review.responses.length - 1]
     : null;
-  const responseDate = review.responseUpdatedAt?.toDate?.()
-    || latestResponse?.date?.toDate?.()
-    || null;
+  const responseDate = review.responseUpdatedAt?.toDate?.() || null;
 
   const hasCurrentUserHelpfulVote = await ReviewService.hasCurrentUserMarkedHelpful(review._id);
 
