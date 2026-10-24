@@ -17,8 +17,6 @@ export interface Review {
   responses: ReviewResponse[];
   responseUpdatedAt?: Timestamp | null;
   isHelpful: number; // Count of helpful votes
-  /** @deprecated Legacy voter IDs. New votes are private helpfulVotes documents. */
-  helpfulBy?: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
