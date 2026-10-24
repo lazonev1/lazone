@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
   User as FirebaseUser,
@@ -23,7 +24,7 @@ export async function signupUser(
   email: string,
   password: string,
   phoneNumber: string
-) {
+): Promise<FirebaseUser> {
   // 1. Create user in Firebase Auth
   const userCredential = await createUserWithEmailAndPassword(
     auth,
@@ -51,7 +52,6 @@ export async function signupUser(
   const batch = writeBatch(db);
   batch.set(userDocRef, {
     ...newUser,
-    dob: serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -60,13 +60,26 @@ export async function signupUser(
     lastName: newUser.lastName,
     updatedAt: serverTimestamp(),
   });
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (profileWriteError) {
+    // Auth and Firestore cannot participate in one atomic transaction. If the
+    // required profile write fails, remove the just-created Auth account so a
+    // retry does not fail with "email already in use" against an orphan.
+    try {
+      await deleteUser(firebaseUser);
+    } catch (rollbackError) {
+      console.error('Failed to roll back incomplete Auth signup:', rollbackError);
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.error('Failed to sign out incomplete Auth signup:', signOutError);
+      }
+    }
+    throw profileWriteError;
+  }
 
-  // 4. Fetch the created user profile
-  const profile = await getUserProfile(firebaseUser.uid);
-
-  // 5. Return both the auth user and the profile data
-  return { firebaseUser, profile };
+  return firebaseUser;
 }
 
 /**
@@ -99,7 +112,7 @@ export async function getUserProfile(userId: string): Promise<User | null> {
     return {
       _id: userDoc.id,
       ...data,
-      dob: data.dob as Timestamp,
+      ...(data.dob instanceof Timestamp ? { dob: data.dob } : {}),
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     } as User;

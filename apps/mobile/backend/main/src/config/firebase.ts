@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { Auth, getAuth } from 'firebase/auth';
 // import { Platform } from 'react-native';
 // Try to initialize React Native auth only when running in RN environment.
 // When running Node scripts (seeders, admin tools) we skip RN-specific auth
@@ -11,13 +12,13 @@ let ReactNativeAsyncStorage: any;
 try {
   // Use require so imports that don't exist in Node don't throw at module load
   // in environments where React Native modules are unavailable.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const authPkg = require('firebase/auth');
   initializeAuthFunction = authPkg.initializeAuth;
   getReactNativePersistenceFunction = authPkg.getReactNativePersistence;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ReactNativeAsyncStorage = require('@react-native-async-storage/async-storage').default;
-} catch (e) {
+} catch {
   // Not running in React Native / AsyncStorage not available — skip RN auth init
 }
 
@@ -67,17 +68,23 @@ if (process.env.EXPO_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
 
 export const storage = getStorage(app);
 // Initialize Auth with React Native persistence only when available
-export let auth: any = undefined;
+let authInstance: Auth;
 if (initializeAuthFunction && getReactNativePersistenceFunction && ReactNativeAsyncStorage) {
   try {
-    auth = initializeAuthFunction(app, {
+    authInstance = initializeAuthFunction(app, {
       persistence: getReactNativePersistenceFunction(ReactNativeAsyncStorage),
     });
-  } catch (e) {
-    // ignore auth init errors for non-RN environments
-    auth = undefined;
+  } catch (error) {
+    if ((error as { code?: string }).code === 'auth/already-initialized') {
+      authInstance = getAuth(app);
+    } else {
+      throw error;
+    }
   }
+} else {
+  authInstance = getAuth(app);
 }
+export const auth = authInstance;
 
 // Collection names for type-safe queries
 export const COLLECTIONS = {

@@ -250,13 +250,14 @@ export async function addProviderResponse(
     if (!normalizedResponse || normalizedResponse.length > 500) {
       throw new Error("Responses must be between 1 and 500 characters");
     }
-    if (!auth?.currentUser) throw new Error("You must be signed in to respond");
+    const currentUserId = auth.currentUser?.uid;
+    if (!currentUserId) throw new Error("You must be signed in to respond");
     const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewId);
     await runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(reviewRef);
       if (!snapshot.exists()) throw new Error("Review not found");
       const review = snapshot.data();
-      if (review.providerId !== auth.currentUser.uid) throw new Error("Only the provider can respond");
+      if (review.providerId !== currentUserId) throw new Error("Only the provider can respond");
       transaction.update(reviewRef, {
         // A single editable provider response is clearer than an ever-growing
         // response history and avoids duplicate responses on retries.
