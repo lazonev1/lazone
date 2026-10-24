@@ -2,7 +2,6 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface ReviewResponse {
   text: string;
-  date: Timestamp;
 }
 
 export interface Review {
@@ -16,8 +15,8 @@ export interface Review {
   comment: string;
   images: string[]; // URLs
   responses: ReviewResponse[];
+  responseUpdatedAt?: Timestamp | null;
   isHelpful: number; // Count of helpful votes
-  helpfulBy: string[]; // User IDs who marked this review as helpful
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

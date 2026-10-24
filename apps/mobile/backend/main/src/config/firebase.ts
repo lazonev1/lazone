@@ -88,6 +88,7 @@ export const COLLECTIONS = {
   SERVICES: 'services',
   BOOKINGS: 'bookings',
   REVIEWS: 'reviews',
+  REVIEW_CLAIMS: 'reviewBookingClaims',
   MESSAGES: 'messages',
   CONVERSATIONS: 'conversations',
   EARNINGS: 'earnings',
