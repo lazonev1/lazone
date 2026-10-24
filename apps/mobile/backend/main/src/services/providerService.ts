@@ -215,6 +215,10 @@ export async function searchProviders(params: ProviderSearchParams): Promise<Pro
           provider.profession,
           provider.categoryName,
           provider.bio,
+          ...(provider.services ?? []).flatMap((service) => [
+            service.name,
+            service.description,
+          ]),
         ]
           .filter(Boolean)
           .join(" ")
