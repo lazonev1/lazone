@@ -91,3 +91,20 @@ export interface UpdateBookingInput {
   notes?: string;
   checklist?: BookingChecklistItem[];
 }
+
+export type BookingEditErrorCode =
+  | 'unauthenticated'
+  | 'not-found'
+  | 'not-requester'
+  | 'not-pending';
+
+/** Expected edit failures that the UI can explain without exposing Firestore details. */
+export class BookingEditError extends Error {
+  constructor(
+    public readonly code: BookingEditErrorCode,
+    public readonly currentStatus?: BookingStatus,
+  ) {
+    super(code);
+    this.name = 'BookingEditError';
+  }
+}
