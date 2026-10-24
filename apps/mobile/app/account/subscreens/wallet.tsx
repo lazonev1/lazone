@@ -156,7 +156,7 @@ const getMethodInfo = (mobileNumber: string): { vendor: string, label: string, v
   };
 };
 
-const createStyles = (theme: any, colorScheme: 'dark' | 'light' | undefined | null) => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,

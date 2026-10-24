@@ -1,10 +1,9 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { StyleSheet, View, SafeAreaView } from 'react-native';
 import { getCategoryById } from '@/constants/categories';
 import { useProvider } from '@/hooks/useProvider';
 import { ProviderList } from '@/components/provider/ProviderList';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { useTranslation } from 'react-i18next';
 

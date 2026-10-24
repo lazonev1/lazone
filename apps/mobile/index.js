@@ -1,9 +1,12 @@
-import messaging from '@react-native-firebase/messaging';
+import 'expo-router/entry';
 
-messaging().setBackgroundMessageHandler(async remoteMessage => {
+import {
+  getMessaging,
+  setBackgroundMessageHandler,
+} from '@react-native-firebase/messaging';
+
+setBackgroundMessageHandler(getMessaging(), async remoteMessage => {
   if (remoteMessage?.data?.type === 'new_message') {
     console.log('Background new_message received', remoteMessage.data);
   }
 });
-
-import 'expo-router/entry';

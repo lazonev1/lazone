@@ -29,7 +29,7 @@ export default function SearchBar({
   filterButtonText = filterButtonText ?? t('search.filters');
   placeholder = placeholder ?? t('searchPlaceholder');
   const colorScheme = Appearance.getColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme);
 
   return (

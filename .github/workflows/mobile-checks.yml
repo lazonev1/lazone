@@ -6,6 +6,8 @@ on:
     branches:
       - develop
       - main
+  schedule:
+    - cron: '20 13 * * 1'
 
 jobs:
   validate:
@@ -17,13 +19,14 @@ jobs:
           version: 10.11.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit:prod
       - run: pnpm --filter ./apps/mobile lint
       - run: pnpm --filter ./apps/mobile typecheck
       - run: pnpm --filter ./apps/mobile test:rules:emulator

@@ -5,7 +5,7 @@ Expo / React Native marketplace in a pnpm monorepo. `apps/mobile` contains the a
 
 ## Supported setup
 
-Use Node **20.19.4 or newer within 20.x** (matching CI's major and React Native's minimum),
+Use Node **22.x** (matching CI and Cloud Functions),
 pnpm **10.11.0** (the root `packageManager`), and Java **21**
 for Firestore emulator tests. Java runs the local test database; it is not an app dependency.
 Runtime/toolchain upgrades remain tracked in E03.
