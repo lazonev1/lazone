@@ -1,8 +1,7 @@
-import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, ActivityIndicator, Switch, Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { Appearance } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { getProfileMenuItems } from '@/constants/account';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function AccountScreen() {
   const router = useRouter();
   const { t } = useTranslation(['account', 'provider']);
-  const { user, userProfile, logout, refreshUserProfile, loading } = useAuth();
+  const { user, userProfile, logout, refreshUserProfile, profileLoading } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -28,7 +27,7 @@ export default function AccountScreen() {
   // Show a loading indicator while the initial auth check is happening.
   if (!user) { return <LoginPrompt title={t('tab.loginTitle')} message={t('tab.loginMessage')} />; }
 
-  if (loading) {
+  if (profileLoading && !userProfile) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" />

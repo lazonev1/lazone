@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../backend/main/src/config/firebase';
 import { signupUser, loginUser, logoutUser, getUserProfile, updateUserProfile } from '../backend/main/src/services/authService';
 import { User as AppUser } from '../backend/main/src/models/User';
 import {
   cleanupPushNotificationsOnLogout,
+  cancelPushNotificationSession,
   initializePushNotificationsForUser,
 } from '@/services/notifications/pushNotifications';
 
@@ -13,6 +14,8 @@ interface AuthContextType {
   userProfile: AppUser | null;
   isAuthenticated: boolean;
   loading: boolean;
+  profileLoading: boolean;
+  profileError: Error | null;
   signup: (fullName: string, email: string, password: string, phone: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -34,60 +37,115 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<Error | null>(null);
+  const sessionVersionRef = useRef(0);
+  const profileRequestRef = useRef(0);
+  const invalidatePendingSessionWork = useCallback(() => {
+    sessionVersionRef.current += 1;
+    profileRequestRef.current += 1;
+    cancelPushNotificationSession();
+  }, []);
 
-  // A function to manually refresh the profile, wrapped in useCallback for performance.
-  const refreshUserProfile = useCallback(async () => {
+  const loadCurrentProfile = useCallback(async (throwOnError: boolean): Promise<void> => {
     const currentUser = auth.currentUser;
-    if (currentUser) {
-      setLoading(true);
-      try {
-        const profile = await getUserProfile(currentUser.uid);
-        setUserProfile(profile);
-      } finally {
-        setLoading(false);
+    if (!currentUser) return;
+
+    const userId = currentUser.uid;
+    const sessionVersion = sessionVersionRef.current;
+    const requestVersion = ++profileRequestRef.current;
+    const isCurrentRequest = () => (
+      sessionVersionRef.current === sessionVersion
+      && profileRequestRef.current === requestVersion
+      && auth.currentUser?.uid === userId
+    );
+
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const profile = await getUserProfile(userId);
+      if (!isCurrentRequest()) return;
+      if (!profile) throw new Error('Authenticated user profile was not found');
+      setUserProfile(profile);
+    } catch (error) {
+      const profileLoadError = error instanceof Error ? error : new Error('Failed to load user profile');
+      if (isCurrentRequest()) setProfileError(profileLoadError);
+      if (throwOnError) throw profileLoadError;
+    } finally {
+      if (isCurrentRequest()) {
+        setProfileLoading(false);
       }
     }
   }, []);
 
+  const refreshUserProfile = useCallback(
+    () => loadCurrentProfile(false),
+    [loadCurrentProfile]
+  );
+
   // This effect handles initial app load and session persistence.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let mounted = true;
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const sessionVersion = ++sessionVersionRef.current;
+      const profileRequestVersion = ++profileRequestRef.current;
+      cancelPushNotificationSession();
       setUser(firebaseUser);
-      if (firebaseUser) {
-        // Always fetch the profile when a user is detected.
-        const profile = await getUserProfile(firebaseUser.uid);
-        setUserProfile(profile);
+      setProfileError(null);
 
-        initializePushNotificationsForUser(firebaseUser.uid).catch((error) => {
-          console.warn('Push notification initialization failed:', error);
-        });
-      } else {
-        // User is signed out, clear the profile.
+      if (!firebaseUser) {
         setUserProfile(null);
+        setProfileLoading(false);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      const userId = firebaseUser.uid;
+      setUserProfile(null);
+      setProfileLoading(true);
+
+      void getUserProfile(userId)
+        .then((profile) => {
+          if (!mounted || sessionVersionRef.current !== sessionVersion || profileRequestRef.current !== profileRequestVersion || auth.currentUser?.uid !== userId) return;
+          if (!profile) {
+            setProfileError(new Error('Authenticated user profile was not found'));
+            return;
+          }
+
+          setUserProfile(profile);
+          initializePushNotificationsForUser(userId).catch((error) => {
+            console.warn('Push notification initialization failed:', error);
+          });
+        })
+        .catch((error) => {
+          if (!mounted || sessionVersionRef.current !== sessionVersion || profileRequestRef.current !== profileRequestVersion || auth.currentUser?.uid !== userId) return;
+          setProfileError(error instanceof Error ? error : new Error('Failed to load user profile'));
+        })
+        .finally(() => {
+          if (!mounted || sessionVersionRef.current !== sessionVersion || profileRequestRef.current !== profileRequestVersion) return;
+          setProfileLoading(false);
+          setLoading(false);
+        });
     });
-    return () => unsubscribe();
+
+    return () => {
+      mounted = false;
+      invalidatePendingSessionWork();
+      unsubscribe();
+    };
+  }, [invalidatePendingSessionWork]);
+
+  const handleLogin = useCallback(async (email: string, password: string) => {
+    await loginUser(email, password);
   }, []);
 
-  // Wrapper for the login function to also set the profile state.
-  const handleLogin = async (email: string, password: string) => {
-    const firebaseUser = await loginUser(email, password);
-    const profile = await getUserProfile(firebaseUser.uid);
-    setUser(firebaseUser);
-    setUserProfile(profile);
-  };
+  const handleSignup = useCallback(async (fullName: string, email: string, password: string, phone: string) => {
+    await signupUser(fullName, email, password, phone);
+    await loadCurrentProfile(false);
+  }, [loadCurrentProfile]);
 
-  // Wrapper for the signup function to set state from the returned data.
-  const handleSignup = async (fullName: string, email: string, password: string, phone: string) => {
-    const { firebaseUser, profile } = await signupUser(fullName, email, password, phone);
-    setUser(firebaseUser);
-    setUserProfile(profile);
-  };
-
-  // Wrapper for the logout function to clear all state.
-  const handleLogout = async () => {
-    const currentUserId = auth.currentUser?.uid ?? user?.uid ?? null;
+  const handleLogout = useCallback(async () => {
+    const currentUserId = auth.currentUser?.uid ?? null;
 
     try {
       await cleanupPushNotificationsOnLogout(currentUserId);
@@ -97,33 +155,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       await logoutUser();
-    } finally {
-      setUser(null);
-      setUserProfile(null);
+    } catch (error) {
+      if (currentUserId && auth.currentUser?.uid === currentUserId) {
+        initializePushNotificationsForUser(currentUserId).catch((notificationError) => {
+          console.warn('Failed to restore push notifications after sign-out failure:', notificationError);
+        });
+      }
+      throw error;
     }
-  };
+  }, []);
 
   // Wrapper for updating user profile fields in Firestore.
-  const handleUpdateProfile = async (data: { firstName?: string; lastName?: string; phoneNumber?: string }) => {
+  const handleUpdateProfile = useCallback(async (data: { firstName?: string; lastName?: string; phoneNumber?: string }) => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error('No authenticated user');
     await updateUserProfile(currentUser.uid, data);
-    // Refresh the local profile state after update
-    const profile = await getUserProfile(currentUser.uid);
-    setUserProfile(profile);
-  };
+    await loadCurrentProfile(true);
+  }, [loadCurrentProfile]);
 
-  const value = {
+  const value = useMemo<AuthContextType>(() => ({
     user,
     userProfile,
     isAuthenticated: !!user,
     loading,
+    profileLoading,
+    profileError,
     signup: handleSignup,
     login: handleLogin,
     logout: handleLogout,
     refreshUserProfile,
     updateProfile: handleUpdateProfile,
-  };
+  }), [user, userProfile, loading, profileLoading, profileError, handleLogin, handleSignup, handleLogout, refreshUserProfile, handleUpdateProfile]);
 
   return (
     <AuthContext.Provider value={value}>

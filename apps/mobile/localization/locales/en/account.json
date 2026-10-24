@@ -17,7 +17,7 @@
   "tab": {
     "loginTitle": "Welcome Back!",
     "loginMessage": "Log in to view and manage your account.",
-    "profileLoadFailed": "Could not load profile. This can happen if the database entry is missing for this user.",
+    "profileLoadFailed": "We could not load your profile. Check your connection and try again.",
     "refreshProfile": "Try to Refresh Profile",
     "logout": "Logout",
     "businessVisibility": "Business Visibility",
@@ -41,6 +41,9 @@
     "logoutTitle": "Logout",
     "logoutMessage": "Are you sure you want to logout?",
     "logout": "Logout",
+    "signingOut": "Signing out...",
+    "logoutFailedTitle": "Could not sign out",
+    "logoutFailedMessage": "You are still signed in. Check your connection and try again.",
     "editPopup": {
       "title": "Edit Information",
       "missingInfoTitle": "Missing Info",
