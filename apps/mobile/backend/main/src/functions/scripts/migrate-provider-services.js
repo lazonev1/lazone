@@ -5,7 +5,7 @@
 const { initializeApp, applicationDefault } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 
-const MAX_SERVICES = 5;
+const MAX_SERVICES = 20;
 const PRICE_PATTERN = /^[1-9][0-9]{0,8}$/;
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -38,6 +38,7 @@ function normalizeService(service) {
 async function migrateProviderServices(db, { apply = false } = {}) {
   const providers = await db.collection('providers').where('publicSchemaVersion', '==', 1).get();
   const writes = [];
+  const providerIndexes = [];
   const sourceVersions = new Map();
   const report = { providers: providers.size, bookableProviders: 0, skippedWithoutServices: 0, serviceDocuments: 0 };
 
@@ -55,13 +56,19 @@ async function migrateProviderServices(db, { apply = false } = {}) {
 
     report.bookableProviders++;
     sourceVersions.set(provider.ref.path, provider.updateTime);
+    providerIndexes.push({
+      ref: provider.ref,
+      serviceIds: Object.fromEntries(services.map(service => [service.id, true])),
+    });
     for (const service of services) {
       writes.push({ ref: provider.ref.collection('services').doc(service.id), data: service });
       report.serviceDocuments++;
     }
   }
 
-  if (writes.length > 400) throw new Error('More than 400 service writes require a reviewed checkpointed migration.');
+  if (writes.length + providerIndexes.length > 400) {
+    throw new Error('More than 400 provider/service writes require a reviewed checkpointed migration.');
+  }
   if (apply && writes.length) {
     await db.runTransaction(async transaction => {
       const currentProviders = await transaction.getAll(
@@ -72,6 +79,7 @@ async function migrateProviderServices(db, { apply = false } = {}) {
           throw new Error('A provider changed during migration; rerun the dry-run before applying.');
         }
       }
+      providerIndexes.forEach(provider => transaction.update(provider.ref, { serviceIds: provider.serviceIds }));
       writes.forEach(write => transaction.set(write.ref, write.data));
     });
   }

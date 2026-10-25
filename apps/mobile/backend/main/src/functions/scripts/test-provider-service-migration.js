@@ -23,6 +23,7 @@ async function run() {
 
     await migrateProviderServices(db, { apply: true });
     assert.deepEqual((await providerRef.collection('services').doc(service.id).get()).data(), service);
+    assert.deepEqual((await providerRef.get()).data().serviceIds, { [service.id]: true });
     await migrateProviderServices(db, { apply: true });
     assert.deepEqual((await providerRef.collection('services').doc(service.id).get()).data(), service);
     console.log('Provider service migration checks passed.');

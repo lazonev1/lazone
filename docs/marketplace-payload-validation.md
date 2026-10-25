@@ -24,11 +24,14 @@ Booking form ──writes──> bookings/{bookingId}
 
 ```text
 Provider form
-   │ validates 1–5 complete, uniquely identified services
+   │ validates 1–20 complete, uniquely identified services
    ▼
-Atomic Firestore batch
-   ├─ providers/{providerId}.services[]        fast public discovery projection
-   └─ providers/{providerId}/services/{id}     validated authoritative service
+Private catalogue assembly (publicSchemaVersion = 0)
+   ├─ providers/{providerId}.services[]        fast discovery projection
+   ├─ providers/{providerId}.serviceIds{}      rule-safe membership index
+   └─ providers/{providerId}/services/{id}     validated in batches of five
+                         │
+                         └─ publish version 1 only after every batch succeeds
                          │
                          └──────────────┐
                                         ▼
@@ -45,7 +48,7 @@ Booking form ── client validation ──> bookings/{bookingId}
                                            • server timestamps and safe notes
 ```
 
-The embedded service list remains the discovery projection, so browsing providers does not add a service query for every card. The nested service document is the authoritative bookable record and is kept in the same atomic batch as the projection. A service is readable and bookable only while its public parent provider exists and still publishes the exact same service in that projection, so an orphaned subcollection cannot remain bookable.
+The embedded service list remains the discovery projection, so browsing providers does not add a service query for every card. The nested service document is the authoritative bookable record. Firestore limits a request to 1,000 rule expressions, so 20 fully validated service writes cannot safely share one commit. The client therefore keeps the provider owner-only while it writes batches of five and publishes the profile only after all batches succeed. A service is publicly readable and bookable only while its version-1 parent publishes the exact same service, so a partial draft or orphaned subcollection cannot become bookable.
 
 ## Compatibility and rollout
 
@@ -67,7 +70,7 @@ Rollout order is deliberate:
 4. Deploy the matching Firestore rules.
 5. Release/test the updated client, then verify provider editing and a requester booking with disposable data.
 
-Do not deploy the rules before the backfill. Existing services would otherwise lack their authoritative nested documents. Older clients can still create bookings after the backfill, but provider catalogue writes require the updated atomic client; this is acceptable during development and must become an explicit minimum-version decision before public launch.
+Do not deploy the rules before the backfill. Existing services would otherwise lack their authoritative nested documents and `serviceIds` index. Older clients can still create bookings after the backfill, but provider catalogue writes require the updated phased client; this is acceptable during development and must become an explicit minimum-version decision before public launch.
 
 ## Verification
 

@@ -266,7 +266,9 @@ async function populateReviews(
           review.responses && review.responses.length > 0
             ? {
                 text: review.responses[0].text,
-                date: review.responses[0].date.toDate().toISOString(),
+                date: (review.responseUpdatedAt || review.updatedAt)
+                  .toDate()
+                  .toISOString(),
               }
             : undefined,
       };
@@ -402,6 +404,7 @@ export async function createOrUpdateProviderProfile(
         availability: service.availability || null,
       }));
     const serviceIds = new Set(services.map((service) => service.id));
+    const serviceIdIndex = Object.fromEntries(services.map((service) => [service.id, true]));
 
     if (
       services.length === 0
@@ -417,7 +420,9 @@ export async function createOrUpdateProviderProfile(
         || (service.availability?.length ?? 0) > MARKETPLACE_LIMITS.maxServiceAvailabilityLength
       ))
     ) {
-      throw new Error('Add one to five services with unique IDs, valid names, and positive CFA prices.');
+      throw new Error(
+        `Add one to ${MARKETPLACE_LIMITS.maxProviderServices} services with unique IDs, valid names, and positive CFA prices.`,
+      );
     }
 
     if (providerId) {
@@ -431,6 +436,7 @@ export async function createOrUpdateProviderProfile(
         remoteService: registrationData.remoteService ?? false,
         // Embed services directly on the provider document (atomic save)
         services,
+        serviceIds: serviceIdIndex,
       };
 
       providerData.location = publicServiceArea(registrationData.location);
@@ -465,6 +471,7 @@ export async function createOrUpdateProviderProfile(
 
         // Embed services directly on the provider document (atomic save)
         services,
+        serviceIds: serviceIdIndex,
       };
 
       // Only add avatar if it exists

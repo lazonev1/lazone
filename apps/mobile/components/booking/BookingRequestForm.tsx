@@ -23,6 +23,8 @@ interface Props {
   onSubmit: (input: CreateBookingInput) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  submitLabel?: string;
+  submitDisabled?: boolean;
   initialValues?: {
     serviceId?: string;
     scheduledDate?: Date;
@@ -32,7 +34,17 @@ interface Props {
   };
 }
 
-export function BookingRequestForm({ providerId, providerName, services, onSubmit, onCancel, isSubmitting, initialValues }: Props) {
+export function BookingRequestForm({
+  providerId,
+  providerName,
+  services,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitLabel,
+  submitDisabled = false,
+  initialValues,
+}: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -243,11 +255,11 @@ export function BookingRequestForm({ providerId, providerName, services, onSubmi
                 disabled={isSubmitting}
               />
               <Button
-                label={isSubmitting ? t('form.submitting') : t('form.submitRequest')}
+                label={isSubmitting ? t('form.submitting') : (submitLabel || t('form.submitRequest'))}
                 onPress={handleSubmit}
                 variant="primary"
                 style={styles.button}
-                disabled={isSubmitting}
+                disabled={isSubmitting || submitDisabled}
               />
             </View>
           </View>

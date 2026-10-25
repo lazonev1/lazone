@@ -76,9 +76,11 @@ export async function createReview(reviewData: {
     // Use the booking ID as the review ID. This makes the one-review-per-booking
     // invariant atomic and prevents duplicate reviews during retries or races.
     const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewData.bookingId);
+    const claimRef = doc(db, COLLECTIONS.REVIEW_CLAIMS, reviewData.bookingId);
     await runTransaction(db, async (transaction) => {
       const existing = await transaction.get(reviewRef);
-      if (existing.exists()) throw new Error("You have already reviewed this booking");
+      const claim = await transaction.get(claimRef);
+      if (existing.exists() || claim.exists()) throw new Error("You have already reviewed this booking");
       transaction.set(reviewRef, {
         providerId: reviewData.providerId,
         requesterId: reviewData.requesterId,
@@ -88,10 +90,18 @@ export async function createReview(reviewData: {
         comment: normalizedComment,
         images: reviewData.images || [],
         responses: [],
+        responseUpdatedAt: null,
         isHelpful: 0,
-        helpfulBy: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+      });
+      // This immutable claim survives review deletion so a completed booking
+      // can never be reviewed twice or lose its review history on recreation.
+      transaction.set(claimRef, {
+        bookingId: reviewData.bookingId,
+        reviewId: reviewRef.id,
+        requesterId: reviewData.requesterId,
+        createdAt: serverTimestamp(),
       });
     });
 
@@ -196,6 +206,25 @@ export async function getReviewByBookingId(bookingId: string): Promise<Review | 
   }
 }
 
+/**
+ * Returns true even when the requester deleted the public review. The private,
+ * immutable claim preserves the one-review-per-booking policy and lets the UI
+ * avoid offering a submission that Firestore would reject.
+ */
+export async function hasBookingBeenReviewed(bookingId: string): Promise<boolean> {
+  const existingReview = await getReviewByBookingId(bookingId);
+  if (existingReview) return true;
+  if (!auth?.currentUser) return false;
+  try {
+    const claim = await getDoc(doc(db, COLLECTIONS.REVIEW_CLAIMS, bookingId));
+    return claim.exists();
+  } catch {
+    // Non-requester booking participants cannot read the claim and cannot use
+    // this screen to submit a review anyway.
+    return false;
+  }
+}
+
 // ========== UPDATE OPERATIONS ==========
 
 /**
@@ -260,7 +289,8 @@ export async function addProviderResponse(
       transaction.update(reviewRef, {
         // A single editable provider response is clearer than an ever-growing
         // response history and avoids duplicate responses on retries.
-        responses: [{ text: normalizedResponse, date: new Date() }],
+        responses: [{ text: normalizedResponse }],
+        responseUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
     });
@@ -276,32 +306,52 @@ export async function addProviderResponse(
  */
 export async function markReviewHelpful(
   reviewId: string,
-  userId: string
 ): Promise<{ added: boolean; newCount: number }> {
+  const userId = auth?.currentUser?.uid;
   console.log(`[ReviewService] Toggling helpful vote for review ${reviewId} by user ${userId}`);
 
   try {
-    if (!auth?.currentUser || auth.currentUser.uid !== userId) throw new Error("You must be signed in to vote");
+    if (!userId) throw new Error("You must be signed in to vote");
     const reviewRef = doc(db, COLLECTIONS.REVIEWS, reviewId);
+    const voteRef = doc(db, COLLECTIONS.REVIEWS, reviewId, 'helpfulVotes', userId);
     return runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(reviewRef);
+      const voteSnapshot = await transaction.get(voteRef);
       if (!snapshot.exists()) throw new Error("Review not found");
       const review = snapshot.data();
       if (review.requesterId === userId) throw new Error("You cannot vote on your own review");
-      const helpfulBy = Array.isArray(review.helpfulBy) ? review.helpfulBy : [];
-      const hasVoted = helpfulBy.includes(userId);
-      const nextHelpfulBy = hasVoted ? helpfulBy.filter((id: string) => id !== userId) : [...helpfulBy, userId];
+      if (review.providerId === userId) throw new Error("You cannot vote on a review of your service");
+      const hasVoted = voteSnapshot.exists();
+      const currentCount = Number.isInteger(review.isHelpful) ? review.isHelpful : 0;
+      const nextCount = hasVoted ? Math.max(0, currentCount - 1) : currentCount + 1;
+
+      if (hasVoted) {
+        transaction.delete(voteRef);
+      } else {
+        transaction.set(voteRef, {
+          reviewId,
+          voterId: userId,
+          createdAt: serverTimestamp(),
+        });
+      }
       transaction.update(reviewRef, {
-        isHelpful: nextHelpfulBy.length,
-        helpfulBy: nextHelpfulBy,
+        isHelpful: nextCount,
         updatedAt: serverTimestamp(),
       });
-      return { added: !hasVoted, newCount: nextHelpfulBy.length };
+      return { added: !hasVoted, newCount: nextCount };
     });
   } catch (error) {
     console.error("Error toggling review helpful:", error);
     throw error;
   }
+}
+
+/** Returns only the signed-in user's vote state; voter identities are never listed. */
+export async function hasCurrentUserMarkedHelpful(reviewId: string): Promise<boolean> {
+  const userId = auth?.currentUser?.uid;
+  if (!userId) return false;
+  const snapshot = await getDoc(doc(db, COLLECTIONS.REVIEWS, reviewId, 'helpfulVotes', userId));
+  return snapshot.exists();
 }
 
 // ========== DELETE OPERATIONS ==========
@@ -317,6 +367,10 @@ export async function deleteReview(reviewId: string): Promise<void> {
     }
     const providerId = currentReview.providerId as unknown as string;
 
+    // The immutable reviewBookingClaims record intentionally remains. It
+    // prevents delete/recreate cycles from producing a second review for the
+    // same booking. Private orphan votes are inaccessible and can be removed
+    // by the future trusted cleanup job introduced with backend aggregation.
     await deleteDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
     await recalculateProviderRating(providerId);
   } catch (error) {

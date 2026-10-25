@@ -1,10 +1,41 @@
-import {collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch} from "firebase/firestore";
+import {collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch} from "firebase/firestore";
 import {auth, db} from "../config/firebase";
 import {Provider} from "../models/Provider";
 import {Review} from "../models/Review";
 import {Portfolio} from "../models/Portfolio";
 import {Service} from "../models/Services";
 import {User} from "../models/User";
+
+// Keep each commit comfortably below Firestore's 1,000 security-rule
+// expression limit. The provider stays private (publicSchemaVersion 0) until
+// every authoritative service document has been validated and written.
+const SERVICE_WRITE_BATCH_SIZE = 5;
+
+async function writeServiceDocuments(
+  providerId: string,
+  services: Provider['services'],
+): Promise<void> {
+  for (let start = 0; start < services.length; start += SERVICE_WRITE_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    services.slice(start, start + SERVICE_WRITE_BATCH_SIZE).forEach((service) => {
+      batch.set(doc(db, 'providers', providerId, 'services', service.id), service);
+    });
+    await batch.commit();
+  }
+}
+
+async function deleteServiceDocuments(
+  providerId: string,
+  serviceIds: string[],
+): Promise<void> {
+  for (let start = 0; start < serviceIds.length; start += SERVICE_WRITE_BATCH_SIZE) {
+    const batch = writeBatch(db);
+    serviceIds.slice(start, start + SERVICE_WRITE_BATCH_SIZE).forEach((serviceId) => {
+      batch.delete(doc(db, 'providers', providerId, 'services', serviceId));
+    });
+    await batch.commit();
+  }
+}
 
 /**
  * Backend Service Layer - Direct Firestore Operations
@@ -148,17 +179,24 @@ export async function createProviderAndPromote(
   userId: string,
   providerData: Omit<Provider, '_id'>
 ): Promise<string> {
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'providers', userId), {
+  const serviceIds = Object.fromEntries(providerData.services.map((service) => [service.id, true]));
+  const providerRef = doc(db, 'providers', userId);
+
+  // Publish in phases: create an owner-only draft, validate/write bounded
+  // service batches, then expose the profile and promote the account together.
+  await setDoc(providerRef, {
     ...providerData,
+    publicSchemaVersion: 0,
+    serviceIds,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  providerData.services.forEach((service) => {
-    batch.set(doc(db, 'providers', userId, 'services', service.id), service);
-  });
-  batch.update(doc(db, 'users', userId), { role: 'both', updatedAt: serverTimestamp() });
-  await batch.commit();
+  await writeServiceDocuments(userId, providerData.services);
+
+  const publishBatch = writeBatch(db);
+  publishBatch.update(providerRef, { publicSchemaVersion: 1, updatedAt: serverTimestamp() });
+  publishBatch.update(doc(db, 'users', userId), { role: 'both', updatedAt: serverTimestamp() });
+  await publishBatch.commit();
   return userId;
 }
 
@@ -180,18 +218,22 @@ export async function updateProvider(
 
     const currentServices = await getDocs(collection(db, 'providers', providerId, 'services'));
     const nextServiceIds = new Set(updates.services.map((service) => service.id));
-    const batch = writeBatch(db);
-    batch.update(doc(db, 'providers', providerId), {
+    const serviceIds = Object.fromEntries(updates.services.map((service) => [service.id, true]));
+    const providerRef = doc(db, 'providers', providerId);
+    // Hide the catalogue while its authoritative service documents are being
+    // synchronized. Readers never see a partially updated, bookable profile.
+    await updateDoc(providerRef, {
       ...updates,
+      publicSchemaVersion: 0,
+      serviceIds,
       updatedAt: serverTimestamp(),
     });
-    updates.services.forEach((service) => {
-      batch.set(doc(db, 'providers', providerId, 'services', service.id), service);
-    });
-    currentServices.docs.forEach((service) => {
-      if (!nextServiceIds.has(service.id)) batch.delete(service.ref);
-    });
-    await batch.commit();
+    await writeServiceDocuments(providerId, updates.services);
+    await deleteServiceDocuments(
+      providerId,
+      currentServices.docs.filter((service) => !nextServiceIds.has(service.id)).map((service) => service.id),
+    );
+    await updateDoc(providerRef, { publicSchemaVersion: 1, updatedAt: serverTimestamp() });
   } catch (error) {
     console.error("Error updating provider:", error);
     throw error;

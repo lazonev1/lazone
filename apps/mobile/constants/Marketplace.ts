@@ -1,5 +1,5 @@
 export const MARKETPLACE_LIMITS = {
-  maxProviderServices: 5,
+  maxProviderServices: 20,
   maxChecklistItems: 5,
   maxServiceNameLength: 120,
   maxServiceDescriptionLength: 1000,

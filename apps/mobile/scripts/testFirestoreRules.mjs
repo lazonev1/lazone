@@ -42,6 +42,16 @@ async function expectDenied(label, operation) {
   throw new Error(`${label} should be denied`);
 }
 
+async function writeProviderServicesInBatches(db, providerId, services, batchSize = 5) {
+  for (let start = 0; start < services.length; start += batchSize) {
+    const batch = writeBatch(db);
+    services.slice(start, start + batchSize).forEach((service) => {
+      batch.set(doc(db, 'providers', providerId, 'services', service.id), service);
+    });
+    await batch.commit();
+  }
+}
+
 async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStatus, actorId, actorRole, extraFields = {}) {
   const eventRef = doc(db, 'bookings', bookingRef.id, 'events', eventId);
   const batch = writeBatch(db);
@@ -117,6 +127,47 @@ async function writeStatusTransitionWithEvent(
     ...extraFields,
   });
   batch.set(doc(db, 'bookings', bookingRef.id, 'events', eventId), event);
+  await batch.commit();
+}
+
+async function editPendingBooking(db, bookingRef, updates) {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(bookingRef);
+    if (!snapshot.exists()) throw new Error('booking not found');
+    if (snapshot.data().status !== 'pending') throw new Error('booking is no longer pending');
+    transaction.update(bookingRef, { ...updates, updatedAt: serverTimestamp() });
+  });
+}
+
+async function createReviewWithClaim(db, reviewRef, reviewData) {
+  const claimRef = doc(db, 'reviewBookingClaims', reviewData.bookingId);
+  await runTransaction(db, async transaction => {
+    const review = await transaction.get(reviewRef);
+    const claim = await transaction.get(claimRef);
+    if (review.exists() || claim.exists()) throw new Error('booking already reviewed');
+    transaction.set(reviewRef, reviewData);
+    transaction.set(claimRef, {
+      bookingId: reviewData.bookingId,
+      reviewId: reviewRef.id,
+      requesterId: reviewData.requesterId,
+      createdAt: serverTimestamp(),
+    });
+  });
+}
+
+async function writeHelpfulVote(db, reviewId, voterId, currentCount, add) {
+  const voteRef = doc(db, 'reviews', reviewId, 'helpfulVotes', voterId);
+  const reviewRef = doc(db, 'reviews', reviewId);
+  const batch = writeBatch(db);
+  if (add) {
+    batch.set(voteRef, { reviewId, voterId, createdAt: serverTimestamp() });
+  } else {
+    batch.delete(voteRef);
+  }
+  batch.update(reviewRef, {
+    isHelpful: currentCount + (add ? 1 : -1),
+    updatedAt: serverTimestamp(),
+  });
   await batch.commit();
 }
 
@@ -268,16 +319,28 @@ try {
   ));
 
   const providerService = { id: 'service-1', name: 'Test Service', description: '', price: '1000', availability: null };
-  await expectAllowed('provider creation and role promotion in one commit', () => {
-    const batch = writeBatch(providerClient.db);
-    batch.set(doc(providerClient.db, 'providers', providerId), {
-      publicSchemaVersion: 1,
+  await expectAllowed('provider creates a private catalogue draft', () => setDoc(
+    doc(providerClient.db, 'providers', providerId), {
+      publicSchemaVersion: 0,
       firstName: 'Test',
       lastName: 'Provider',
       services: [providerService],
+      serviceIds: { [providerService.id]: true },
       location: { country: 'BF', city: 'Ouagadougou', coordinates: { latitude: 12.35, longitude: -1.23 } },
+    },
+  ));
+  await expectDenied('anonymous user cannot read a provider catalogue draft', () => getDoc(
+    doc(anonymousClient.db, 'providers', providerId),
+  ));
+  await expectAllowed('provider writes the authoritative draft service', () => setDoc(
+    doc(providerClient.db, 'providers', providerId, 'services', providerService.id), providerService,
+  ));
+  await expectAllowed('provider publishes the catalogue and promotes the account together', () => {
+    const batch = writeBatch(providerClient.db);
+    batch.update(doc(providerClient.db, 'providers', providerId), {
+      publicSchemaVersion: 1,
+      updatedAt: serverTimestamp(),
     });
-    batch.set(doc(providerClient.db, 'providers', providerId, 'services', providerService.id), providerService);
     batch.update(doc(providerClient.db, 'users', providerId), {
       role: 'both', updatedAt: serverTimestamp(),
     });
@@ -321,10 +384,50 @@ try {
     const batch = writeBatch(providerClient.db);
     batch.update(doc(providerClient.db, 'providers', providerId), {
       services: [updatedService],
+      serviceIds: { [updatedService.id]: true },
       updatedAt: serverTimestamp(),
     });
     batch.set(doc(providerClient.db, 'providers', providerId, 'services', providerService.id), updatedService);
     return batch.commit();
+  });
+  const maximumProviderServices = Array.from({ length: 20 }, (_, index) => ({
+    id: `service-${index + 1}`,
+    name: index === 0 ? providerService.name : `Service ${index + 1}`,
+    description: index === 0 ? 'Updated service description' : '',
+    price: String(1000 + index),
+    availability: null,
+  }));
+  await expectAllowed('provider stages the 20-service boundary privately', () => updateDoc(
+    doc(providerClient.db, 'providers', providerId), {
+      services: maximumProviderServices,
+      serviceIds: Object.fromEntries(maximumProviderServices.map((service) => [service.id, true])),
+      publicSchemaVersion: 0,
+      updatedAt: serverTimestamp(),
+    },
+  ));
+  await expectDenied('anonymous user cannot read a staged catalogue update', () => getDoc(
+    doc(anonymousClient.db, 'providers', providerId),
+  ));
+  await expectAllowed('provider writes 20 authoritative services in bounded batches', () => (
+    writeProviderServicesInBatches(providerClient.db, providerId, maximumProviderServices)
+  ));
+  await expectAllowed('provider publishes the completed 20-service catalogue', () => updateDoc(
+    doc(providerClient.db, 'providers', providerId), {
+      publicSchemaVersion: 1,
+      updatedAt: serverTimestamp(),
+    },
+  ));
+  await expectDenied('provider cannot stage more than 20 services', () => {
+    const overflowServices = [
+      ...maximumProviderServices,
+      { id: 'service-21', name: 'Service 21', description: '', price: '1020', availability: null },
+    ];
+    return updateDoc(doc(providerClient.db, 'providers', providerId), {
+      services: overflowServices,
+      serviceIds: Object.fromEntries(overflowServices.map((service) => [service.id, true])),
+      publicSchemaVersion: 0,
+      updatedAt: serverTimestamp(),
+    });
   });
   await expectAllowed('owner synchronizes private, public, and provider names atomically', () => runTransaction(
     providerClient.db, async transaction => {
@@ -468,6 +571,20 @@ try {
     { serviceId: 'missing-service', serviceName: 'Missing', updatedAt: serverTimestamp() },
   ));
 
+  await expectAllowed('requester edits current pending booking terms', () => editPendingBooking(
+    requesterClient.db,
+    requesterBookingRef,
+    { notes: 'Updated before acceptance', price: 1100 },
+  ));
+  await expectDenied('provider cannot edit requester booking terms', () => updateDoc(
+    providerBookingRef,
+    { notes: 'Provider-authored terms', updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('unrelated user cannot edit booking terms', () => updateDoc(
+    doc(outsiderClient.db, 'bookings', bookingId),
+    { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
+  ));
+
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
@@ -481,6 +598,38 @@ try {
     providerBookingRef,
     { status: 'in_progress', latestTransitionId: 'event-confirmed', updatedAt: serverTimestamp() }
   ));
+  await expectDenied('accepted booking terms cannot be overwritten', () => updateDoc(
+    requesterBookingRef,
+    { notes: 'Attempted stale edit', updatedAt: serverTimestamp() },
+  ));
+
+  const editRaceId = `edit-race-${runId}`;
+  const editRaceRequesterRef = doc(requesterClient.db, 'bookings', editRaceId);
+  const editRaceProviderRef = doc(providerClient.db, 'bookings', editRaceId);
+  await expectAllowed('edit-race booking creation', () => setDoc(editRaceRequesterRef, {
+    ...validBookingPayload,
+    notes: 'Original terms',
+  }));
+  const editRaceResults = await Promise.allSettled([
+    editPendingBooking(requesterClient.db, editRaceRequesterRef, { notes: 'Requester edit' }),
+    writeStatusTransition(
+      providerClient.db,
+      editRaceProviderRef,
+      'edit-race-accepted',
+      'pending',
+      'confirmed',
+      providerId,
+      'provider',
+    ),
+  ]);
+  assert.equal(editRaceResults[1].status, 'fulfilled', 'provider acceptance should succeed');
+  const editRaceSnapshot = await getDoc(editRaceRequesterRef);
+  assert.equal(editRaceSnapshot.data().status, 'confirmed');
+  assert.equal(
+    editRaceSnapshot.data().notes,
+    editRaceResults[0].status === 'fulfilled' ? 'Requester edit' : 'Original terms',
+    'an accepted booking must contain either the committed edit or the original terms, never a later overwrite',
+  );
 
   await expectAllowed('provider starts service', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-started', 'confirmed', 'in_progress', providerId, 'provider'
@@ -704,12 +853,30 @@ try {
     comment: 'Everything requested was completed.',
     images: [],
     responses: [],
+    responseUpdatedAt: null,
     isHelpful: 0,
-    helpfulBy: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  await expectAllowed('requester creates booking review', () => setDoc(reviewRef, reviewData));
+  await expectAllowed('requester can check their own absent review claim', async () => {
+    const snapshot = await getDoc(doc(requesterClient.db, 'reviewBookingClaims', bookingId));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('outsider cannot inspect another booking review claim', () => getDoc(
+    doc(outsiderClient.db, 'reviewBookingClaims', bookingId),
+  ));
+  await expectDenied('review cannot be created without its immutable booking claim', () => setDoc(reviewRef, reviewData));
+  await expectAllowed('requester atomically creates booking review and claim', () => createReviewWithClaim(
+    requesterClient.db,
+    reviewRef,
+    reviewData,
+  ));
+  await expectAllowed('requester can read their immutable review claim', () => getDoc(
+    doc(requesterClient.db, 'reviewBookingClaims', bookingId),
+  ));
+  await expectDenied('review claims cannot be listed', () => getDocs(
+    collection(requesterClient.db, 'reviewBookingClaims'),
+  ));
   await expectDenied('outsider cannot create a booking review', () => setDoc(
     doc(outsiderClient.db, 'reviews', `different-${bookingId}`),
     { ...reviewData, requesterId: outsiderId },
@@ -720,23 +887,119 @@ try {
   ));
   await expectAllowed('provider adds one response', () => updateDoc(
     doc(providerClient.db, 'reviews', bookingId),
-    { responses: [{ text: 'Thank you for the feedback.', date: new Date() }], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Thank you for the feedback.' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectAllowed('provider edits their single response', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'Thank you — we appreciate the updated feedback.' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
   await expectDenied('requester cannot impersonate provider response', () => updateDoc(
     reviewRef,
-    { responses: [{ text: 'Forged response', date: new Date() }], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Forged response' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
-  await expectAllowed('outsider casts one helpful vote', () => updateDoc(
+  await expectDenied('unrelated user cannot publish a provider response', () => updateDoc(
     doc(outsiderClient.db, 'reviews', bookingId),
-    { isHelpful: 1, helpfulBy: [outsiderId], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Unrelated response' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
-  await expectDenied('review author cannot vote on own review', () => updateDoc(
-    reviewRef,
-    { isHelpful: 0, helpfulBy: [], updatedAt: serverTimestamp() },
-  ));
-  await expectDenied('reviewed provider cannot vote on the review', () => updateDoc(
+  await expectDenied('provider cannot create a public response thread', () => updateDoc(
     doc(providerClient.db, 'reviews', bookingId),
-    { isHelpful: 2, helpfulBy: [outsiderId, providerId], updatedAt: serverTimestamp() },
+    {
+      responses: [{ text: 'First response' }, { text: 'Second response' }],
+      responseUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+  ));
+  await expectDenied('provider response cannot exceed the length limit', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'x'.repeat(501) }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('provider response cannot inject client-authored metadata', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'Response', date: new Date() }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('helpful count cannot change without a private vote record', () => updateDoc(
+    doc(outsiderClient.db, 'reviews', bookingId),
+    { isHelpful: 1, updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('private vote cannot be created without its matching count update', () => setDoc(
+    doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId),
+    { reviewId: bookingId, voterId: outsiderId, createdAt: serverTimestamp() },
+  ));
+  await expectAllowed('voter can check their own absent vote', async () => {
+    const snapshot = await getDoc(doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('review author cannot vote on own review', () => writeHelpfulVote(
+    requesterClient.db,
+    bookingId,
+    requesterId,
+    0,
+    true,
+  ));
+  await expectDenied('reviewed provider cannot vote on the review', () => writeHelpfulVote(
+    providerClient.db,
+    bookingId,
+    providerId,
+    0,
+    true,
+  ));
+  await expectDenied('voter cannot forge another voter identity', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    providerId,
+    0,
+    true,
+  ));
+  await expectAllowed('outsider casts one private helpful vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    0,
+    true,
+  ));
+  await expectAllowed('voter can read their own private vote', async () => {
+    const snapshot = await getDoc(doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId));
+    assert.equal(snapshot.exists(), true);
+  });
+  await expectDenied('review author cannot read another user vote', () => getDoc(
+    doc(requesterClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId),
+  ));
+  await expectDenied('private voter records cannot be listed', () => getDocs(
+    collection(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes'),
+  ));
+  await expectDenied('voter cannot reset the helpful count without deleting their vote', () => updateDoc(
+    doc(outsiderClient.db, 'reviews', bookingId),
+    { isHelpful: 0, updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('duplicate helpful vote cannot inflate the count', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    true,
+  ));
+  await expectAllowed('outsider removes only their own helpful vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    false,
+  ));
+  const concurrentVotes = await Promise.allSettled([
+    writeHelpfulVote(outsiderClient.db, bookingId, outsiderId, 0, true),
+    writeHelpfulVote(outsiderClient.db, bookingId, outsiderId, 0, true),
+  ]);
+  assert.equal(
+    concurrentVotes.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one concurrent vote creation should succeed',
+  );
+  await expectAllowed('concurrent-vote winner can remove their vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    false,
   ));
   await expectAllowed('requester edits review content', () => updateDoc(
     reviewRef,
@@ -1015,13 +1278,19 @@ try {
   await expectDenied('invalid enrollment cannot partially promote the account', () => invalidEnrollment.commit());
   assert.equal((await getDoc(accountRef)).data().role, 'requester');
   assert.equal((await getDoc(doc(requesterClient.db, 'providers', requesterId))).exists(), false);
-  const enrollment = writeBatch(requesterClient.db);
   const requesterService = { id: 'requester-service', name: 'Second service', description: '', price: '2000', availability: null };
-  enrollment.set(doc(requesterClient.db, 'providers', requesterId), {
-    publicSchemaVersion: 1, firstName: 'Test', lastName: 'Requester',
+  const requesterProviderRef = doc(requesterClient.db, 'providers', requesterId);
+  await expectAllowed('existing requester creates a private provider draft', () => setDoc(requesterProviderRef, {
+    publicSchemaVersion: 0, firstName: 'Test', lastName: 'Requester',
     services: [requesterService],
-  });
-  enrollment.set(doc(requesterClient.db, 'providers', requesterId, 'services', requesterService.id), requesterService);
+    serviceIds: { [requesterService.id]: true },
+  }));
+  await expectAllowed('existing requester writes their authoritative service', () => setDoc(
+    doc(requesterClient.db, 'providers', requesterId, 'services', requesterService.id),
+    requesterService,
+  ));
+  const enrollment = writeBatch(requesterClient.db);
+  enrollment.update(requesterProviderRef, { publicSchemaVersion: 1, updatedAt: serverTimestamp() });
   enrollment.update(accountRef, { role: 'both', updatedAt: serverTimestamp() });
   await expectAllowed('existing requester enrolls as provider', () => enrollment.commit());
   const accountAfter = (await getDoc(accountRef)).data();
@@ -1061,6 +1330,8 @@ try {
     'Still the same account',
   ));
   await expectAllowed('provider can still edit their requester review', () => updateDoc(reviewRef, { comment: 'Updated after enrollment', updatedAt: serverTimestamp() }));
+  await expectAllowed('requester deletes their review while immutable claim remains', () => deleteDoc(reviewRef));
+  await expectDenied('deleted review cannot be recreated for the same booking', () => setDoc(reviewRef, reviewData));
   await expectAllowed('provider can edit their business profile', () => updateDoc(doc(requesterClient.db, 'providers', requesterId), { bio: 'Updated business description' }));
   await expectDenied('other provider cannot read bookmarks after enrollment', () => getDoc(doc(providerClient.db, 'users', requesterId)));
 

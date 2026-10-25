@@ -133,6 +133,7 @@
     "providerResponse": "Provider response",
     "writeResponse": "Write your response...",
     "submit": "Submit",
+    "submittingResponse": "Submitting...",
     "saving": "Saving...",
     "respondToReview": "Respond to review",
     "showLess": "Show Less",
@@ -140,6 +141,9 @@
     "submitResponseFailed": "Failed to submit your response. Please try again.",
     "updateFailed": "Could not update your review.",
     "signInToVote": "Please sign in to vote.",
+    "helpful": "Helpful",
+    "helpfulAction": "Mark review as helpful",
+    "helpfulHint": "Double tap to add or remove your helpful vote.",
     "toasts": {
       "responseSubmitted": "Response submitted",
       "responseFailed": "Failed to submit response",
