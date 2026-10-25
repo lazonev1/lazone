@@ -41,6 +41,8 @@
       "price": "Price (CFA)",
       "pricePlaceholder": "e.g., 25000",
       "addService": "Add Service",
+      "limitTitle": "Service limit reached",
+      "limitMessage": "You can publish up to {{count}} services. Edit or remove one before adding another.",
       "addServiceTitle": "Add a service",
       "addServiceMessage": "Add at least one service so customers know what they can book.",
       "incompleteTitle": "Incomplete Information",

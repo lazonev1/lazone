@@ -53,8 +53,11 @@
     "errors": {
       "service": "Veuillez sélectionner un service",
       "date": "Veuillez sélectionner une date",
-      "price": "Veuillez saisir votre prix proposé",
-      "checklist": "Ajoutez une description pour chaque élément de la liste"
+      "dateRange": "Choisissez une heure comprise entre cinq minutes et un an à partir de maintenant",
+      "price": "Saisissez un prix positif dans la plage CFA prise en charge",
+      "checklist": "Ajoutez une description pour chaque élément de la liste",
+      "checklistLimit": "Ajoutez entre un et {{count}} éléments clairs",
+      "detailsTooLong": "Limitez les détails supplémentaires à 2 000 caractères"
     }
   },
   "review": {

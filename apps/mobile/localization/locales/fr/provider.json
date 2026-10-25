@@ -41,6 +41,8 @@
       "price": "Prix (CFA)",
       "pricePlaceholder": "ex. : 25000",
       "addService": "Ajouter un service",
+      "limitTitle": "Limite de services atteinte",
+      "limitMessage": "Vous pouvez publier jusqu’à {{count}} services. Modifiez ou supprimez-en un avant d’en ajouter un autre.",
       "addServiceTitle": "Ajoutez un service",
       "addServiceMessage": "Ajoutez au moins un service pour que les clients sachent ce qu'ils peuvent réserver.",
       "incompleteTitle": "Informations incomplètes",
