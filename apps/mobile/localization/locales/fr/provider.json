@@ -131,6 +131,7 @@
     "providerResponse": "Réponse du prestataire",
     "writeResponse": "Rédigez votre réponse...",
     "submit": "Envoyer",
+    "submittingResponse": "Envoi...",
     "saving": "Enregistrement...",
     "respondToReview": "Répondre à l'avis",
     "showLess": "Voir moins",
@@ -138,6 +139,9 @@
     "submitResponseFailed": "Impossible d'envoyer votre réponse. Veuillez réessayer.",
     "updateFailed": "Impossible de mettre à jour votre avis.",
     "signInToVote": "Veuillez vous connecter pour voter.",
+    "helpful": "Utile",
+    "helpfulAction": "Marquer l'avis comme utile",
+    "helpfulHint": "Touchez deux fois pour ajouter ou retirer votre vote utile.",
     "toasts": {
       "responseSubmitted": "Réponse envoyée",
       "responseFailed": "Impossible d'envoyer la réponse",

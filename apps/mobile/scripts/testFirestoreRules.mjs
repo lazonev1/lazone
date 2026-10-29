@@ -61,6 +61,106 @@ async function writeStatusTransition(db, bookingRef, eventId, fromStatus, toStat
   await batch.commit();
 }
 
+function conversationPayload(participants, participantDetails) {
+  return {
+    participants,
+    participantDetails,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastRead: {},
+    typing: {},
+  };
+}
+
+async function writeMessageWithSummary(
+  db,
+  conversationId,
+  senderId,
+  text,
+  messageOverrides = {},
+  summaryOverrides = {},
+  summaryActorId = senderId,
+) {
+  const conversationRef = doc(db, 'conversations', conversationId);
+  const messageRef = doc(collection(db, 'conversations', conversationId, 'messages'));
+  const batch = writeBatch(db);
+  batch.set(messageRef, {
+    conversationId,
+    senderId,
+    text,
+    createdAt: serverTimestamp(),
+    ...messageOverrides,
+  });
+  batch.update(conversationRef, {
+    lastMessage: messageRef,
+    updatedAt: serverTimestamp(),
+    [`lastRead.${summaryActorId}`]: serverTimestamp(),
+    ...summaryOverrides,
+  });
+  await batch.commit();
+  return messageRef;
+}
+
+async function writeStatusTransitionWithEvent(
+  db,
+  bookingRef,
+  eventId,
+  toStatus,
+  event,
+  extraFields = {},
+) {
+  const batch = writeBatch(db);
+  batch.update(bookingRef, {
+    status: toStatus,
+    latestTransitionId: eventId,
+    updatedAt: serverTimestamp(),
+    ...extraFields,
+  });
+  batch.set(doc(db, 'bookings', bookingRef.id, 'events', eventId), event);
+  await batch.commit();
+}
+
+async function editPendingBooking(db, bookingRef, updates) {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(bookingRef);
+    if (!snapshot.exists()) throw new Error('booking not found');
+    if (snapshot.data().status !== 'pending') throw new Error('booking is no longer pending');
+    transaction.update(bookingRef, { ...updates, updatedAt: serverTimestamp() });
+  });
+}
+
+async function createReviewWithClaim(db, reviewRef, reviewData) {
+  const claimRef = doc(db, 'reviewBookingClaims', reviewData.bookingId);
+  await runTransaction(db, async transaction => {
+    const review = await transaction.get(reviewRef);
+    const claim = await transaction.get(claimRef);
+    if (review.exists() || claim.exists()) throw new Error('booking already reviewed');
+    transaction.set(reviewRef, reviewData);
+    transaction.set(claimRef, {
+      bookingId: reviewData.bookingId,
+      reviewId: reviewRef.id,
+      requesterId: reviewData.requesterId,
+      createdAt: serverTimestamp(),
+    });
+  });
+}
+
+async function writeHelpfulVote(db, reviewId, voterId, currentCount, add) {
+  const voteRef = doc(db, 'reviews', reviewId, 'helpfulVotes', voterId);
+  const reviewRef = doc(db, 'reviews', reviewId);
+  const batch = writeBatch(db);
+  if (add) {
+    batch.set(voteRef, { reviewId, voterId, createdAt: serverTimestamp() });
+  } else {
+    batch.delete(voteRef);
+  }
+  batch.update(reviewRef, {
+    isHelpful: currentCount + (add ? 1 : -1),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
 async function seedAdminDocument(documentPath, fields) {
   const response = await fetch(
     `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
@@ -75,6 +175,19 @@ async function seedAdminDocument(documentPath, fields) {
   );
   if (!response.ok) {
     throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
+async function deleteAdminDocument(documentPath) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/${documentPath}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer owner' },
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to delete ${documentPath}: ${response.status} ${await response.text()}`);
   }
 }
 
@@ -289,6 +402,20 @@ try {
     updatedAt: serverTimestamp(),
   }));
 
+  await expectAllowed('requester edits current pending booking terms', () => editPendingBooking(
+    requesterClient.db,
+    requesterBookingRef,
+    { notes: 'Updated before acceptance', price: 1100 },
+  ));
+  await expectDenied('provider cannot edit requester booking terms', () => updateDoc(
+    providerBookingRef,
+    { notes: 'Provider-authored terms', updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('unrelated user cannot edit booking terms', () => updateDoc(
+    doc(outsiderClient.db, 'bookings', bookingId),
+    { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
+  ));
+
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
@@ -302,6 +429,45 @@ try {
     providerBookingRef,
     { status: 'in_progress', latestTransitionId: 'event-confirmed', updatedAt: serverTimestamp() }
   ));
+  await expectDenied('accepted booking terms cannot be overwritten', () => updateDoc(
+    requesterBookingRef,
+    { notes: 'Attempted stale edit', updatedAt: serverTimestamp() },
+  ));
+
+  const editRaceId = `edit-race-${runId}`;
+  const editRaceRequesterRef = doc(requesterClient.db, 'bookings', editRaceId);
+  const editRaceProviderRef = doc(providerClient.db, 'bookings', editRaceId);
+  await expectAllowed('edit-race booking creation', () => setDoc(editRaceRequesterRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    notes: 'Original terms',
+    checklist: [{ id: 'race-item', description: 'Race test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'race-item': false },
+  }));
+  const editRaceResults = await Promise.allSettled([
+    editPendingBooking(requesterClient.db, editRaceRequesterRef, { notes: 'Requester edit' }),
+    writeStatusTransition(
+      providerClient.db,
+      editRaceProviderRef,
+      'edit-race-accepted',
+      'pending',
+      'confirmed',
+      providerId,
+      'provider',
+    ),
+  ]);
+  assert.equal(editRaceResults[1].status, 'fulfilled', 'provider acceptance should succeed');
+  const editRaceSnapshot = await getDoc(editRaceRequesterRef);
+  assert.equal(editRaceSnapshot.data().status, 'confirmed');
+  assert.equal(
+    editRaceSnapshot.data().notes,
+    editRaceResults[0].status === 'fulfilled' ? 'Requester edit' : 'Original terms',
+    'an accepted booking must contain either the committed edit or the original terms, never a later overwrite',
+  );
 
   await expectAllowed('provider starts service', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-started', 'confirmed', 'in_progress', providerId, 'provider'
@@ -322,6 +488,67 @@ try {
   await expectAllowed('provider submits completion for confirmation', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-submitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectDenied('requester cannot reuse an older event for a new transition', () => updateDoc(
+    requesterBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-confirmed',
+      requesterChangeRequest: 'This update must create its own audit event.',
+      updatedAt: serverTimestamp(),
+    }
+  ));
+  await expectDenied('status transition without an event', () => updateDoc(
+    requesterBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-missing',
+      requesterChangeRequest: 'Please finish the remaining detail.',
+      updatedAt: serverTimestamp(),
+    }
+  ));
+  await expectDenied('transition event with mismatched previous status', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-from', 'confirmed', 'in_progress', requesterId, 'requester', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with mismatched target status', () => writeStatusTransitionWithEvent(
+    requesterClient.db,
+    requesterBookingRef,
+    'event-wrong-to',
+    'in_progress',
+    {
+      fromStatus: 'awaiting_confirmation',
+      toStatus: 'completed',
+      actorId: requesterId,
+      actorRole: 'requester',
+      occurredAt: serverTimestamp(),
+    },
+    { requesterChangeRequest: 'Please finish the remaining detail.' },
+  ));
+  await expectDenied('transition event with mismatched actor', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-actor', 'awaiting_confirmation', 'in_progress', providerId, 'requester', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with mismatched actor role', () => writeStatusTransition(
+    requesterClient.db, requesterBookingRef, 'event-wrong-role', 'awaiting_confirmation', 'in_progress', requesterId, 'provider', {
+      requesterChangeRequest: 'Please finish the remaining detail.',
+    }
+  ));
+  await expectDenied('transition event with a client timestamp', () => writeStatusTransitionWithEvent(
+    requesterClient.db,
+    requesterBookingRef,
+    'event-wrong-time',
+    'in_progress',
+    {
+      fromStatus: 'awaiting_confirmation',
+      toStatus: 'in_progress',
+      actorId: requesterId,
+      actorRole: 'requester',
+      occurredAt: new Date('2020-01-01'),
+    },
+    { requesterChangeRequest: 'Please finish the remaining detail.' },
+  ));
   await expectDenied('provider cannot confirm their own completion', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-provider-completed', 'awaiting_confirmation', 'completed', providerId, 'provider'
   ));
@@ -337,6 +564,107 @@ try {
     requesterClient.db, requesterBookingRef, 'event-completed', 'awaiting_confirmation', 'completed', requesterId, 'requester'
   ));
 
+  const standaloneEventRef = doc(
+    requesterClient.db,
+    'bookings',
+    bookingId,
+    'events',
+    'event-standalone',
+  );
+  await expectDenied('standalone transition event', () => setDoc(standaloneEventRef, {
+    fromStatus: 'completed',
+    toStatus: 'cancelled',
+    actorId: requesterId,
+    actorRole: 'requester',
+    occurredAt: serverTimestamp(),
+  }));
+
+  const crossBookingId = `cross-booking-${runId}`;
+  const crossRequesterBookingRef = doc(requesterClient.db, 'bookings', crossBookingId);
+  const crossProviderBookingRef = doc(providerClient.db, 'bookings', crossBookingId);
+  await expectAllowed('cross-reference test booking creation', () => setDoc(crossRequesterBookingRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    checklist: [{ id: 'cross-item', description: 'Cross-reference test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'cross-item': false },
+  }));
+  await expectAllowed('cross-reference test booking acceptance', () => writeStatusTransition(
+    providerClient.db,
+    crossProviderBookingRef,
+    'cross-booking-event',
+    'pending',
+    'confirmed',
+    providerId,
+    'provider',
+  ));
+  await expectDenied('event from another booking cannot authorize a transition', () => updateDoc(
+    crossProviderBookingRef,
+    {
+      status: 'in_progress',
+      latestTransitionId: 'event-started',
+      updatedAt: serverTimestamp(),
+    },
+  ));
+
+  const concurrentBookingId = `concurrent-booking-${runId}`;
+  const concurrentRequesterBookingRef = doc(requesterClient.db, 'bookings', concurrentBookingId);
+  const concurrentProviderBookingRef = doc(providerClient.db, 'bookings', concurrentBookingId);
+  await expectAllowed('concurrency test booking creation', () => setDoc(concurrentRequesterBookingRef, {
+    requesterId,
+    providerId,
+    serviceId: 'service-1',
+    status: 'pending',
+    checklist: [{ id: 'concurrent-item', description: 'Concurrency test', completed: false }],
+    checklistTotal: 1,
+    checklistCompletedCount: 0,
+    checklistProgress: { 'concurrent-item': false },
+  }));
+  await expectAllowed('concurrency test booking acceptance', () => writeStatusTransition(
+    providerClient.db,
+    concurrentProviderBookingRef,
+    'concurrent-accepted',
+    'pending',
+    'confirmed',
+    providerId,
+    'provider',
+  ));
+  const concurrentResults = await Promise.allSettled([
+    writeStatusTransition(
+      providerClient.db,
+      concurrentProviderBookingRef,
+      'concurrent-start-a',
+      'confirmed',
+      'in_progress',
+      providerId,
+      'provider',
+    ),
+    writeStatusTransition(
+      providerClient.db,
+      concurrentProviderBookingRef,
+      'concurrent-start-b',
+      'confirmed',
+      'in_progress',
+      providerId,
+      'provider',
+    ),
+  ]);
+  assert.equal(
+    concurrentResults.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one concurrent status transition should succeed',
+  );
+  const concurrentEvents = await getDocs(collection(
+    providerClient.db,
+    'bookings',
+    concurrentBookingId,
+    'events',
+  ));
+  assert.equal(concurrentEvents.size, 2, 'accepted and started events should be the complete history');
+
   const reviewRef = doc(requesterClient.db, 'reviews', bookingId);
   const reviewData = {
     bookingId,
@@ -347,12 +675,30 @@ try {
     comment: 'Everything requested was completed.',
     images: [],
     responses: [],
+    responseUpdatedAt: null,
     isHelpful: 0,
-    helpfulBy: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  await expectAllowed('requester creates booking review', () => setDoc(reviewRef, reviewData));
+  await expectAllowed('requester can check their own absent review claim', async () => {
+    const snapshot = await getDoc(doc(requesterClient.db, 'reviewBookingClaims', bookingId));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('outsider cannot inspect another booking review claim', () => getDoc(
+    doc(outsiderClient.db, 'reviewBookingClaims', bookingId),
+  ));
+  await expectDenied('review cannot be created without its immutable booking claim', () => setDoc(reviewRef, reviewData));
+  await expectAllowed('requester atomically creates booking review and claim', () => createReviewWithClaim(
+    requesterClient.db,
+    reviewRef,
+    reviewData,
+  ));
+  await expectAllowed('requester can read their immutable review claim', () => getDoc(
+    doc(requesterClient.db, 'reviewBookingClaims', bookingId),
+  ));
+  await expectDenied('review claims cannot be listed', () => getDocs(
+    collection(requesterClient.db, 'reviewBookingClaims'),
+  ));
   await expectDenied('outsider cannot create a booking review', () => setDoc(
     doc(outsiderClient.db, 'reviews', `different-${bookingId}`),
     { ...reviewData, requesterId: outsiderId },
@@ -363,23 +709,119 @@ try {
   ));
   await expectAllowed('provider adds one response', () => updateDoc(
     doc(providerClient.db, 'reviews', bookingId),
-    { responses: [{ text: 'Thank you for the feedback.', date: new Date() }], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Thank you for the feedback.' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectAllowed('provider edits their single response', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'Thank you — we appreciate the updated feedback.' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
   await expectDenied('requester cannot impersonate provider response', () => updateDoc(
     reviewRef,
-    { responses: [{ text: 'Forged response', date: new Date() }], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Forged response' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
-  await expectAllowed('outsider casts one helpful vote', () => updateDoc(
+  await expectDenied('unrelated user cannot publish a provider response', () => updateDoc(
     doc(outsiderClient.db, 'reviews', bookingId),
-    { isHelpful: 1, helpfulBy: [outsiderId], updatedAt: serverTimestamp() },
+    { responses: [{ text: 'Unrelated response' }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
   ));
-  await expectDenied('review author cannot vote on own review', () => updateDoc(
-    reviewRef,
-    { isHelpful: 0, helpfulBy: [], updatedAt: serverTimestamp() },
-  ));
-  await expectDenied('reviewed provider cannot vote on the review', () => updateDoc(
+  await expectDenied('provider cannot create a public response thread', () => updateDoc(
     doc(providerClient.db, 'reviews', bookingId),
-    { isHelpful: 2, helpfulBy: [outsiderId, providerId], updatedAt: serverTimestamp() },
+    {
+      responses: [{ text: 'First response' }, { text: 'Second response' }],
+      responseUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+  ));
+  await expectDenied('provider response cannot exceed the length limit', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'x'.repeat(501) }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('provider response cannot inject client-authored metadata', () => updateDoc(
+    doc(providerClient.db, 'reviews', bookingId),
+    { responses: [{ text: 'Response', date: new Date() }], responseUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('helpful count cannot change without a private vote record', () => updateDoc(
+    doc(outsiderClient.db, 'reviews', bookingId),
+    { isHelpful: 1, updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('private vote cannot be created without its matching count update', () => setDoc(
+    doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId),
+    { reviewId: bookingId, voterId: outsiderId, createdAt: serverTimestamp() },
+  ));
+  await expectAllowed('voter can check their own absent vote', async () => {
+    const snapshot = await getDoc(doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('review author cannot vote on own review', () => writeHelpfulVote(
+    requesterClient.db,
+    bookingId,
+    requesterId,
+    0,
+    true,
+  ));
+  await expectDenied('reviewed provider cannot vote on the review', () => writeHelpfulVote(
+    providerClient.db,
+    bookingId,
+    providerId,
+    0,
+    true,
+  ));
+  await expectDenied('voter cannot forge another voter identity', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    providerId,
+    0,
+    true,
+  ));
+  await expectAllowed('outsider casts one private helpful vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    0,
+    true,
+  ));
+  await expectAllowed('voter can read their own private vote', async () => {
+    const snapshot = await getDoc(doc(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId));
+    assert.equal(snapshot.exists(), true);
+  });
+  await expectDenied('review author cannot read another user vote', () => getDoc(
+    doc(requesterClient.db, 'reviews', bookingId, 'helpfulVotes', outsiderId),
+  ));
+  await expectDenied('private voter records cannot be listed', () => getDocs(
+    collection(outsiderClient.db, 'reviews', bookingId, 'helpfulVotes'),
+  ));
+  await expectDenied('voter cannot reset the helpful count without deleting their vote', () => updateDoc(
+    doc(outsiderClient.db, 'reviews', bookingId),
+    { isHelpful: 0, updatedAt: serverTimestamp() },
+  ));
+  await expectDenied('duplicate helpful vote cannot inflate the count', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    true,
+  ));
+  await expectAllowed('outsider removes only their own helpful vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    false,
+  ));
+  const concurrentVotes = await Promise.allSettled([
+    writeHelpfulVote(outsiderClient.db, bookingId, outsiderId, 0, true),
+    writeHelpfulVote(outsiderClient.db, bookingId, outsiderId, 0, true),
+  ]);
+  assert.equal(
+    concurrentVotes.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one concurrent vote creation should succeed',
+  );
+  await expectAllowed('concurrent-vote winner can remove their vote', () => writeHelpfulVote(
+    outsiderClient.db,
+    bookingId,
+    outsiderId,
+    1,
+    false,
   ));
   await expectAllowed('requester edits review content', () => updateDoc(
     reviewRef,
@@ -387,6 +829,11 @@ try {
   ));
 
   const conversationId = [providerId, requesterId].sort().join('_');
+  const participants = [providerId, requesterId].sort();
+  const participantDetails = {
+    [requesterId]: { name: 'Test Requester', avatar: '' },
+    [providerId]: { name: 'Updated Provider', avatar: 'https://example.test/provider.png' },
+  };
   const conversationRef = doc(requesterClient.db, 'conversations', conversationId);
   const missingConversationRef = doc(requesterClient.db, 'conversations', `missing-${runId}`);
   await expectAllowed('nonexistent conversation lookup', async () => {
@@ -403,19 +850,20 @@ try {
         if (!requesterProfile.exists() || !providerProfile.exists()) {
           throw new Error('expected both participant profiles to exist');
         }
-        transaction.set(conversationRef, {
-          participants: [requesterId, providerId],
-          participantDetails: {
-            [requesterId]: { name: 'Test Requester', avatar: '' },
-            [providerId]: { name: 'Test Provider', avatar: '' },
-          },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          lastRead: {},
-          typing: {},
-        });
+        transaction.set(conversationRef, conversationPayload(participants, participantDetails));
       }
     },
+  ));
+  await expectDenied('conversation cannot contain the same participant twice', () => setDoc(
+    doc(requesterClient.db, 'conversations', `${requesterId}_${requesterId}`),
+    conversationPayload(
+      [requesterId, requesterId],
+      { [requesterId]: { name: 'Test Requester', avatar: '' } },
+    ),
+  ));
+  await expectDenied('conversation ID must match its participants', () => setDoc(
+    doc(requesterClient.db, 'conversations', `arbitrary-${runId}`),
+    conversationPayload(participants, participantDetails),
   ));
   await expectAllowed('conversation read', () => getDoc(conversationRef));
   await expectAllowed('conversation list', () => getDocs(query(
@@ -427,36 +875,219 @@ try {
     'conversations',
     conversationId,
   )));
-  const requesterMessageRef = doc(collection(requesterClient.db, 'conversations', conversationId, 'messages'));
-  const requesterMessageBatch = writeBatch(requesterClient.db);
-  requesterMessageBatch.set(requesterMessageRef, {
-    conversationId,
-    senderId: requesterId,
-    text: 'Hello provider',
-    createdAt: serverTimestamp(),
-  });
-  requesterMessageBatch.update(conversationRef, {
-    lastMessage: requesterMessageRef,
-    updatedAt: serverTimestamp(),
+  await expectAllowed('requester updates own read status', () => updateDoc(conversationRef, {
     [`lastRead.${requesterId}`]: serverTimestamp(),
-  });
-  await expectAllowed('requester sends message', () => requesterMessageBatch.commit());
-
+  }));
   const providerConversationRef = doc(providerClient.db, 'conversations', conversationId);
-  const providerMessageRef = doc(collection(providerClient.db, 'conversations', conversationId, 'messages'));
-  const providerMessageBatch = writeBatch(providerClient.db);
-  providerMessageBatch.set(providerMessageRef, {
-    conversationId,
-    senderId: providerId,
-    text: 'Hello requester',
-    createdAt: serverTimestamp(),
-  });
-  providerMessageBatch.update(providerConversationRef, {
-    lastMessage: providerMessageRef,
-    updatedAt: serverTimestamp(),
+  await expectAllowed('provider updates own typing status', () => updateDoc(providerConversationRef, {
+    [`typing.${providerId}`]: true,
+  }));
+  await expectDenied('requester cannot change provider read status', () => updateDoc(conversationRef, {
     [`lastRead.${providerId}`]: serverTimestamp(),
+  }));
+  await expectDenied('provider cannot change requester typing status', () => updateDoc(providerConversationRef, {
+    [`typing.${requesterId}`]: true,
+  }));
+  await expectDenied('participant details cannot be fabricated after creation', () => updateDoc(conversationRef, {
+    [`participantDetails.${providerId}.name`]: 'Impersonated Provider',
+  }));
+
+  const standaloneMessageRef = doc(collection(requesterClient.db, 'conversations', conversationId, 'messages'));
+  await expectDenied('message requires a matching conversation summary update', () => setDoc(
+    standaloneMessageRef,
+    { conversationId, senderId: requesterId, text: 'Orphan message', createdAt: serverTimestamp() },
+  ));
+  await expectDenied('message text cannot be empty', () => writeMessageWithSummary(
+    requesterClient.db, conversationId, requesterId, '',
+  ));
+  await expectDenied('message text cannot contain only whitespace', () => writeMessageWithSummary(
+    requesterClient.db, conversationId, requesterId, '   ',
+  ));
+  await expectDenied('message must name its parent conversation', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Wrong parent',
+    { conversationId: `different-${conversationId}` },
+  ));
+  await expectDenied('message sender cannot be forged', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    providerId,
+    'Forged sender',
+    {},
+    {},
+    requesterId,
+  ));
+  await expectDenied('message timestamp must be server-authored', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Wrong timestamp',
+    { createdAt: new Date('2020-01-01') },
+  ));
+  await expectDenied('message cannot add unreviewed fields', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Unexpected payload',
+    { isAdmin: true },
+  ));
+  const missingSummaryMessageRef = doc(
+    requesterClient.db,
+    'conversations',
+    conversationId,
+    'messages',
+    `missing-summary-${runId}`,
+  );
+  await expectDenied('conversation summary cannot point to a missing message', () => updateDoc(
+    conversationRef,
+    {
+      lastMessage: missingSummaryMessageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    },
+  ));
+  await expectDenied('conversation summary cannot point outside its message collection', () => {
+    const unrelatedRef = doc(requesterClient.db, 'referrals', `spoofed-message-${runId}`);
+    const batch = writeBatch(requesterClient.db);
+    batch.set(unrelatedRef, {
+      referrerId: requesterId,
+      conversationId,
+      senderId: requesterId,
+      createdAt: serverTimestamp(),
+    });
+    batch.update(conversationRef, {
+      lastMessage: unrelatedRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    });
+    return batch.commit();
   });
-  await expectAllowed('provider sends message', () => providerMessageBatch.commit());
+
+  let requesterMessageRef;
+  await expectAllowed('requester sends message atomically', async () => {
+    requesterMessageRef = await writeMessageWithSummary(
+      requesterClient.db,
+      conversationId,
+      requesterId,
+      'Hello provider',
+    );
+  });
+  await expectAllowed('provider sends message atomically', () => writeMessageWithSummary(
+    providerClient.db,
+    conversationId,
+    providerId,
+    'Hello requester',
+  ));
+  await expectDenied('conversation summary cannot be rolled back to an old message', () => updateDoc(
+    conversationRef,
+    {
+      lastMessage: requesterMessageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${requesterId}`]: serverTimestamp(),
+    },
+  ));
+
+  const legacyConversationId = `legacy-${conversationId}`;
+  await seedAdminDocument(`conversations/${legacyConversationId}`, {
+    participants: {
+      arrayValue: { values: participants.map(value => ({ stringValue: value })) },
+    },
+    participantDetails: {
+      mapValue: {
+        fields: {
+          [requesterId]: {
+            mapValue: {
+              fields: {
+                name: { stringValue: 'Test Requester' },
+                avatar: { stringValue: '' },
+              },
+            },
+          },
+          [providerId]: {
+            mapValue: {
+              fields: {
+                name: { stringValue: 'Updated Provider' },
+                avatar: { stringValue: 'https://example.test/provider.png' },
+              },
+            },
+          },
+        },
+      },
+    },
+    createdAt: { timestampValue: '2026-01-01T00:00:00Z' },
+    updatedAt: { timestampValue: '2026-01-01T00:00:00Z' },
+  });
+  const legacyRequesterRef = doc(requesterClient.db, 'conversations', legacyConversationId);
+  await expectAllowed('legacy conversation can initialize caller read status', () => updateDoc(
+    legacyRequesterRef,
+    { [`lastRead.${requesterId}`]: serverTimestamp() },
+  ));
+  await expectAllowed('legacy conversation can initialize caller typing status', () => updateDoc(
+    legacyRequesterRef,
+    { [`typing.${requesterId}`]: true },
+  ));
+  await expectAllowed('legacy conversation supports secure atomic messages', () => writeMessageWithSummary(
+    requesterClient.db,
+    legacyConversationId,
+    requesterId,
+    'Legacy chat still works',
+  ));
+
+  await expectAllowed('outsider public identity creation for first-contact tests', () => setDoc(
+    doc(outsiderClient.db, 'publicProfiles', outsiderId),
+    { firstName: 'Test', lastName: 'Outsider' },
+  ));
+  const firstContactParticipants = [requesterId, outsiderId].sort();
+  const firstContactId = firstContactParticipants.join('_');
+  const firstContactDetails = {
+    [requesterId]: { name: 'Test Requester', avatar: '' },
+    [outsiderId]: { name: 'Test Outsider', avatar: '' },
+  };
+  const firstContactRequesterRef = doc(requesterClient.db, 'conversations', firstContactId);
+  const firstContactOutsiderRef = doc(outsiderClient.db, 'conversations', firstContactId);
+  await expectDenied('conversation cannot use fabricated participant identity', () => setDoc(
+    firstContactRequesterRef,
+    conversationPayload(firstContactParticipants, {
+      ...firstContactDetails,
+      [outsiderId]: { name: 'Fabricated Name', avatar: '' },
+    }),
+  ));
+  const missingParticipantId = `missing-user-${runId}`;
+  const missingProfileParticipants = [requesterId, missingParticipantId].sort();
+  await expectDenied('new conversation requires both public identities', () => setDoc(
+    doc(requesterClient.db, 'conversations', missingProfileParticipants.join('_')),
+    conversationPayload(missingProfileParticipants, {
+      [requesterId]: { name: 'Test Requester', avatar: '' },
+      [missingParticipantId]: { name: 'Missing User', avatar: '' },
+    }),
+  ));
+  const firstContactResults = await Promise.allSettled([
+    setDoc(
+      firstContactRequesterRef,
+      conversationPayload(firstContactParticipants, firstContactDetails),
+    ),
+    setDoc(
+      firstContactOutsiderRef,
+      conversationPayload([...firstContactParticipants].reverse(), firstContactDetails),
+    ),
+  ]);
+  assert.equal(
+    firstContactResults.filter(result => result.status === 'fulfilled').length,
+    1,
+    'exactly one simultaneous first-contact creation should succeed',
+  );
+  await deleteAdminDocument(`publicProfiles/${outsiderId}`);
+  await expectAllowed('existing conversation survives a missing participant profile', () => getDoc(
+    firstContactRequesterRef,
+  ));
+  await expectAllowed('existing participants can message after a public profile is removed', () => writeMessageWithSummary(
+    requesterClient.db,
+    firstContactId,
+    requesterId,
+    'Existing conversation remains usable',
+  ));
 
   // The same requester now enrolls as a provider. No account/history is replaced.
   const accountRef = doc(requesterClient.db, 'users', requesterId);
@@ -503,11 +1134,15 @@ try {
     checklistTotal: 1, checklistCompletedCount: 0, checklistProgress: { one: false },
   }));
   await expectAllowed('provider keeps existing conversations', () => getDoc(conversationRef));
-  await expectAllowed('provider continues an existing requester conversation', () => setDoc(
-    doc(collection(requesterClient.db, 'conversations', conversationId, 'messages')),
-    { conversationId, senderId: requesterId, text: 'Still the same account', createdAt: serverTimestamp() }
+  await expectAllowed('provider continues an existing requester conversation', () => writeMessageWithSummary(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Still the same account',
   ));
   await expectAllowed('provider can still edit their requester review', () => updateDoc(reviewRef, { comment: 'Updated after enrollment', updatedAt: serverTimestamp() }));
+  await expectAllowed('requester deletes their review while immutable claim remains', () => deleteDoc(reviewRef));
+  await expectDenied('deleted review cannot be recreated for the same booking', () => setDoc(reviewRef, reviewData));
   await expectAllowed('provider can edit their business profile', () => updateDoc(doc(requesterClient.db, 'providers', requesterId), { bio: 'Updated business description' }));
   await expectDenied('other provider cannot read bookmarks after enrollment', () => getDoc(doc(providerClient.db, 'users', requesterId)));
 

@@ -16,10 +16,21 @@ import {
   runTransaction,
   writeBatch,
 } from "firebase/firestore";
-import {COLLECTIONS, db} from "../config/firebase";
+import {auth, COLLECTIONS, db} from "../config/firebase";
 import {Message} from "../models/Message";
 import {Conversation} from "../models/Conversation";
 import {PublicProfile} from "../models/PublicProfile";
+
+function requireCurrentUser(expectedUserId?: string): string {
+  const currentUserId = auth?.currentUser?.uid;
+  if (!currentUserId) {
+    throw new Error("You must be signed in to use messaging");
+  }
+  if (expectedUserId && currentUserId !== expectedUserId) {
+    throw new Error("Messaging actions can only be performed for the signed-in user");
+  }
+  return currentUserId;
+}
 
 /**
  * Fetches messages for a conversation with pagination.
@@ -75,6 +86,7 @@ export async function sendMessage(
   senderId: string,
   text: string
 ): Promise<Message> {
+  requireCurrentUser(senderId);
   const trimmedText = text.trim();
   if (!trimmedText) {
     throw new Error("Message cannot be empty");
@@ -143,6 +155,11 @@ export async function findOrCreateConversation(
     throw new Error("A conversation requires two different users");
   }
 
+  const currentUserId = requireCurrentUser();
+  if (currentUserId !== userId1 && currentUserId !== userId2) {
+    throw new Error("You can only create a conversation that includes your account");
+  }
+
   // 1. Create a canonical conversation ID
   const sortedIds = [userId1, userId2].sort();
   const conversationId = sortedIds.join("_");
@@ -167,7 +184,7 @@ export async function findOrCreateConversation(
     const user1Data = user1Doc.data() as PublicProfile;
     const user2Data = user2Doc.data() as PublicProfile;
     const newConversation: Omit<Conversation, "_id"> = {
-      participants: [userId1, userId2],
+      participants: sortedIds,
       participantDetails: {
         [userId1]: {
           name: `${user1Data.firstName} ${user1Data.lastName}`,
@@ -199,6 +216,7 @@ export async function updateReadStatus(
   conversationId: string,
   userId: string
 ): Promise<void> {
+  requireCurrentUser(userId);
   const conversationDocRef = doc(
     db,
     COLLECTIONS.CONVERSATIONS,
@@ -246,6 +264,7 @@ export async function setTypingStatus(
   userId: string,
   isTyping: boolean
 ): Promise<void> {
+  requireCurrentUser(userId);
   const conversationDocRef = doc(
     db,
     COLLECTIONS.CONVERSATIONS,
