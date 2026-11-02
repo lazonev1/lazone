@@ -9,6 +9,7 @@ import {
 } from "@/types/provider";
 import { calculateDistance, isValidCoordinates, Coordinates } from "@/backend/main/src/utils/geo";
 import { getPublicProfile } from "@/backend/main/src/services/publicProfileService";
+import { isValidCfaAmount, MARKETPLACE_LIMITS } from '@/constants/Marketplace';
 
 /**
  * Repository Layer - Transforms Database Models to UI ViewModels
@@ -402,12 +403,26 @@ export async function createOrUpdateProviderProfile(
         price: service.price?.trim() || '',
         availability: service.availability || null,
       }));
+    const serviceIds = new Set(services.map((service) => service.id));
+    const serviceIdIndex = Object.fromEntries(services.map((service) => [service.id, true]));
 
     if (
       services.length === 0
-      || services.some((service) => !service.name || !/^\d+$/.test(service.price))
+      || services.length > MARKETPLACE_LIMITS.maxProviderServices
+      || serviceIds.size !== services.length
+      || services.some((service) => (
+        !/^[A-Za-z0-9_-]+$/.test(service.id)
+        || service.id.length > 128
+        || !service.name
+        || service.name.length > MARKETPLACE_LIMITS.maxServiceNameLength
+        || service.description.length > MARKETPLACE_LIMITS.maxServiceDescriptionLength
+        || !isValidCfaAmount(service.price)
+        || (service.availability?.length ?? 0) > MARKETPLACE_LIMITS.maxServiceAvailabilityLength
+      ))
     ) {
-      throw new Error('At least one complete service with a name and price is required.');
+      throw new Error(
+        `Add one to ${MARKETPLACE_LIMITS.maxProviderServices} services with unique IDs, valid names, and positive CFA prices.`,
+      );
     }
 
     if (providerId) {
@@ -421,6 +436,7 @@ export async function createOrUpdateProviderProfile(
         remoteService: registrationData.remoteService ?? false,
         // Embed services directly on the provider document (atomic save)
         services,
+        serviceIds: serviceIdIndex,
       };
 
       providerData.location = publicServiceArea(registrationData.location);
@@ -455,6 +471,7 @@ export async function createOrUpdateProviderProfile(
 
         // Embed services directly on the provider document (atomic save)
         services,
+        serviceIds: serviceIdIndex,
       };
 
       // Only add avatar if it exists

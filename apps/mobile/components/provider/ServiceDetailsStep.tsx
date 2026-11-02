@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { generateServiceId } from '@/utils/generateId';
 import { validateService, validateCertification } from '@/utils/validation';
 import { useTranslation } from 'react-i18next';
+import { MARKETPLACE_LIMITS } from '@/constants/Marketplace';
 
 interface Props {
   initialData: Partial<ProviderRegistration>;
@@ -49,6 +50,13 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   }, [initialData.services, initialData.portfolio, initialData.certifications, isEditMode]);
 
   const addServiceField = () => {
+    if (services.length >= MARKETPLACE_LIMITS.maxProviderServices) {
+      Alert.alert(
+        t('registration.services.limitTitle'),
+        t('registration.services.limitMessage', { count: MARKETPLACE_LIMITS.maxProviderServices })
+      );
+      return;
+    }
     setServices([...services, {
       id: generateServiceId(),
       name: '',
@@ -187,6 +195,7 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
           <TouchableOpacity
             onPress={addServiceField}
             style={styles.addServiceButton}
+            disabled={services.length >= MARKETPLACE_LIMITS.maxProviderServices}
           >
             <Ionicons name="add-circle" size={20} color="#0A58A5" />
             <ThemedText style={styles.addServiceText}>{t('registration.services.addService')}</ThemedText>

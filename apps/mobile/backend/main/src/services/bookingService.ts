@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, COLLECTIONS } from '../config/firebase';
 import { BookingChecklistItem, BookingEditError, BookingStatus } from '@/types/booking';
+import { assertValidBookingDraft } from '@/utils/bookingValidation';
 
 /**
  * Booking Service — Firebase Firestore Operations
@@ -76,6 +77,7 @@ export async function createBooking(data: {
   console.log('[BookingService] Creating booking for provider:', data.providerId);
 
   try {
+    assertValidBookingDraft(data);
     const docRef = await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
       requesterId: data.requesterId,
       requesterName: data.requesterName,
