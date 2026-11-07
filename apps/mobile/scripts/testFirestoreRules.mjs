@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, runTransaction, setDoc, serverTimestamp, startAfter, updateDoc, where, writeBatch } from 'firebase/firestore';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
 
@@ -111,6 +111,33 @@ async function writeMessageWithSummary(
   return messageRef;
 }
 
+async function writeMessageIdempotently(db, conversationId, senderId, text, messageId) {
+  const conversationRef = doc(db, 'conversations', conversationId);
+  const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+  await runTransaction(db, async transaction => {
+    const conversation = await transaction.get(conversationRef);
+    if (!conversation.exists()) throw new Error('conversation missing');
+    const existing = await transaction.get(messageRef);
+    if (existing.exists()) {
+      assert.equal(existing.data().senderId, senderId);
+      assert.equal(existing.data().text, text);
+      return;
+    }
+    transaction.set(messageRef, {
+      conversationId,
+      senderId,
+      text,
+      createdAt: serverTimestamp(),
+    });
+    transaction.update(conversationRef, {
+      lastMessage: messageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${senderId}`]: serverTimestamp(),
+    });
+  });
+  return messageRef;
+}
+
 async function writeStatusTransitionWithEvent(
   db,
   bookingRef,
@@ -185,6 +212,30 @@ async function seedAdminDocument(documentPath, fields) {
   );
   if (!response.ok) {
     throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
+async function seedAdminDocuments(documents) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents:commit`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer owner',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        writes: documents.map(({ path, fields }) => ({
+          update: {
+            name: `projects/demo-rules/databases/(default)/documents/${path}`,
+            fields,
+          },
+        })),
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to seed document batch: ${response.status} ${await response.text()}`);
   }
 }
 
@@ -1158,6 +1209,52 @@ try {
     providerId,
     'Hello requester',
   ));
+  const retrySafeMessageId = `retry-safe-${runId}`;
+  await expectAllowed('requester sends a retry-safe message', () => writeMessageIdempotently(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Send this message once',
+    retrySafeMessageId,
+  ));
+  await expectAllowed('same message retry resolves without another write', async () => {
+    const retriedRef = await writeMessageIdempotently(
+      requesterClient.db,
+      conversationId,
+      requesterId,
+      'Send this message once',
+      retrySafeMessageId,
+    );
+    assert.equal(retriedRef.id, retrySafeMessageId);
+    assert.equal((await getDoc(retriedRef)).data().text, 'Send this message once');
+  });
+  await seedAdminDocuments(Array.from({ length: 105 }, (_, index) => ({
+    path: `conversations/${conversationId}/messages/history-${runId}-${index.toString().padStart(3, '0')}`,
+    fields: {
+      conversationId: { stringValue: conversationId },
+      senderId: { stringValue: index % 2 === 0 ? requesterId : providerId },
+      text: { stringValue: `History message ${index + 1}` },
+      createdAt: { timestampValue: new Date(Date.now() - (index + 1) * 1000).toISOString() },
+    },
+  })));
+  await expectAllowed('participant reads more than 100 messages through stable cursors', async () => {
+    const messagesRef = collection(requesterClient.db, 'conversations', conversationId, 'messages');
+    const messageIds = new Set();
+    let cursor;
+    for (let pageNumber = 0; pageNumber < 4; pageNumber += 1) {
+      const pageQuery = cursor
+        ? query(messagesRef, orderBy('createdAt', 'desc'), startAfter(cursor), limit(50))
+        : query(messagesRef, orderBy('createdAt', 'desc'), limit(50));
+      const page = await getDocs(pageQuery);
+      page.docs.forEach(message => {
+        assert.equal(messageIds.has(message.id), false, `message ${message.id} appeared twice`);
+        messageIds.add(message.id);
+      });
+      if (page.size < 50) break;
+      cursor = page.docs.at(-1);
+    }
+    assert.ok(messageIds.size >= 108, `expected at least 108 messages, read ${messageIds.size}`);
+  });
   await expectDenied('conversation summary cannot be rolled back to an old message', () => updateDoc(
     conversationRef,
     {

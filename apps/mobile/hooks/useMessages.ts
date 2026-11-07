@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import * as messageRepository from "@/repositories/messageRepository";
 import {
   MessageViewModel,
@@ -28,31 +28,67 @@ import i18n from "@/localization";
  * ```
  */
 export function useMessages(conversationId?: string, limit: number = 50) {
-  const [messages, setMessages] = useState<MessageViewModel[]>([]);
+  const [liveMessages, setLiveMessages] = useState<MessageViewModel[]>([]);
+  const [olderMessages, setOlderMessages] = useState<MessageViewModel[]>([]);
+  const [outbox, setOutbox] = useState<MessageViewModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [olderError, setOlderError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
   const activeConversationRef = useRef<string | undefined>(conversationId);
+  const olderCursorRef = useRef<messageRepository.MessagePageViewModel['cursor']>(undefined);
+  const loadedOlderRef = useRef(false);
+
+  const messages = useMemo(() => {
+    const byId = new Map<string, MessageViewModel>();
+    [...olderMessages, ...liveMessages, ...outbox].forEach((message) => {
+      const current = byId.get(message._id);
+      if (!current || message.deliveryStatus || !current.deliveryStatus) byId.set(message._id, message);
+    });
+    return [...byId.values()].sort((a, b) =>
+      a.createdAtTimestamp - b.createdAtTimestamp || a._id.localeCompare(b._id)
+    );
+  }, [liveMessages, olderMessages, outbox]);
 
   // Real-time subscription
   useEffect(() => {
     if (!conversationId) {
       activeConversationRef.current = undefined;
-      setMessages([]);
+      setLiveMessages([]);
+      setOlderMessages([]);
+      setOutbox([]);
       setError(null);
+      setOlderError(null);
       setLoading(false);
       return;
     }
 
-    if (activeConversationRef.current !== conversationId) setMessages([]);
+    const conversationChanged = activeConversationRef.current !== conversationId;
+    if (conversationChanged) {
+      setLiveMessages([]);
+      setOlderMessages([]);
+      setOutbox([]);
+      olderCursorRef.current = undefined;
+      loadedOlderRef.current = false;
+      setHasOlder(false);
+      setOlderError(null);
+    }
     activeConversationRef.current = conversationId;
     setLoading(true);
     setError(null);
 
     const unsubscribe = messageRepository.subscribeToMessages(
       conversationId,
-      (updatedMessages) => {
-        setMessages(updatedMessages);
+      (page) => {
+        setLiveMessages(page.messages);
+        const liveIds = new Set(page.messages.map((message) => message._id));
+        setOutbox((current) => current.filter((message) => !liveIds.has(message._id)));
+        if (!loadedOlderRef.current) {
+          olderCursorRef.current = page.cursor;
+          setHasOlder(page.hasMore);
+        }
         setError(null);
         setLoading(false);
       },
@@ -71,16 +107,89 @@ export function useMessages(conversationId?: string, limit: number = 50) {
   const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
   const isCurrentConversation = activeConversationRef.current === conversationId;
 
+  const loadOlder = useCallback(async (): Promise<void> => {
+    const cursor = olderCursorRef.current;
+    if (!conversationId || !cursor || loadingOlder || !hasOlder) return;
+    setLoadingOlder(true);
+    setOlderError(null);
+    try {
+      const page = await messageRepository.getOlderMessagePage(conversationId, cursor, limit);
+      if (activeConversationRef.current !== conversationId) return;
+      loadedOlderRef.current = true;
+      olderCursorRef.current = page.cursor;
+      setHasOlder(page.hasMore);
+      setOlderMessages((current) => {
+        const byId = new Map([...page.messages, ...current].map((message) => [message._id, message]));
+        return [...byId.values()].sort((a, b) => a.createdAtTimestamp - b.createdAtTimestamp);
+      });
+    } catch (loadError) {
+      if (activeConversationRef.current === conversationId) {
+        setOlderError(loadError instanceof Error ? loadError.message : i18n.t("messages:chat.loadOlderFailed"));
+      }
+    } finally {
+      if (activeConversationRef.current === conversationId) setLoadingOlder(false);
+    }
+  }, [conversationId, hasOlder, limit, loadingOlder]);
+
   const sendMessage = useCallback(
-    async (senderId: string, text: string): Promise<void> => {
+    async (senderId: string, text: string): Promise<boolean> => {
       if (!conversationId) {
         throw new Error(i18n.t("messages:errors.conversationUnavailable"));
       }
-      await messageRepository.sendMessage(conversationId, senderId, text);
-      // No need to manually add — onSnapshot will pick it up.
+      const messageId = messageRepository.createMessageId(conversationId);
+      const now = Date.now();
+      const optimistic: MessageViewModel = {
+        _id: messageId,
+        conversationId,
+        senderId,
+        senderName: "",
+        text: text.trim(),
+        createdAt: new Date(now).toISOString(),
+        createdAtTimestamp: now,
+        deliveryStatus: 'pending',
+      };
+      setOutbox((current) => [...current, optimistic]);
+      try {
+        await messageRepository.sendMessage(conversationId, senderId, optimistic.text, messageId);
+        setOutbox((current) => current.map((message) =>
+          message._id === messageId ? { ...message, deliveryStatus: 'sent' } : message
+        ));
+        return true;
+      } catch (sendError) {
+        setOutbox((current) => current.map((message) =>
+          message._id === messageId ? { ...message, deliveryStatus: 'failed' } : message
+        ));
+        console.error('[useMessages] Message send failed:', sendError);
+        return false;
+      }
     },
     [conversationId]
   );
+
+  const retryMessage = useCallback(async (messageId: string): Promise<void> => {
+    if (!conversationId) return;
+    const failedMessage = outbox.find((message) => message._id === messageId && message.deliveryStatus === 'failed');
+    if (!failedMessage) return;
+    setOutbox((current) => current.map((message) =>
+      message._id === messageId ? { ...message, deliveryStatus: 'pending' } : message
+    ));
+    try {
+      await messageRepository.sendMessage(
+        conversationId,
+        failedMessage.senderId,
+        failedMessage.text,
+        messageId,
+      );
+      setOutbox((current) => current.map((message) =>
+        message._id === messageId ? { ...message, deliveryStatus: 'sent' } : message
+      ));
+    } catch (sendError) {
+      setOutbox((current) => current.map((message) =>
+        message._id === messageId ? { ...message, deliveryStatus: 'failed' } : message
+      ));
+      console.error('[useMessages] Message retry failed:', sendError);
+    }
+  }, [conversationId, outbox]);
 
   return {
     messages: isCurrentConversation ? messages : [],
@@ -88,6 +197,11 @@ export function useMessages(conversationId?: string, limit: number = 50) {
     error: isCurrentConversation ? error : null,
     retry,
     sendMessage,
+    retryMessage,
+    loadOlder,
+    hasOlder,
+    loadingOlder,
+    olderError,
   };
 }
 
