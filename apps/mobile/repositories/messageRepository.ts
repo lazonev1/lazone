@@ -31,55 +31,52 @@ import {
  */
 
 /**
- * Fetches messages for a conversation and transforms them to UI format
- */
-export async function getMessagesForConversation(
-  conversationId: string,
-  messageLimit: number = 20,
-  startAfterDoc?: DocumentSnapshot
-): Promise<MessageViewModel[]> {
-  try {
-    // 1. Fetch messages from backend service (returns database models)
-    const messages = await conversationService.getMessagesForConversation(
-      conversationId,
-      messageLimit,
-      startAfterDoc
-    );
-
-    // 2. Transform each message to UI format
-    const uiMessages = await Promise.all(
-      messages.map((msg) => transformMessageToUI(msg))
-    );
-
-    return uiMessages;
-  } catch (error) {
-    console.error("Error fetching messages:", error);
-    throw error;
-  }
-}
-
-/**
  * Sends a message and returns it in UI format
  */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  text: string
+  text: string,
+  messageId: string,
 ): Promise<MessageViewModel> {
   try {
     // 1. Send message using backend service
     const message = await conversationService.sendMessage(
       conversationId,
       senderId,
-      text
+      text,
+      messageId,
     );
 
-    // 2. Transform to UI format
-    return await transformMessageToUI(message);
+    // Avoid a post-write profile read that could make a committed message look
+    // failed. Sender presentation already comes from the conversation record.
+    return transformMessageToUI(message);
   } catch (error) {
     console.error("Error sending message:", error);
     throw error;
   }
+}
+
+export const createMessageId = (conversationId: string): string =>
+  conversationService.createMessageId(conversationId);
+
+export interface MessagePageViewModel {
+  messages: MessageViewModel[];
+  cursor?: DocumentSnapshot;
+  hasMore: boolean;
+}
+
+export async function getOlderMessagePage(
+  conversationId: string,
+  cursor: DocumentSnapshot,
+  pageSize: number = 50,
+): Promise<MessagePageViewModel> {
+  const page = await conversationService.getMessagePage(conversationId, pageSize, cursor);
+  return {
+    messages: page.messages.map(transformMessageToUI),
+    cursor: page.oldestDocument,
+    hasMore: page.hasMore,
+  };
 }
 
 /**
@@ -242,7 +239,7 @@ export function subscribeToConversationPeer(
  */
 export function subscribeToMessages(
   conversationId: string,
-  onUpdate: (messages: MessageViewModel[]) => void,
+  onUpdate: (page: MessagePageViewModel) => void,
   messageLimit: number = 50,
   onError?: (error: Error) => void
 ): () => void {
@@ -250,13 +247,15 @@ export function subscribeToMessages(
   let sequence = 0;
   const unsubscribe = conversationService.subscribeToMessages(
     conversationId,
-    async (messages) => {
+    (page) => {
       const currentSequence = ++sequence;
       try {
-        const uiMessages = await Promise.all(
-          messages.map((msg) => transformMessageToUI(msg))
-        );
-        if (active && currentSequence === sequence) onUpdate(uiMessages);
+        const uiMessages = page.messages.map(transformMessageToUI);
+        if (active && currentSequence === sequence) onUpdate({
+          messages: uiMessages,
+          cursor: page.oldestDocument,
+          hasMore: page.hasMore,
+        });
       } catch (error) {
         if (active && currentSequence === sequence) onError?.(toError(error));
       }
@@ -278,21 +277,14 @@ export function subscribeToMessages(
 /**
  * Transforms a database Message to UI MessageViewModel
  */
-async function transformMessageToUI(
+function transformMessageToUI(
   message: Message
-): Promise<MessageViewModel> {
-  // Fetch sender details using the string userId
-  const senderDoc = await getDoc(doc(db, COLLECTIONS.PUBLIC_PROFILES, message.senderId));
-  const senderData = senderDoc.exists() ? (senderDoc.data() as PublicProfile) : null;
-
+): MessageViewModel {
   return {
     _id: message._id,
     conversationId: message.conversationId,
     senderId: message.senderId,
-    senderName: senderData
-      ? `${senderData.firstName} ${senderData.lastName}`
-      : "Unknown User",
-    senderAvatar: senderData?.avatar,
+    senderName: "",
     text: message.text,
     createdAt: timestampToISO(message.createdAt),
     createdAtTimestamp: timestampToMillis(message.createdAt),

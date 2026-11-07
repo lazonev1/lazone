@@ -438,13 +438,15 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 ### M01 · P1 · Deliver reliable message history and sending
 
-- [ ] **Problem:** The live query exposes only the latest 50 messages; the screen has no older-history flow. Scroll/read effects depend on array length, which stops changing at the cap. A failed send can restore an old message over newer typing, and a post-write transformation failure can be presented as a failed send.
+- [x] **Problem:** The live query exposes only the latest 50 messages; the screen has no older-history flow. Scroll/read effects depend on array length, which stops changing at the cap. A failed send can restore an old message over newer typing, and a post-write transformation failure can be presented as a failed send.
 
   **Sources:** [chat screen][chat-ui], [message hooks][message-hooks], [message mapping][message-repo], [conversation service][conversation-service].
 
   **Required:** Implement cursor-based older history with a virtualized list and stable anchoring; use message identity rather than count for updates. Add pending/sent/failed state with idempotent retry and draft protection; do not force-scroll someone reading older messages. Show a new-message affordance and preserve position when loading history.
 
   **Done when:** A conversation exceeding 100 messages remains fully readable; reconnect/duplicate delivery/order changes reconcile; failed retry does not duplicate messages or lose a newer draft; reading older history is not interrupted.
+
+  **Completed — 2026-11-07:** The chat now combines a realtime latest page with cursor-loaded history in a virtualized, position-preserving list. Stable message IDs reconcile live, historical, and optimistic entries; transactional sends atomically update the message and conversation summary, while retries reuse the same ID. Pending/failed states, explicit retry, draft protection, and a new-message affordance prevent silent loss, duplication, and forced scrolling. EN/FR accessibility labels and 44-point composer targets are included. TypeScript, focused lint, Android bundling, the full Firebase emulator suite (including more than 100 cursor-paged messages and same-ID retry), and an iPhone live send/reload/no-duplicate check passed. No migration, rules deployment, or EAS rebuild is required. See [flow and verification](reliable-message-history.md).
 
 ### M02 · P1 · Correct realtime chat metadata and error recovery
 

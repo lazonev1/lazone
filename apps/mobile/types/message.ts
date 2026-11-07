@@ -16,6 +16,7 @@ export interface MessageViewModel {
   text: string;
   createdAt: string; // ISO date string for easy display
   createdAtTimestamp: number; // For sorting/comparison
+  deliveryStatus?: 'pending' | 'sent' | 'failed';
 }
 
 /**
