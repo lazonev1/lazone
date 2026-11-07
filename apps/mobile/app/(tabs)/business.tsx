@@ -10,8 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -70,26 +69,20 @@ export default function BusinessScreen() {
 
   // Provider's booking data — providerId === user._id
   const {
+    allBookings,
     incomingRequests,
     upcomingBookings,
     completedBookings,
     acceptBooking,
     declineBooking,
     isLoading,
+    isRefreshing,
+    error,
     refreshBookings,
   } = useProviderBookings(isProvider ? user?.uid : undefined);
 
   // Track which booking is currently being acted on (for button loading states)
   const [actionInFlight, setActionInFlight] = useState<string | null>(null);
-
-  // Refresh bookings whenever this tab comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (isProvider && user?.uid) {
-        refreshBookings();
-      }
-    }, [isProvider, user?.uid, refreshBookings])
-  );
 
   // ── Computed metrics ──
   const totalEarnings = completedBookings.reduce((sum, b) => sum + b.price, 0);
@@ -154,13 +147,26 @@ export default function BusinessScreen() {
     );
   }
 
+  if ((isLoading || error) && allBookings.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.activationContainer}>
+          {isLoading ? <ActivityIndicator size="large" color={theme.tint} /> : <>
+            <ThemedText accessibilityRole="alert" style={styles.activationSubtitle}>{t('booking:errors.liveSync')}</ThemedText>
+            <Button label={t('common:actions.retry')} onPress={() => void refreshBookings()} />
+          </>}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refreshBookings} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={refreshBookings} />
         }
       >
         {/* ── Header ────────────────────────────────────── */}
@@ -173,6 +179,15 @@ export default function BusinessScreen() {
             <Ionicons name="settings-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
+
+        {error && (
+          <View style={styles.syncBanner} accessibilityRole="alert">
+            <ThemedText style={styles.syncText}>{t('booking:errors.liveSync')}</ThemedText>
+            <TouchableOpacity onPress={() => void refreshBookings()} accessibilityRole="button">
+              <ThemedText style={styles.retryText}>{t('common:actions.retry')}</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Performance Metrics ────────────────────────── */}
         <View style={styles.metricsGrid}>
@@ -212,7 +227,7 @@ export default function BusinessScreen() {
           count={incomingRequests.length}
           theme={theme}
         />
-        {incomingRequests.length === 0 ? (
+        {isLoading ? <ActivityIndicator color={theme.tint} /> : incomingRequests.length === 0 && error ? null : incomingRequests.length === 0 ? (
           <ThemedView style={styles.emptyCard}>
             <ThemedText style={styles.emptyText}>{t('business.noPendingRequests')}</ThemedText>
           </ThemedView>
@@ -258,7 +273,7 @@ export default function BusinessScreen() {
                 <TouchableOpacity
                   style={styles.declineButton}
                   onPress={() => handleDecline(req.id, req.requesterName)}
-                  disabled={actionInFlight === req.id}
+                  disabled={actionInFlight === req.id || Boolean(error)}
                 >
                   {actionInFlight === req.id ? (
                     <ActivityIndicator size="small" color={theme.text} />
@@ -269,7 +284,7 @@ export default function BusinessScreen() {
                 <TouchableOpacity
                   style={styles.acceptButton}
                   onPress={() => handleAccept(req.id)}
-                  disabled={actionInFlight === req.id}
+                  disabled={actionInFlight === req.id || Boolean(error)}
                 >
                   {actionInFlight === req.id ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -578,6 +593,18 @@ function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefin
     title: {
       fontSize: 28,
     },
+    syncBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: 12,
+      marginTop: 12,
+      borderRadius: 10,
+      backgroundColor: '#FDECEA',
+    },
+    syncText: { flex: 1, color: '#9C2F22' },
+    retryText: { color: '#0A58A5', fontWeight: '700' },
 
     // ── Activation (non-provider) ──
     activationContainer: {
