@@ -1,53 +1,75 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions, AppState, AppStateStatus } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { Audio } from 'expo-av';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import MessageBubble from '@/components/chat/MessageBubble';
 import DateDivider from '@/components/chat/DateDivider';
-import { useMessages } from '@/hooks/useMessages';
+import { useConversationPeer, useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/auth';
 import * as messageRepository from '@/repositories/messageRepository';
 import { formatDateDivider } from '@/backend/main/src/utils/utils';
 import { useTranslation } from 'react-i18next';
 
 export default function ConversationScreen() {
-  const params = useLocalSearchParams<{ id?: string | string[]; name?: string | string[]; avatar?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
   const conversationId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const name = Array.isArray(params.name) ? params.name[0] : params.name;
-  const avatar = Array.isArray(params.avatar) ? params.avatar[0] : params.avatar;
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const scrollRef = useRef<ScrollView | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const [messageText, setMessageText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingSentRef = useRef(false);
+  const lastMarkedReadRef = useRef<string | null>(null);
   const styles = createStyles(theme, colorScheme);
   const { height: screenHeight } = useWindowDimensions();
   const { t } = useTranslation(['messages', 'common']);
 
   const { user } = useAuth();
   const userId = user?.uid ?? '';
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
 
   // Calculate keyboard offset dynamically based on screen size
   const keyboardOffset = Platform.OS === 'ios' ? 90 : Math.max(100, screenHeight * 0.1);
 
   // Real-time messages subscription
-  const { messages, loading, error, sendMessage } = useMessages(conversationId);
+  const {
+    peer,
+    loading: peerLoading,
+    error: peerError,
+    retry: retryPeer,
+  } = useConversationPeer(conversationId, userId);
+  const { messages, loading, error, retry: retryMessages, sendMessage } = useMessages(
+    peer ? conversationId : undefined,
+  );
 
-  // Mark conversation as read when entering and when new messages arrive
   useEffect(() => {
-    if (conversationId && userId) {
-      void messageRepository.updateReadStatus(conversationId, userId).catch((readError) => {
-        console.warn('Unable to update conversation read status:', readError);
-      });
-    }
-  }, [conversationId, userId, messages.length]);
+    const subscription = AppState.addEventListener('change', setAppState);
+    return () => subscription.remove();
+  }, []);
+
+  // Mark only the latest visible incoming message as read while this screen is
+  // focused and the app is active. This avoids background read receipts.
+  useEffect(() => {
+    if (!conversationId || !userId || !isFocused || appState !== 'active' || error) return;
+    const latestIncoming = [...messages].reverse().find((message) => message.senderId !== userId);
+    if (!latestIncoming) return;
+    const readKey = `${conversationId}:${latestIncoming._id}`;
+    if (lastMarkedReadRef.current === readKey) return;
+    lastMarkedReadRef.current = readKey;
+    void messageRepository.updateReadStatus(conversationId, userId).catch((readError) => {
+      lastMarkedReadRef.current = null;
+      console.warn('Unable to update conversation read status:', readError);
+    });
+  }, [appState, conversationId, error, isFocused, messages, userId]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -58,42 +80,50 @@ export default function ConversationScreen() {
     }
   }, [messages.length]);
 
-  // Handle typing indicator
+  const clearTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (!typingSentRef.current || !conversationId || !userId) return;
+    typingSentRef.current = false;
+    void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
+      console.warn('Unable to clear typing status:', typingError);
+    });
+  }, [conversationId, userId]);
+
+  // Send one typing=true transition per burst, then debounce the clear. The
+  // conversation list also expires stale remote indicators after five seconds.
   const handleTextChange = useCallback((text: string) => {
     setMessageText(text);
-
-    if (conversationId && userId) {
+    if (!text.trim() || !conversationId || !userId || !isFocused || appState !== 'active') {
+      clearTyping();
+      return;
+    }
+    if (!typingSentRef.current) {
+      typingSentRef.current = true;
       void messageRepository.setTypingStatus(conversationId, userId, true).catch((typingError) => {
+        typingSentRef.current = false;
         console.warn('Unable to update typing status:', typingError);
       });
-
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      typingTimeoutRef.current = setTimeout(() => {
-        void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
-          console.warn('Unable to clear typing status:', typingError);
-        });
-      }, 2000);
     }
-  }, [conversationId, userId]);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(clearTyping, 2000);
+  }, [appState, clearTyping, conversationId, isFocused, userId]);
+
+  useEffect(() => {
+    if (!isFocused || appState !== 'active') clearTyping();
+  }, [appState, clearTyping, isFocused]);
 
   // Clean up typing status on unmount
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      clearTyping();
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
       }
-      if (conversationId && userId) {
-        void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
-          console.warn('Unable to clear typing status:', typingError);
-        });
-      }
     };
-  }, [conversationId, userId]);
+  }, [clearTyping]);
 
   const formatDuration = (durationMillis: number) => {
     const totalSeconds = Math.floor(durationMillis / 1000);
@@ -163,19 +193,15 @@ export default function ConversationScreen() {
     const text = messageText.trim();
     setMessageText('');
 
-    // Clear typing indicator
-    if (conversationId && userId) {
-      void messageRepository.setTypingStatus(conversationId, userId, false).catch((typingError) => {
-        console.warn('Unable to clear typing status:', typingError);
-      });
-    }
+    clearTyping();
 
     try {
       await sendMessage(userId, text);
     } catch (err) {
       console.error('Failed to send message:', err);
       Alert.alert(t('common:alerts.error'), t('chat.sendFailed'));
-      setMessageText(text); // Restore the message on failure
+      // Do not overwrite anything typed while the send was pending.
+      setMessageText((current) => current.trim() ? current : text);
     }
   };
 
@@ -212,7 +238,7 @@ export default function ConversationScreen() {
     return msgs[index].isOutgoing !== msgs[index + 1].isOutgoing;
   };
 
-  if (loading && messages.length === 0) {
+  if ((loading || peerLoading) && messages.length === 0 && !peerError) {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={theme.tint} />
@@ -221,20 +247,20 @@ export default function ConversationScreen() {
     );
   }
 
-  const contactName = name ?? t('chat.defaultTitle');
-  const contactAvatar = avatar ? { uri: avatar } : require('@/assets/images/avatar-placeholder.png');
+  const contactName = peer?.name ?? (peerLoading ? t('chat.loading') : t('chat.unavailableParticipant'));
+  const contactAvatar = peer?.avatar ? { uri: peer.avatar } : require('@/assets/images/avatar-placeholder.png');
+  const loadError = error || peerError;
+  const retry = () => {
+    retryMessages();
+    retryPeer();
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <Stack.Screen
         options={{
           headerTitle: () => (
-            <Pressable
-              style={styles.header}
-              onPress={() => {
-                // Navigate to provider profile if applicable
-              }}
-            >
+            <View style={styles.header}>
               <Image
                 source={contactAvatar}
                 style={styles.avatar}
@@ -244,18 +270,13 @@ export default function ConversationScreen() {
                   {contactName}
                 </ThemedText>
               </View>
-            </Pressable>
+            </View>
           ),
           headerStyle: {
             backgroundColor: theme.background
           },
           headerTintColor: theme.tint,
           headerShadowVisible: false,
-          headerRight: () => (
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="ellipsis-vertical" size={20} color={theme.icon} />
-            </TouchableOpacity>
-          )
         }}
       />
 
@@ -270,10 +291,13 @@ export default function ConversationScreen() {
           contentContainerStyle={styles.messageContent}
           keyboardShouldPersistTaps="handled"
         >
-          {error && (
-            <ThemedText style={styles.errorText}>
-              {t('chat.loadError')}
-            </ThemedText>
+          {loadError && (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <ThemedText style={styles.errorText}>{t('chat.loadError')}</ThemedText>
+              <TouchableOpacity onPress={retry} accessibilityRole="button">
+                <ThemedText style={styles.retryText}>{t('chat.retry')}</ThemedText>
+              </TouchableOpacity>
+            </View>
           )}
           {Object.entries(groupedMessages).map(([date, msgs]) => (
             <View key={date}>
@@ -294,7 +318,7 @@ export default function ConversationScreen() {
           ))}
         </ScrollView>
 
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
+        {!peerError && <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.inputButton} onPress={() => Alert.alert(t('chat.comingSoon'))}>
               <Ionicons name='add-outline' size={24} color='#0A58A5' />
@@ -307,6 +331,7 @@ export default function ConversationScreen() {
               value={messageText}
               onChangeText={handleTextChange}
               multiline
+              maxLength={4000}
             />
           </View>
 
@@ -324,7 +349,7 @@ export default function ConversationScreen() {
           >
             <Ionicons name="send" size={20} color="#fff" />
           </TouchableOpacity>
-        </View>
+        </View>}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -362,9 +387,6 @@ function createStyles(theme: any, colorScheme: any) {
       borderRadius: 18,
       marginRight: 12,
     },
-    headerButton: {
-      padding: 8,
-    },
     messagesContainer: {
       flex: 1,
       paddingHorizontal: 12,
@@ -374,8 +396,21 @@ function createStyles(theme: any, colorScheme: any) {
     },
     errorText: {
       color: '#C0392B',
-      textAlign: 'center',
-      paddingVertical: 16,
+      flex: 1,
+    },
+    errorBanner: {
+      marginVertical: 12,
+      padding: 12,
+      borderRadius: 8,
+      backgroundColor: '#FDECEA',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    retryText: {
+      color: '#0A58A5',
+      fontWeight: '700',
     },
     inputContainer: {
       flexDirection: 'row',

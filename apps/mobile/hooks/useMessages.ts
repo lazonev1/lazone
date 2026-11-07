@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { DocumentSnapshot } from "firebase/firestore";
 import * as messageRepository from "@/repositories/messageRepository";
 import {
   MessageViewModel,
   ConversationViewModel,
   ConversationListItem,
+  ConversationPeer,
 } from "@/types/message";
 import i18n from "@/localization";
 
@@ -31,16 +31,21 @@ export function useMessages(conversationId?: string, limit: number = 50) {
   const [messages, setMessages] = useState<MessageViewModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const activeConversationRef = useRef<string | undefined>(conversationId);
 
   // Real-time subscription
   useEffect(() => {
     if (!conversationId) {
+      activeConversationRef.current = undefined;
       setMessages([]);
       setError(null);
       setLoading(false);
       return;
     }
 
+    if (activeConversationRef.current !== conversationId) setMessages([]);
+    activeConversationRef.current = conversationId;
     setLoading(true);
     setError(null);
 
@@ -61,34 +66,27 @@ export function useMessages(conversationId?: string, limit: number = 50) {
     return () => {
       unsubscribe();
     };
-  }, [conversationId, limit]);
+  }, [conversationId, limit, retryVersion]);
+
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+  const isCurrentConversation = activeConversationRef.current === conversationId;
 
   const sendMessage = useCallback(
     async (senderId: string, text: string): Promise<void> => {
       if (!conversationId) {
         throw new Error(i18n.t("messages:errors.conversationUnavailable"));
       }
-      try {
-        await messageRepository.sendMessage(
-          conversationId,
-          senderId,
-          text
-        );
-        // No need to manually add — onSnapshot will pick it up
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : i18n.t("messages:errors.sendFailed");
-        setError(message);
-        throw err;
-      }
+      await messageRepository.sendMessage(conversationId, senderId, text);
+      // No need to manually add — onSnapshot will pick it up.
     },
     [conversationId]
   );
 
   return {
-    messages,
-    loading,
-    error,
+    messages: isCurrentConversation ? messages : [],
+    loading: isCurrentConversation ? loading : Boolean(conversationId),
+    error: isCurrentConversation ? error : null,
+    retry,
     sendMessage,
   };
 }
@@ -123,34 +121,51 @@ export function useConversations(userId: string) {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const activeUserRef = useRef(userId);
 
   useEffect(() => {
     if (!userId) {
+      activeUserRef.current = "";
+      setConversations([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
+    if (activeUserRef.current !== userId) setConversations([]);
+    activeUserRef.current = userId;
     setLoading(true);
+    setError(null);
 
     // Subscribe to real-time updates
     const unsubscribe = messageRepository.subscribeToConversations(
       userId,
       (updatedConversations) => {
         setConversations(updatedConversations);
+        setError(null);
         setLoading(false);
-      }
+      },
+      (subscriptionError) => {
+        setError(subscriptionError.message);
+        setLoading(false);
+      },
     );
 
     // Cleanup subscription on unmount
     return () => {
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, retryVersion]);
+
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+  const isCurrentUser = activeUserRef.current === userId;
 
   return {
-    conversations,
-    loading,
-    error,
+    conversations: isCurrentUser ? conversations : [],
+    loading: isCurrentUser ? loading : Boolean(userId),
+    error: isCurrentUser ? error : null,
+    retry,
   };
 }
 
@@ -187,34 +202,136 @@ export function useConversationsList(userId: string) {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const typingExpiryRef = useRef(new Map<string, number>());
+  const rawTypingRef = useRef(new Map<string, boolean>());
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeUserRef = useRef(userId);
 
   useEffect(() => {
     if (!userId) {
+      activeUserRef.current = "";
+      setConversations([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
+    if (activeUserRef.current !== userId) setConversations([]);
+    activeUserRef.current = userId;
     setLoading(true);
+    setError(null);
+    typingExpiryRef.current.clear();
+    rawTypingRef.current.clear();
+
+    const scheduleTypingExpiry = () => {
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      const expiries = [...typingExpiryRef.current.values()];
+      if (!expiries.length) return;
+      const delay = Math.max(0, Math.min(...expiries) - Date.now());
+      typingTimerRef.current = setTimeout(() => {
+        const now = Date.now();
+        setConversations((current) => current.map((conversation) => ({
+          ...conversation,
+          isTyping: conversation.isTyping
+            && (typingExpiryRef.current.get(conversation._id) ?? 0) > now,
+        })));
+        for (const [id, expiresAt] of typingExpiryRef.current) {
+          if (expiresAt <= now) typingExpiryRef.current.delete(id);
+        }
+        scheduleTypingExpiry();
+      }, delay + 25);
+    };
 
     // Subscribe to real-time updates
     const unsubscribe = messageRepository.subscribeToConversationsList(
       userId,
       (updatedConversations) => {
-        setConversations(updatedConversations);
+        const now = Date.now();
+        const visibleConversations = updatedConversations.map((conversation) => {
+          const wasTyping = rawTypingRef.current.get(conversation._id) ?? false;
+          rawTypingRef.current.set(conversation._id, conversation.isTyping);
+          if (conversation.isTyping && !wasTyping) {
+            typingExpiryRef.current.set(conversation._id, now + 5_000);
+          } else if (!conversation.isTyping) {
+            typingExpiryRef.current.delete(conversation._id);
+          }
+          return {
+            ...conversation,
+            isTyping: conversation.isTyping
+              && (typingExpiryRef.current.get(conversation._id) ?? 0) > now,
+          };
+        });
+        setConversations(visibleConversations);
+        setError(null);
         setLoading(false);
-      }
+        scheduleTypingExpiry();
+      },
+      (subscriptionError) => {
+        setError(subscriptionError.message);
+        setLoading(false);
+      },
     );
 
     // Cleanup subscription on unmount
     return () => {
       unsubscribe();
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
-  }, [userId]);
+  }, [userId, retryVersion]);
+
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+  const isCurrentUser = activeUserRef.current === userId;
 
   return {
-    conversations,
-    loading,
-    error,
+    conversations: isCurrentUser ? conversations : [],
+    loading: isCurrentUser ? loading : Boolean(userId),
+    error: isCurrentUser ? error : null,
+    retry,
+  };
+}
+
+/** Loads the counterpart identity from the authorized conversation record. */
+export function useConversationPeer(conversationId: string | undefined, userId: string) {
+  const [peer, setPeer] = useState<ConversationPeer | null>(null);
+  const [loading, setLoading] = useState(Boolean(conversationId && userId));
+  const [error, setError] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const identityKey = `${userId}:${conversationId ?? ""}`;
+  const activeIdentityRef = useRef(identityKey);
+
+  useEffect(() => {
+    activeIdentityRef.current = identityKey;
+    setPeer(null);
+    setError(null);
+    if (!conversationId || !userId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    return messageRepository.subscribeToConversationPeer(
+      conversationId,
+      userId,
+      (nextPeer) => {
+        setPeer(nextPeer);
+        setError(nextPeer ? null : i18n.t("messages:errors.conversationUnavailable"));
+        setLoading(false);
+      },
+      (subscriptionError) => {
+        setError(subscriptionError.message);
+        setLoading(false);
+      },
+    );
+  }, [conversationId, identityKey, userId, retryVersion]);
+
+  const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
+  const isCurrentIdentity = activeIdentityRef.current === identityKey;
+
+  return {
+    peer: isCurrentIdentity ? peer : null,
+    loading: isCurrentIdentity ? loading : Boolean(conversationId && userId),
+    error: isCurrentIdentity ? error : null,
+    retry,
   };
 }
 
