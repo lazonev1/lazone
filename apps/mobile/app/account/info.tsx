@@ -7,8 +7,7 @@ import EditInfoPopup from '../../components/account/EditInfoPopup';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 export default function AccountInfoScreen() {
@@ -135,7 +134,7 @@ const infoRowStyles = StyleSheet.create({
 	},
 });
 
-function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' | null | undefined) {
+function createStyles(theme: typeof Colors.light, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
 	return StyleSheet.create({
 		container: {
 			padding: 24,

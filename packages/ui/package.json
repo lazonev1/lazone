@@ -12,7 +12,8 @@
     "react-native": "*"
   },
   "devDependencies": {
-    "react": "*",
-    "react-native": "*"
+    "@types/react": "~19.2.18",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
   }
 }

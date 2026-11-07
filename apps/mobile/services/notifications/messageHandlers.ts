@@ -1,12 +1,19 @@
 import { DeviceEventEmitter } from 'react-native';
-import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
-import { Router } from 'expo-router';
+import {
+  getInitialNotification,
+  getMessaging,
+  onMessage,
+  onNotificationOpenedApp,
+  RemoteMessage,
+} from '@react-native-firebase/messaging';
+import type { ImperativeRouter } from 'expo-router';
 
 export const SHOW_NOTIFICATION_BANNER = 'SHOW_NOTIFICATION_BANNER';
+const messaging = getMessaging();
 
 function handleNewMessageNavigation(
-  router: Router,
-  remoteMessage: FirebaseMessagingTypes.RemoteMessage
+  router: ImperativeRouter,
+  remoteMessage: RemoteMessage
 ) {
   const conversationId = remoteMessage.data?.conversationId;
   if (!conversationId) return;
@@ -22,8 +29,8 @@ function handleNewMessageNavigation(
 }
 
 function handleBookingStatusNavigation(
-  router: Router,
-  remoteMessage: FirebaseMessagingTypes.RemoteMessage
+  router: ImperativeRouter,
+  remoteMessage: RemoteMessage
 ) {
   const bookingId = remoteMessage.data?.bookingId;
   if (!bookingId) return;
@@ -31,19 +38,19 @@ function handleBookingStatusNavigation(
 }
 
 function isNewMessageNotification(
-  remoteMessage: FirebaseMessagingTypes.RemoteMessage
+  remoteMessage: RemoteMessage
 ): boolean {
   return remoteMessage.data?.type === 'new_message';
 }
 
 function isBookingStatusNotification(
-  remoteMessage: FirebaseMessagingTypes.RemoteMessage
+  remoteMessage: RemoteMessage
 ): boolean {
   return remoteMessage.data?.type === 'booking_status';
 }
 
 export function registerForegroundMessageHandler(getCurrentPath: () => string | null) {
-  return messaging().onMessage(async (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
+  return onMessage(messaging, async (remoteMessage: RemoteMessage) => {
     if (!isNewMessageNotification(remoteMessage) && !isBookingStatusNotification(remoteMessage)) return;
 
     if (isBookingStatusNotification(remoteMessage)) {
@@ -74,18 +81,18 @@ export function registerForegroundMessageHandler(getCurrentPath: () => string | 
   });
 }
 
-export function registerNotificationOpenHandlers(router: Router) {
-  const unsubscribe = messaging().onNotificationOpenedApp(
-    (remoteMessage: FirebaseMessagingTypes.RemoteMessage | null) => {
+export function registerNotificationOpenHandlers(router: ImperativeRouter) {
+  const unsubscribe = onNotificationOpenedApp(
+    messaging,
+    (remoteMessage: RemoteMessage | null) => {
       if (!remoteMessage) return;
       if (isBookingStatusNotification(remoteMessage)) handleBookingStatusNavigation(router, remoteMessage);
       else if (isNewMessageNotification(remoteMessage)) handleNewMessageNavigation(router, remoteMessage);
     }
   );
 
-  messaging()
-    .getInitialNotification()
-    .then((remoteMessage: FirebaseMessagingTypes.RemoteMessage | null) => {
+  getInitialNotification(messaging)
+    .then((remoteMessage: RemoteMessage | null) => {
       if (!remoteMessage) return;
       if (isBookingStatusNotification(remoteMessage)) handleBookingStatusNavigation(router, remoteMessage);
       else if (isNewMessageNotification(remoteMessage)) handleNewMessageNavigation(router, remoteMessage);

@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PermissionsAndroid, Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import {
+  AuthorizationStatus,
+  deleteToken,
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+  registerDeviceForRemoteMessages,
+  requestPermission,
+  subscribeToTopic,
+  unsubscribeFromTopic,
+} from '@react-native-firebase/messaging';
 import { removeUserNotificationToken, saveUserNotificationToken } from '@/repositories/notificationRepository';
 import {
   DEFAULT_TOPIC_SETTINGS,
@@ -13,6 +23,7 @@ import {
 } from './topics';
 
 let tokenRefreshUnsubscribe: (() => void) | null = null;
+const messaging = getMessaging();
 
 function isPushSupported(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
@@ -37,11 +48,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
   const androidGranted = await requestAndroidNotificationPermissionIfNeeded();
   if (!androidGranted) return false;
 
-  const authStatus = await messaging().requestPermission();
+  const authStatus = await requestPermission(messaging);
 
   return (
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL
+    authStatus === AuthorizationStatus.AUTHORIZED ||
+    authStatus === AuthorizationStatus.PROVISIONAL
   );
 }
 
@@ -74,16 +85,17 @@ async function subscribeToConfiguredTopics(settings: NotificationSettings): Prom
   await Promise.all(
     TOPIC_KEYS.map((key) => {
       if (settings[key]) {
-        return messaging().subscribeToTopic(TOPIC_NAME_MAP[key]);
+        return subscribeToTopic(messaging, TOPIC_NAME_MAP[key]);
       }
-      return messaging().unsubscribeFromTopic(TOPIC_NAME_MAP[key]);
+      return unsubscribeFromTopic(messaging, TOPIC_NAME_MAP[key]);
     })
   );
 }
 
 function setupTokenRefreshListener(userId: string) {
   tokenRefreshUnsubscribe?.();
-  tokenRefreshUnsubscribe = messaging().onTokenRefresh(
+  tokenRefreshUnsubscribe = onTokenRefresh(
+    messaging,
     async (token: string): Promise<void> => {
       try {
         await saveUserNotificationToken(userId, token);
@@ -100,9 +112,9 @@ export async function initializePushNotificationsForUser(userId: string): Promis
   const permissionGranted = await requestNotificationPermission();
   if (!permissionGranted) return;
 
-  await messaging().registerDeviceForRemoteMessages();
+  await registerDeviceForRemoteMessages(messaging);
 
-  const token = await messaging().getToken();
+  const token = await getToken(messaging);
   await saveUserNotificationToken(userId, token);
 
   const settingsKey = getNotificationSettingsStorageKey(userId);
@@ -144,9 +156,9 @@ export async function updateNotificationTopicSetting(
   } else {
     const topic = TOPIC_NAME_MAP[key];
     if (enabled) {
-      await messaging().subscribeToTopic(topic);
+      await subscribeToTopic(messaging, topic);
     } else {
-      await messaging().unsubscribeFromTopic(topic);
+      await unsubscribeFromTopic(messaging, topic);
     }
   }
 
@@ -157,7 +169,7 @@ export async function forceDeleteLocalPushToken(): Promise<void> {
   if (!isPushSupported()) return;
 
   try {
-    await messaging().deleteToken();
+    await deleteToken(messaging);
   } catch (error) {
     console.warn('Failed to delete local FCM token:', error);
   }
@@ -169,7 +181,7 @@ export async function cleanupPushNotificationsOnLogout(userId: string | null): P
   let token: string | null = null;
 
   try {
-    token = await messaging().getToken();
+    token = await getToken(messaging);
   } catch {
     token = null;
   }
