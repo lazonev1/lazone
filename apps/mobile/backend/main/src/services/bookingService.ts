@@ -11,6 +11,8 @@ import {
   serverTimestamp,
   Timestamp,
   orderBy,
+  onSnapshot,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { auth, db, COLLECTIONS } from '../config/firebase';
 import { BookingChecklistItem, BookingEditError, BookingStatus } from '@/types/booking';
@@ -189,6 +191,54 @@ export async function getBookingStatusEvents(
   return snapshot.docs.map(
     (event) => ({ _id: event.id, ...event.data() }) as BookingStatusEventDocument
   );
+}
+
+export function subscribeToBooking(
+  bookingId: string,
+  onUpdate: (booking: BookingDocument | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, COLLECTIONS.BOOKINGS, bookingId),
+    snapshot => onUpdate(snapshot.exists()
+      ? ({ _id: snapshot.id, ...snapshot.data() } as BookingDocument)
+      : null),
+    error => onError(error),
+  );
+}
+
+function subscribeToBookingQuery(
+  field: 'requesterId' | 'providerId',
+  userId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  const bookingsQuery = query(
+    collection(db, COLLECTIONS.BOOKINGS),
+    where(field, '==', userId),
+  );
+  return onSnapshot(bookingsQuery, snapshot => {
+    const bookings = snapshot.docs
+      .map(item => ({ _id: item.id, ...item.data() }) as BookingDocument)
+      .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+    onUpdate(bookings);
+  }, error => onError(error));
+}
+
+export function subscribeToRequesterBookings(
+  userId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return subscribeToBookingQuery('requesterId', userId, onUpdate, onError);
+}
+
+export function subscribeToProviderBookings(
+  providerId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return subscribeToBookingQuery('providerId', providerId, onUpdate, onError);
 }
 
 // ========== UPDATE ==========

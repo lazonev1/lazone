@@ -262,6 +262,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Two active accounts see accept/start/submit/changes/confirm/cancel reflected without reopening screens; logout/account switching cannot flash another user's records; racing mutations do not roll back unrelated actions.
 
+  **Progress — 2026-11-07:** Implemented on `fix/realtime-booking-sync`: participant-scoped realtime lists/details, sequenced timeline refreshes, identity-safe subscription cleanup, listener restart on Retry, distinct initial/refresh states, visible EN/FR errors, and removal of whole-list optimistic rollback. TypeScript, focused lint, and the full Firebase emulator suite pass, including active cross-account acceptance listeners. Native two-account lifecycle verification is still required: simulator UI automation timed out, so B03 intentionally remains unchecked. No Firestore deployment, migration, or EAS rebuild is required. See [flow and verification](realtime-booking-sync.md).
+
 ### B04 · P1 · Make checklist interaction stable and explain its role once
 
 - [ ] **Problem:** Checklist taps submit an entire progress map and refetch the whole booking, triggering full-page loading and risking lost concurrent changes. The provider/requester distinction is not consistently communicated.

@@ -111,6 +111,7 @@
     "dateAtTime": "{{date}} à {{time}}"
   },
   "errors": {
+    "liveSync": "Impossible d’actualiser les réservations. Vérifiez votre connexion et réessayez avant toute action.",
     "fetchBookings": "Impossible de récupérer les réservations",
     "signInRequired": "Vous devez être connecté pour réserver",
     "createFailed": "Impossible de créer la réservation",

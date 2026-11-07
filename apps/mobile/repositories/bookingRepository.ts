@@ -96,6 +96,73 @@ export async function getBookingDetail(bookingId: string): Promise<BookingViewMo
   }
 }
 
+export function subscribeToUserBookings(
+  userId: string,
+  onUpdate: (bookings: BookingViewModel[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return BookingService.subscribeToRequesterBookings(
+    userId,
+    documents => onUpdate(documents.map(document => toViewModel(document))),
+    onError,
+  );
+}
+
+export function subscribeToProviderBookings(
+  providerId: string,
+  onUpdate: (bookings: BookingViewModel[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return BookingService.subscribeToProviderBookings(
+    providerId,
+    documents => onUpdate(documents.map(document => toViewModel(document))),
+    onError,
+  );
+}
+
+export function subscribeToBookingDetail(
+  bookingId: string,
+  onUpdate: (booking: BookingViewModel | null) => void,
+  onError: (error: Error) => void,
+): () => void {
+  let active = true;
+  let sequence = 0;
+  let lastEvents: BookingStatusEvent[] = [];
+
+  const unsubscribeBooking = BookingService.subscribeToBooking(
+    bookingId,
+    async document => {
+      const currentSequence = ++sequence;
+      if (!document) {
+        if (active && currentSequence === sequence) onUpdate(null);
+        return;
+      }
+      // Status/actions must not wait for optional timeline reads to finish.
+      if (active) onUpdate(toViewModel(document, lastEvents, true));
+      try {
+        const eventDocuments = await BookingService.getBookingStatusEvents(bookingId);
+        if (active && currentSequence === sequence) {
+          lastEvents = eventDocuments.map(toStatusEventViewModel);
+          onUpdate(toViewModel(document, lastEvents));
+        }
+      } catch (error) {
+        console.warn('[BookingRepository] Timeline refresh unavailable:', error);
+        if (active && currentSequence === sequence) onUpdate(toViewModel(document, lastEvents, true));
+      }
+    },
+    error => {
+      sequence += 1;
+      if (active) onError(error);
+    },
+  );
+
+  return () => {
+    active = false;
+    sequence += 1;
+    unsubscribeBooking();
+  };
+}
+
 // ========== Write ==========
 
 export async function createBooking(

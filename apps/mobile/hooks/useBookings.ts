@@ -1,120 +1,97 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BookingChecklistItem, BookingEditError, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
+import { BookingChecklistItem, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
 import * as bookingRepo from '@/repositories/bookingRepository';
+import { useAuth } from '@/contexts/auth';
 import i18n from '@/localization';
 
-/**
- * Hook for the "My Bookings" list screen.
- * Fetches all bookings for the current user and provides create/cancel mutations.
- */
+type Subscribe<T> = (id: string, next: (value: T) => void, fail: (error: Error) => void) => () => void;
+
+/** Shared lifecycle: hide another identity's data immediately, retain same-key
+ * content on retry, and actually restart listeners after terminal errors. */
+function useBookingSubscription<T>(
+  key: string | undefined,
+  id: string | undefined,
+  subscribe: Subscribe<T>,
+  empty: T,
+) {
+  const [retryVersion, setRetryVersion] = useState(0);
+  const [state, setState] = useState<{
+    key?: string; data: T; ready: boolean; refreshing: boolean; error: Error | null;
+  }>({ key, data: empty, ready: false, refreshing: false, error: null });
+
+  useEffect(() => {
+    if (!key || !id) return;
+    let active = true;
+    setState(previous => ({
+      key,
+      data: previous.key === key ? previous.data : empty,
+      ready: previous.key === key && previous.ready,
+      refreshing: previous.key === key && previous.ready,
+      error: null,
+    }));
+    const unsubscribe = subscribe(id, data => {
+      if (active) setState({ key, data, ready: true, refreshing: false, error: null });
+    }, error => {
+      if (!active) return;
+      setState(previous => ({
+        key,
+        data: error.name === 'FirebaseError' && 'code' in error && error.code === 'permission-denied'
+          ? empty : previous.key === key ? previous.data : empty,
+        ready: true,
+        refreshing: false,
+        error,
+      }));
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [empty, id, key, retryVersion, subscribe]);
+
+  const refresh = useCallback(async () => { setRetryVersion(value => value + 1); }, []);
+  const current = Boolean(key) && state.key === key;
+  return {
+    data: current ? state.data : empty,
+    isLoading: Boolean(key) && (!current || !state.ready),
+    isRefreshing: current && state.refreshing,
+    error: current ? state.error : null,
+    refresh,
+  };
+}
+
+const EMPTY_BOOKINGS: BookingViewModel[] = [];
 
 export interface UseBookingsResult {
   bookings: BookingViewModel[];
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
-  createBooking: (
-    requesterName: string,
-    input: CreateBookingInput
-  ) => Promise<BookingViewModel>;
+  createBooking: (requesterName: string, input: CreateBookingInput) => Promise<BookingViewModel>;
   cancelBooking: (bookingId: string) => Promise<void>;
   refreshBookings: () => Promise<void>;
 }
 
 export function useBookings(userId?: string): UseBookingsResult {
-  const [bookings, setBookings] = useState<BookingViewModel[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchBookings = useCallback(async () => {
-    if (!userId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await bookingRepo.getUserBookings(userId);
-      setBookings(data);
-    } catch (err) {
-      console.error('[useBookings] Error fetching bookings:', err);
-      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchBookings')));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
-
-  const createBooking = useCallback(
-    async (requesterName: string, input: CreateBookingInput): Promise<BookingViewModel> => {
-      if (!userId) throw new Error(i18n.t('booking:errors.signInRequired'));
-
-      setError(null);
-
-      try {
-        const newBooking = await bookingRepo.createBooking(userId, requesterName, input);
-        console.log('[useBookings] Booking created:', newBooking.id);
-
-        // Add to local state (most recent first)
-        setBookings((prev) => [newBooking, ...prev]);
-        return newBooking;
-      } catch (err) {
-        console.error('[useBookings] Error creating booking:', err);
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.createFailed'));
-        setError(error);
-        throw error;
-      }
-    },
-    [userId]
-  );
-
-  const cancelBooking = useCallback(
-    async (bookingId: string): Promise<void> => {
-      const previous = [...bookings];
-
-      // Optimistic update
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const } : b))
-      );
-
-      try {
-        await bookingRepo.cancelBooking(bookingId);
-        console.log('[useBookings] Booking cancelled:', bookingId);
-      } catch (err) {
-        console.error('[useBookings] Error cancelling booking:', err);
-        // Rollback
-        setBookings(previous);
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.cancelFailed'));
-        setError(error);
-        throw error;
-      }
-    },
-    [bookings]
-  );
-
-  const refreshBookings = useCallback(async () => {
-    await fetchBookings();
-  }, [fetchBookings]);
+  const { user } = useAuth();
+  const ownerId = user?.uid === userId ? userId : undefined;
+  const resource = useBookingSubscription(ownerId, ownerId, bookingRepo.subscribeToUserBookings, EMPTY_BOOKINGS);
+  const createBooking = useCallback(async (requesterName: string, input: CreateBookingInput) => {
+    if (!ownerId) throw new Error(i18n.t('booking:errors.signInRequired'));
+    return bookingRepo.createBooking(ownerId, requesterName, input);
+  }, [ownerId]);
 
   return {
-    bookings,
-    isLoading,
-    error,
+    bookings: resource.data,
+    isLoading: resource.isLoading,
+    isRefreshing: resource.isRefreshing,
+    error: resource.error,
     createBooking,
-    cancelBooking,
-    refreshBookings,
+    cancelBooking: bookingRepo.cancelBooking,
+    refreshBookings: resource.refresh,
   };
 }
-
-/**
- * Hook for a single booking detail / edit screen.
- * Fetches one booking and provides cancel/update mutations.
- */
 
 export interface UseBookingDetailResult {
   booking: BookingViewModel | null;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
   cancelBooking: () => Promise<void>;
   updateBooking: (input: UpdateBookingInput) => Promise<BookingViewModel>;
@@ -128,280 +105,69 @@ export interface UseBookingDetailResult {
 }
 
 export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
-  const [booking, setBooking] = useState<BookingViewModel | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchBooking = useCallback(async () => {
-    if (!bookingId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await bookingRepo.getBookingDetail(bookingId);
-      setBooking(data);
-    } catch (err) {
-      console.error('[useBookingDetail] Error fetching booking:', err);
-      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchBooking')));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [bookingId]);
-
-  useEffect(() => {
-    fetchBooking();
-  }, [fetchBooking]);
-
-  const cancelBooking = useCallback(async (): Promise<void> => {
-    if (!bookingId || !booking) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
-
-    const previous = { ...booking };
-
-    // Optimistic update
-    setBooking({ ...booking, status: 'cancelled' });
-
-    try {
-      await bookingRepo.cancelBooking(bookingId);
-      console.log('[useBookingDetail] Booking cancelled');
-    } catch (err) {
-      console.error('[useBookingDetail] Error cancelling booking:', err);
-      setBooking(previous); // Rollback
-      const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.cancelFailed'));
-      setError(error);
-      throw error;
-    }
-  }, [bookingId, booking]);
-
-  const updateBooking = useCallback(
-    async (input: UpdateBookingInput): Promise<BookingViewModel> => {
-      if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
-
-      try {
-        const updated = await bookingRepo.updateBooking(bookingId, input);
-        setBooking(updated);
-        console.log('[useBookingDetail] Booking updated');
-        return updated;
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.updateFailed'));
-        // Expected ownership/status conflicts belong to the edit workflow and
-        // must not replace the already-loaded booking with a page-load error.
-        if (!(error instanceof BookingEditError)) {
-          console.error('[useBookingDetail] Error updating booking:', error);
-          setError(error);
-        }
-        throw error;
-      }
-    },
-    [bookingId]
-  );
-
-  const updateStatus = useCallback(
-    async (status: 'in_progress' | 'awaiting_confirmation' | 'completed'): Promise<void> => {
-      if (!bookingId || !booking) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
-
-      const previous = booking;
-      setBooking({ ...booking, status });
-
-      try {
-        if (status === 'in_progress') {
-          await bookingRepo.startBooking(bookingId);
-        } else if (status === 'awaiting_confirmation') {
-          await bookingRepo.submitBookingForConfirmation(bookingId);
-        } else {
-          await bookingRepo.confirmBookingCompletion(bookingId);
-        }
-      } catch (err) {
-        console.error(`[useBookingDetail] Error updating status to ${status}:`, err);
-        setBooking(previous);
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.statusUpdateFailed'));
-        setError(error);
-        throw error;
-      }
-    },
-    [bookingId, booking]
-  );
-
-  const startBooking = useCallback(() => updateStatus('in_progress'), [updateStatus]);
-  const completeBooking = useCallback(() => updateStatus('awaiting_confirmation'), [updateStatus]);
-  const submitForConfirmation = completeBooking;
-  const confirmCompletion = useCallback(() => updateStatus('completed'), [updateStatus]);
-
-  const requestChanges = useCallback(async (reason: string) => {
-    if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
-    await bookingRepo.requestBookingChanges(bookingId, reason);
-    await fetchBooking();
-  }, [bookingId, fetchBooking]);
-
-  const updateChecklist = useCallback(async (checklist: BookingChecklistItem[]) => {
-    if (!bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
-    await bookingRepo.updateBookingChecklist(bookingId, checklist);
-    await fetchBooking();
-  }, [bookingId, fetchBooking]);
-
-  const refreshBooking = useCallback(async () => {
-    await fetchBooking();
-  }, [fetchBooking]);
+  const { user } = useAuth();
+  const key = user?.uid && bookingId ? `${user.uid}:${bookingId}` : undefined;
+  const resource = useBookingSubscription(key, bookingId, bookingRepo.subscribeToBookingDetail, null);
+  const requireBookingId = useCallback(() => {
+    if (!key || !bookingId) throw new Error(i18n.t('booking:errors.noBookingLoaded'));
+    return bookingId;
+  }, [bookingId, key]);
+  // Firestore transactions authorize/recheck every mutation. Only the live
+  // subscription changes displayed data, so failures cannot roll it backward.
+  const cancelBooking = useCallback(() => bookingRepo.cancelBooking(requireBookingId()), [requireBookingId]);
+  const updateBooking = useCallback((input: UpdateBookingInput) =>
+    bookingRepo.updateBooking(requireBookingId(), input), [requireBookingId]);
+  const startBooking = useCallback(() => bookingRepo.startBooking(requireBookingId()), [requireBookingId]);
+  const submitForConfirmation = useCallback(() =>
+    bookingRepo.submitBookingForConfirmation(requireBookingId()), [requireBookingId]);
+  const confirmCompletion = useCallback(() =>
+    bookingRepo.confirmBookingCompletion(requireBookingId()), [requireBookingId]);
+  const requestChanges = useCallback((reason: string) =>
+    bookingRepo.requestBookingChanges(requireBookingId(), reason), [requireBookingId]);
+  const updateChecklist = useCallback((checklist: BookingChecklistItem[]) =>
+    bookingRepo.updateBookingChecklist(requireBookingId(), checklist), [requireBookingId]);
 
   return {
-    booking,
-    isLoading,
-    error,
-    cancelBooking,
-    updateBooking,
-    startBooking,
-    completeBooking,
-    updateChecklist,
-    submitForConfirmation,
-    confirmCompletion,
-    requestChanges,
-    refreshBooking,
+    booking: resource.data,
+    isLoading: resource.isLoading,
+    isRefreshing: resource.isRefreshing,
+    error: resource.error,
+    cancelBooking, updateBooking, startBooking,
+    completeBooking: submitForConfirmation,
+    submitForConfirmation, confirmCompletion, requestChanges, updateChecklist,
+    refreshBooking: resource.refresh,
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Provider-side hook — "Bookings others made TO me"
-// Separate from useBookings (requester-side) by design:
-//   • Different Firestore query (providerId vs requesterId)
-//   • Different mutations (accept/decline vs create/cancel/edit)
-//   • Different UI filtering (pending → incoming, confirmed → upcoming, etc.)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export interface UseProviderBookingsResult {
-  /** All bookings for this provider (unfiltered) */
   allBookings: BookingViewModel[];
-  /** Pending bookings awaiting provider response */
   incomingRequests: BookingViewModel[];
-  /** Confirmed or in-progress bookings */
   upcomingBookings: BookingViewModel[];
-  /** Completed bookings (for earnings display) */
   completedBookings: BookingViewModel[];
-
-  /** Transition a pending booking → confirmed */
   acceptBooking: (bookingId: string) => Promise<void>;
-  /** Transition a pending booking → cancelled (declined) */
   declineBooking: (bookingId: string) => Promise<void>;
-
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
   refreshBookings: () => Promise<void>;
 }
 
-/**
- * Hook for the provider's Business screen.
- * Fetches all bookings where the current user is the provider,
- * then partitions them by status for different UI sections.
- *
- * @param providerId — The provider's ID (same as user._id for providers)
- */
 export function useProviderBookings(providerId?: string): UseProviderBookingsResult {
-  const [allBookings, setAllBookings] = useState<BookingViewModel[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchBookings = useCallback(async () => {
-    if (!providerId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await bookingRepo.getProviderBookings(providerId);
-      setAllBookings(data);
-    } catch (err) {
-      console.error('[useProviderBookings] Error fetching bookings:', err);
-      setError(err instanceof Error ? err : new Error(i18n.t('booking:errors.fetchProviderBookings')));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [providerId]);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
-
-  // ── Derived lists (re-computed only when allBookings changes) ──
-
-  const incomingRequests = useMemo(
-    () => allBookings.filter((b) => b.status === 'pending'),
-    [allBookings]
-  );
-
-  const upcomingBookings = useMemo(
-    () => allBookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'awaiting_confirmation'),
-    [allBookings]
-  );
-
-  const completedBookings = useMemo(
-    () => allBookings.filter((b) => b.status === 'completed'),
-    [allBookings]
-  );
-
-  // ── Mutations with optimistic updates ──
-
-  const acceptBooking = useCallback(
-    async (bookingId: string): Promise<void> => {
-      const previous = [...allBookings];
-
-      // Optimistic: move from pending → confirmed
-      setAllBookings((prev) =>
-        prev.map((b) =>
-          b.id === bookingId ? { ...b, status: 'confirmed' as const } : b
-        )
-      );
-
-      try {
-        await bookingRepo.confirmBooking(bookingId);
-        console.log('[useProviderBookings] Booking accepted:', bookingId);
-      } catch (err) {
-        console.error('[useProviderBookings] Error accepting booking:', err);
-        setAllBookings(previous); // Rollback
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.acceptFailed'));
-        setError(error);
-        throw error;
-      }
-    },
-    [allBookings]
-  );
-
-  const declineBooking = useCallback(
-    async (bookingId: string): Promise<void> => {
-      const previous = [...allBookings];
-
-      // Optimistic: move from pending → cancelled
-      setAllBookings((prev) =>
-        prev.map((b) =>
-          b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
-        )
-      );
-
-      try {
-        await bookingRepo.declineBooking(bookingId);
-        console.log('[useProviderBookings] Booking declined:', bookingId);
-      } catch (err) {
-        console.error('[useProviderBookings] Error declining booking:', err);
-        setAllBookings(previous); // Rollback
-        const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.declineFailed'));
-        setError(error);
-        throw error;
-      }
-    },
-    [allBookings]
-  );
-
-  const refreshBookings = useCallback(async () => {
-    await fetchBookings();
-  }, [fetchBookings]);
-
+  const { user } = useAuth();
+  const ownerId = user?.uid === providerId ? providerId : undefined;
+  const resource = useBookingSubscription(ownerId, ownerId, bookingRepo.subscribeToProviderBookings, EMPTY_BOOKINGS);
+  const allBookings = resource.data;
+  const incomingRequests = useMemo(() => allBookings.filter(booking => booking.status === 'pending'), [allBookings]);
+  const upcomingBookings = useMemo(() => allBookings.filter(booking =>
+    ['confirmed', 'in_progress', 'awaiting_confirmation'].includes(booking.status)), [allBookings]);
+  const completedBookings = useMemo(() => allBookings.filter(booking => booking.status === 'completed'), [allBookings]);
   return {
-    allBookings,
-    incomingRequests,
-    upcomingBookings,
-    completedBookings,
-    acceptBooking,
-    declineBooking,
-    isLoading,
-    error,
-    refreshBookings,
+    allBookings, incomingRequests, upcomingBookings, completedBookings,
+    acceptBooking: bookingRepo.confirmBooking,
+    declineBooking: bookingRepo.declineBooking,
+    isLoading: resource.isLoading,
+    isRefreshing: resource.isRefreshing,
+    error: resource.error,
+    refreshBookings: resource.refresh,
   };
 }

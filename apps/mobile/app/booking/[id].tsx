@@ -1,6 +1,5 @@
 import { View, StyleSheet, ScrollView, Appearance, Alert, ActivityIndicator, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBookingDetail } from '@/hooks/useBookings';
@@ -10,7 +9,7 @@ import { Button } from '@lazone/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { getStatusColor, getStatusLabel } from '@/components/booking/BookingStatus';
 import { BookingStatus, BookingStatusEvent, BookingViewModel } from '@/types/booking';
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
@@ -45,6 +44,7 @@ export default function BookingDetailsScreen() {
   const {
     booking,
     isLoading,
+    error,
     cancelBooking,
     startBooking,
     updateChecklist,
@@ -94,15 +94,6 @@ export default function BookingDetailsScreen() {
   useEffect(() => {
     navigation.setOptions({ title: t('details.title') });
   }, [navigation, t]);
-
-  // Re-fetch booking data when screen regains focus (e.g., after editing)
-  useFocusEffect(
-    useCallback(() => {
-      if (bookingId) {
-        refreshBooking();
-      }
-    }, [bookingId, refreshBooking])
-  );
 
   const formatDate = (dateString: string) => {
     try {
@@ -176,7 +167,6 @@ export default function BookingDetailsScreen() {
     try {
       await bookingRepo.confirmBooking(bookingId);
       showToast(t('details.toasts.accepted'), 'success');
-      refreshBooking();
     } catch {
       showToast(t('details.toasts.acceptFailed'), 'error');
     } finally {
@@ -199,7 +189,6 @@ export default function BookingDetailsScreen() {
             try {
               await bookingRepo.declineBooking(bookingId);
               showToast(t('details.toasts.declined'), 'success');
-              refreshBooking();
             } catch {
               showToast(t('details.toasts.declineFailed'), 'error');
             } finally {
@@ -230,7 +219,6 @@ export default function BookingDetailsScreen() {
             if (nextStatus === 'in_progress') await startBooking();
             else await submitForConfirmation();
             showToast(successMessage, 'success');
-            await refreshBooking();
           } catch {
             showToast(t('details.toasts.statusUpdateFailed'), 'error');
           } finally {
@@ -250,7 +238,7 @@ export default function BookingDetailsScreen() {
 
   const handleConfirmCompletion = () => Alert.alert(t('details.alerts.confirmCompletionTitle'), t('details.alerts.confirmCompletionMessage'), [
     { text: t('details.alerts.notYet'), style: 'cancel' },
-    { text: t('common:actions.confirm'), onPress: async () => { setActionInFlight('confirm'); try { await confirmCompletion(); showToast(t('details.toasts.completionConfirmed'), 'success'); await refreshBooking(); } catch (error) { showToast(error instanceof Error ? error.message : t('details.toasts.completionFailed'), 'error'); } finally { setActionInFlight(null); } } },
+    { text: t('common:actions.confirm'), onPress: async () => { setActionInFlight('confirm'); try { await confirmCompletion(); showToast(t('details.toasts.completionConfirmed'), 'success'); } catch (error) { showToast(error instanceof Error ? error.message : t('details.toasts.completionFailed'), 'error'); } finally { setActionInFlight(null); } } },
   ]);
 
   const handleRequestChanges = async () => {
@@ -276,8 +264,14 @@ export default function BookingDetailsScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="alert-circle-outline" size={64} color={theme.icon} />
-        <ThemedText style={styles.loadingText}>{t('details.notFound')}</ThemedText>
-        <Button label={t('details.goBack')} onPress={() => router.back()} variant="primary" size="small" style={{ marginTop: 16 }} />
+        <ThemedText style={styles.loadingText}>{error ? t('errors.liveSync') : t('details.notFound')}</ThemedText>
+        <Button
+          label={error ? t('common:actions.retry') : t('details.goBack')}
+          onPress={error ? () => void refreshBooking() : () => router.back()}
+          variant="primary"
+          size="small"
+          style={{ marginTop: 16 }}
+        />
       </View>
     );
   }
@@ -285,7 +279,7 @@ export default function BookingDetailsScreen() {
   const statusColor = getStatusColor(booking.status);
 
   const renderActionPanel = () => {
-    const isActing = actionInFlight !== null;
+    const isActing = actionInFlight !== null || Boolean(error);
 
     if (isProvider) {
       if (booking.status === 'completed' || booking.status === 'cancelled') return null;
@@ -400,6 +394,14 @@ export default function BookingDetailsScreen() {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {error && (
+          <View style={styles.syncBanner} accessibilityRole="alert">
+            <ThemedText style={styles.syncText}>{t('errors.liveSync')}</ThemedText>
+            <Pressable onPress={() => void refreshBooking()} accessibilityRole="button">
+              <ThemedText style={styles.retryText}>{t('common:actions.retry')}</ThemedText>
+            </Pressable>
+          </View>
+        )}
         {/* Status Banner */}
         <View style={styles.header}>
           <Ionicons name="calendar" size={32} color={statusColor} />
@@ -591,6 +593,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.7,
   },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 10,
+    backgroundColor: '#FDECEA',
+  },
+  syncText: { flex: 1, color: '#9C2F22' },
+  retryText: { color: '#0A58A5', fontWeight: '700' },
   section: {
     marginBottom: 24,
   },

@@ -111,6 +111,7 @@
     "dateAtTime": "{{date}} at {{time}}"
   },
   "errors": {
+    "liveSync": "Booking information could not be refreshed. Check your connection and retry before taking action.",
     "fetchBookings": "Failed to fetch bookings",
     "signInRequired": "User must be signed in to book",
     "createFailed": "Failed to create booking",
