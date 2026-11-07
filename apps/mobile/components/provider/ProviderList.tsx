@@ -6,6 +6,7 @@ import ProviderListItem from '@/components/provider/ProviderListItem';
 import { ProviderViewModel } from '@/types/provider';
 import { Colors } from '@/constants/Colors';
 import { useTranslation } from 'react-i18next';
+import { getStartingPrice } from '@/utils/providerSearch';
 
 interface ProviderListProps {
   providers: ProviderViewModel[];
@@ -16,6 +17,7 @@ interface ProviderListProps {
   ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
   emptyMessage?: string;
   contentContainerStyle?: object;
+  showSearchMetadata?: boolean;
 }
 
 /**
@@ -32,9 +34,10 @@ export function ProviderList({
   ListHeaderComponent,
   emptyMessage,
   contentContainerStyle,
+  showSearchMetadata = false,
 }: ProviderListProps) {
   const router = useRouter();
-  const { t } = useTranslation('explore');
+  const { t, i18n } = useTranslation('explore');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
@@ -46,6 +49,14 @@ export function ProviderList({
         description={item.bio}
         avatar={typeof item.avatar === 'string' ? { uri: item.avatar } : item.avatar}
         rating={item.rating}
+        metadata={showSearchMetadata ? [
+          getStartingPrice(item) === undefined ? t('search.priceUnavailable')
+            : t('search.fromPrice', { price: getStartingPrice(item)!.toLocaleString(i18n.language) }),
+          item.locationDetails?.city,
+          item.distance === undefined ? t('search.distanceUnknown')
+            : t('search.approxDistance', { km: item.distance.toLocaleString(i18n.language, { maximumFractionDigits: 1 }) }),
+          item.remoteService ? t('search.remoteAvailable') : undefined,
+        ].filter(Boolean).join(' · ') : undefined}
         onPress={() => router.push(`/provider/${item.id}`)}
       />
     </View>
@@ -98,6 +109,8 @@ export function ProviderList({
       onEndReached={onEndReached}
       onEndReachedThreshold={0.5}
       contentContainerStyle={[styles.listContent, contentContainerStyle]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       removeClippedSubviews={true}
       maxToRenderPerBatch={10}
       updateCellsBatchingPeriod={50}
