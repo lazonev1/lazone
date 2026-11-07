@@ -42,6 +42,14 @@ async function expectDenied(label, operation) {
   throw new Error(`${label} should be denied`);
 }
 
+async function createBookingIdempotently(db, bookingRef, payload) {
+  return runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(bookingRef);
+    if (!existing.exists()) transaction.set(bookingRef, payload);
+    return bookingRef.id;
+  });
+}
+
 async function writeProviderServicesInBatches(db, providerId, services, batchSize = 5) {
   for (let start = 0; start < services.length; start += batchSize) {
     const batch = writeBatch(db);
@@ -457,6 +465,23 @@ try {
   await expectDenied('service is not public without its parent provider', () => getDoc(
     doc(anonymousClient.db, 'providers', orphanProviderId, 'services', 'orphan-service'),
   ));
+  await expectAllowed('authenticated booking flow can confirm a service is absent', async () => {
+    const snapshot = await getDoc(doc(
+      requesterClient.db,
+      'providers',
+      providerId,
+      'services',
+      `removed-${runId}`,
+    ));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('anonymous users cannot probe absent service IDs', () => getDoc(doc(
+    anonymousClient.db,
+    'providers',
+    providerId,
+    'services',
+    `removed-${runId}`,
+  )));
 
   const earningId = `earning-${runId}`;
   await seedAdminDocument(`earnings/${earningId}`, {
@@ -478,6 +503,7 @@ try {
   const requesterBookingRef = doc(requesterClient.db, 'bookings', bookingId);
   const providerBookingRef = doc(providerClient.db, 'bookings', bookingId);
   const validBookingPayload = {
+    creationRequestId: bookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -497,21 +523,39 @@ try {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  await expectAllowed('booking creation', () => setDoc(requesterBookingRef, validBookingPayload));
+  await expectAllowed('booking creation', () => createBookingIdempotently(
+    requesterClient.db,
+    requesterBookingRef,
+    validBookingPayload,
+  ));
+  await expectAllowed('booking creation retry resolves to the original request', async () => {
+    const retriedId = await createBookingIdempotently(
+      requesterClient.db,
+      requesterBookingRef,
+      { ...validBookingPayload, notes: 'This retry must not overwrite the committed request.' },
+    );
+    assert.equal(retriedId, bookingId);
+    assert.equal((await getDoc(requesterBookingRef)).data().notes, null);
+  });
+  await expectDenied('booking request identity must match its document ID', () => setDoc(
+    doc(requesterClient.db, 'bookings', `mismatched-request-${runId}`),
+    validBookingPayload,
+  ));
 
   const hostileBookingRef = (label) => doc(requesterClient.db, 'bookings', `${label}-${runId}`);
   await expectDenied('self-booking is rejected', () => setDoc(
     doc(providerClient.db, 'bookings', `self-${runId}`),
-    { ...validBookingPayload, requesterId: providerId },
+    { ...validBookingPayload, creationRequestId: `self-${runId}`, requesterId: providerId },
   ));
   await expectDenied('booking for a nonexistent provider service is rejected', () => setDoc(
     hostileBookingRef('missing-service'),
-    { ...validBookingPayload, serviceId: 'missing-service', serviceName: 'Missing' },
+    { ...validBookingPayload, creationRequestId: `missing-service-${runId}`, serviceId: 'missing-service', serviceName: 'Missing' },
   ));
   await expectDenied('booking cannot target an orphaned provider service', () => setDoc(
     hostileBookingRef('orphan-service'),
     {
       ...validBookingPayload,
+      creationRequestId: `orphan-service-${runId}`,
       providerId: orphanProviderId,
       providerName: 'Deleted Provider',
       serviceId: 'orphan-service',
@@ -520,44 +564,45 @@ try {
   ));
   await expectDenied('booking cannot forge the selected service name', () => setDoc(
     hostileBookingRef('forged-service-name'),
-    { ...validBookingPayload, serviceName: 'Impersonated service' },
+    { ...validBookingPayload, creationRequestId: `forged-service-name-${runId}`, serviceName: 'Impersonated service' },
   ));
   await expectDenied('booking cannot contain a negative price', () => setDoc(
     hostileBookingRef('negative-price'),
-    { ...validBookingPayload, price: -1 },
+    { ...validBookingPayload, creationRequestId: `negative-price-${runId}`, price: -1 },
   ));
   await expectDenied('booking cannot contain a fractional price', () => setDoc(
     hostileBookingRef('fractional-price'),
-    { ...validBookingPayload, price: 10.5 },
+    { ...validBookingPayload, creationRequestId: `fractional-price-${runId}`, price: 10.5 },
   ));
   await expectDenied('booking price cannot exceed the supported CFA range', () => setDoc(
     hostileBookingRef('excessive-price'),
-    { ...validBookingPayload, price: 1_000_000_000 },
+    { ...validBookingPayload, creationRequestId: `excessive-price-${runId}`, price: 1_000_000_000 },
   ));
   await expectDenied('booking must preserve the minimum scheduling lead time', () => setDoc(
     hostileBookingRef('too-soon'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() + 60_000) },
+    { ...validBookingPayload, creationRequestId: `too-soon-${runId}`, bookingDate: new Date(Date.now() + 60_000) },
   ));
   await expectDenied('booking cannot be created in the past', () => setDoc(
     hostileBookingRef('past-date'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() - 60_000) },
+    { ...validBookingPayload, creationRequestId: `past-date-${runId}`, bookingDate: new Date(Date.now() - 60_000) },
   ));
   await expectDenied('booking cannot exceed the scheduling horizon', () => setDoc(
     hostileBookingRef('far-date'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() + 366 * 24 * 60 * 60 * 1000) },
+    { ...validBookingPayload, creationRequestId: `far-date-${runId}`, bookingDate: new Date(Date.now() + 366 * 24 * 60 * 60 * 1000) },
   ));
   await expectDenied('booking cannot add unrecognized fields', () => setDoc(
     hostileBookingRef('extra-field'),
-    { ...validBookingPayload, paid: true },
+    { ...validBookingPayload, creationRequestId: `extra-field-${runId}`, paid: true },
   ));
   await expectDenied('booking cannot contain malformed checklist items', () => setDoc(
     hostileBookingRef('malformed-checklist'),
-    { ...validBookingPayload, checklist: [null], checklistProgress: { 'item-1': false } },
+    { ...validBookingPayload, creationRequestId: `malformed-checklist-${runId}`, checklist: [null], checklistProgress: { 'item-1': false } },
   ));
   await expectDenied('booking checklist IDs and progress must match', () => setDoc(
     hostileBookingRef('forged-checklist'),
     {
       ...validBookingPayload,
+      creationRequestId: `forged-checklist-${runId}`,
       checklist: [{ id: 'forged', description: 'Forged item', completed: false }],
       checklistProgress: { forged: false },
     },
@@ -608,6 +653,7 @@ try {
   const editRaceProviderRef = doc(providerClient.db, 'bookings', editRaceId);
   await expectAllowed('edit-race booking creation', () => setDoc(editRaceRequesterRef, {
     ...validBookingPayload,
+    creationRequestId: editRaceId,
     notes: 'Original terms',
   }));
   const editRaceResults = await Promise.allSettled([
@@ -745,6 +791,7 @@ try {
   const crossRequesterBookingRef = doc(requesterClient.db, 'bookings', crossBookingId);
   const crossProviderBookingRef = doc(providerClient.db, 'bookings', crossBookingId);
   await expectAllowed('cross-reference test booking creation', () => setDoc(crossRequesterBookingRef, {
+    creationRequestId: crossBookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -784,6 +831,7 @@ try {
   const concurrentRequesterBookingRef = doc(requesterClient.db, 'bookings', concurrentBookingId);
   const concurrentProviderBookingRef = doc(providerClient.db, 'bookings', concurrentBookingId);
   await expectAllowed('concurrency test booking creation', () => setDoc(concurrentRequesterBookingRef, {
+    creationRequestId: concurrentBookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -1315,6 +1363,7 @@ try {
     assert.ok(bookings.docs.some(item => item.id === bookingId));
   });
   await expectAllowed('provider can book another provider', () => setDoc(doc(requesterClient.db, 'bookings', `after-enrollment-${runId}`), {
+    creationRequestId: `after-enrollment-${runId}`,
     requesterId, requesterName: 'Test Requester', providerId, providerName: 'Test Provider',
     serviceId: 'service-1', serviceName: 'Test Service',
     bookingDate: new Date(Date.now() + 60 * 60 * 1000), price: 1000, notes: null, status: 'pending',

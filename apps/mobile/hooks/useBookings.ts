@@ -14,8 +14,10 @@ export interface UseBookingsResult {
   error: Error | null;
   createBooking: (
     requesterName: string,
-    input: CreateBookingInput
+    input: CreateBookingInput,
+    creationRequestId: string,
   ) => Promise<BookingViewModel>;
+  createBookingRequestId: () => string;
   cancelBooking: (bookingId: string) => Promise<void>;
   refreshBookings: () => Promise<void>;
 }
@@ -47,13 +49,13 @@ export function useBookings(userId?: string): UseBookingsResult {
   }, [fetchBookings]);
 
   const createBooking = useCallback(
-    async (requesterName: string, input: CreateBookingInput): Promise<BookingViewModel> => {
+    async (requesterName: string, input: CreateBookingInput, creationRequestId: string): Promise<BookingViewModel> => {
       if (!userId) throw new Error(i18n.t('booking:errors.signInRequired'));
 
       setError(null);
 
       try {
-        const newBooking = await bookingRepo.createBooking(userId, requesterName, input);
+        const newBooking = await bookingRepo.createBooking(userId, requesterName, input, creationRequestId);
         console.log('[useBookings] Booking created:', newBooking.id);
 
         // Add to local state (most recent first)
@@ -102,6 +104,7 @@ export function useBookings(userId?: string): UseBookingsResult {
     isLoading,
     error,
     createBooking,
+    createBookingRequestId: bookingRepo.createBookingRequestId,
     cancelBooking,
     refreshBookings,
   };

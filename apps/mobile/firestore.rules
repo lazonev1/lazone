@@ -197,11 +197,7 @@ service cloud.firestore {
 
     function hasValidPendingBookingFields(data) {
       return data.serviceId is string
-        && data.serviceId.size() > 0
-        && data.serviceId.size() <= 128
         && data.serviceName is string
-        && data.serviceName.size() > 0
-        && data.serviceName.size() <= 120
         && data.bookingDate is timestamp
         && data.price is int
         && data.price > 0
@@ -214,26 +210,30 @@ service cloud.firestore {
     function providerServiceMatches(providerId, serviceId, serviceName) {
       let providerPath = /databases/$(database)/documents/providers/$(providerId);
       let servicePath = /databases/$(database)/documents/providers/$(providerId)/services/$(serviceId);
-      return exists(providerPath)
-        && get(providerPath).data.publicSchemaVersion == 1
-        && exists(servicePath)
-        && get(servicePath).data.name == serviceName
-        && get(servicePath).data in get(providerPath).data.services;
+      let provider = get(providerPath).data;
+      let serviceData = get(servicePath).data;
+      return provider.publicSchemaVersion == 1
+        && serviceData.name == serviceName
+        && provider.serviceIds[serviceId] == true;
     }
 
-    function isValidBookingCreate(data) {
+    function isValidBookingCreate(bookingId, data) {
       return data.keys().hasOnly([
-          'requesterId', 'requesterName', 'providerId', 'providerName',
+          'creationRequestId', 'requesterId', 'requesterName', 'providerId', 'providerName',
           'serviceId', 'serviceName', 'bookingDate', 'price', 'notes',
           'status', 'checklist', 'checklistTotal', 'checklistCompletedCount',
           'checklistProgress', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasAll([
-          'requesterId', 'requesterName', 'providerId', 'providerName',
+          'creationRequestId', 'requesterId', 'requesterName', 'providerId', 'providerName',
           'serviceId', 'serviceName', 'bookingDate', 'price', 'notes',
           'status', 'checklist', 'checklistTotal', 'checklistCompletedCount',
           'checklistProgress', 'createdAt', 'updatedAt'
         ])
+        && data.creationRequestId == bookingId
+        && data.creationRequestId is string
+        && data.creationRequestId.size() > 0
+        && data.creationRequestId.size() <= 128
         && data.requesterId == request.auth.uid
         && data.providerId is string
         && data.providerId != request.auth.uid
@@ -411,9 +411,17 @@ service cloud.firestore {
         );
 
       match /services/{serviceId} {
-        allow read: if exists(/databases/$(database)/documents/providers/$(providerId))
-          && get(/databases/$(database)/documents/providers/$(providerId)).data.publicSchemaVersion == 1
-          && resource.data in get(/databases/$(database)/documents/providers/$(providerId)).data.services;
+        function isPublishedProviderService() {
+          return exists(/databases/$(database)/documents/providers/$(providerId))
+            && get(/databases/$(database)/documents/providers/$(providerId)).data.publicSchemaVersion == 1
+            && resource.data in get(/databases/$(database)/documents/providers/$(providerId)).data.services;
+        }
+        // Booking transactions need to distinguish a removed service from a
+        // network failure without exposing any existing unpublished service.
+        allow get: if isPublishedProviderService()
+          || (isAuthenticated()
+            && !exists(/databases/$(database)/documents/providers/$(providerId)/services/$(serviceId)));
+        allow list: if isPublishedProviderService();
         allow create, update: if isOwner(providerId)
           && isValidProviderService(serviceId, request.resource.data)
           && getAfter(/databases/$(database)/documents/providers/$(providerId)).data.serviceIds[serviceId] == true;
@@ -428,8 +436,14 @@ service cloud.firestore {
     }
 
     match /bookings/{bookingId} {
-      allow read: if isBookingParticipant(resource.data);
-      allow create: if isAuthenticated() && isValidBookingCreate(request.resource.data);
+      // Idempotent creation must read its reserved random ID before writing.
+      // Existing booking contents remain participant-only; list queries retain
+      // the same participant predicate and cannot use the absent-document case.
+      allow get: if isAuthenticated()
+        && (!exists(/databases/$(database)/documents/bookings/$(bookingId))
+          || isBookingParticipant(resource.data));
+      allow list: if isBookingParticipant(resource.data);
+      allow create: if isAuthenticated() && isValidBookingCreate(bookingId, request.resource.data);
       allow update: if isBookingParticipant(resource.data)
         && (
           (

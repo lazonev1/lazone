@@ -113,7 +113,12 @@
   "errors": {
     "fetchBookings": "Impossible de récupérer les réservations",
     "signInRequired": "Vous devez être connecté pour réserver",
-    "createFailed": "Impossible de créer la réservation",
+    "createFailed": "Nous n'avons pas pu confirmer votre demande. Vos informations sont conservées : vous pouvez réessayer sans risque.",
+    "creation": {
+      "service-unavailable": "Ce service n'est plus disponible. Choisissez un autre service et réessayez.",
+      "service-changed": "Ce service a changé pendant votre réservation. Revenez au profil du prestataire pour consulter les informations à jour.",
+      "request-conflict": "Impossible d'associer cette demande en toute sécurité. Rouvrez le formulaire et réessayez."
+    },
     "cancelFailed": "Impossible d'annuler la réservation",
     "fetchBooking": "Impossible de récupérer la réservation",
     "noBookingLoaded": "Aucune réservation chargée",

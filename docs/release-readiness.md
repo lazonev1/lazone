@@ -240,6 +240,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Double tap, slow response, app backgrounding, network loss before/after commit, stale service, invalid amount, and retry produce at most one booking with accurate feedback. Valid users can enter and submit all required information without extra entrance friction.
 
+  **Progress — 2026-11-07:** Implemented on `fix/idempotent-booking-creation`. One stable request ID now survives retries, a Firestore transaction returns an already-committed request instead of creating another, and submission revalidates the current public provider/service. Rapid double taps are synchronously blocked; bounded shared validation remains in the form/service/rules; recoverable failures keep the draft and provide safe localized retry guidance. Rules bind the request ID to the booking document ID. TypeScript, focused ESLint, and the complete Auth/Firestore emulator suite pass, including an idempotent retry that cannot overwrite the original. See [the before/after flow and rollout guide](idempotent-booking-creation.md). Keep B01 open until the PR is merged, compatible rules are deployed, and a two-account native booking retry is verified.
+
 ### B02 · P1 · Load editable bookings from the authoritative record — complete
 
 - [x] **Resolved:** Booking editing now routes by ID, reloads the authorized current record, and cannot overwrite terms after provider acceptance.
