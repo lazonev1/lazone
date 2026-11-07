@@ -13,6 +13,8 @@ import {
 } from './topics';
 
 let tokenRefreshUnsubscribe: (() => void) | null = null;
+let activeNotificationUserId: string | null = null;
+let tokenWriteInFlight: Promise<void> | null = null;
 
 function isPushSupported(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
@@ -85,6 +87,7 @@ function setupTokenRefreshListener(userId: string) {
   tokenRefreshUnsubscribe?.();
   tokenRefreshUnsubscribe = messaging().onTokenRefresh(
     async (token: string): Promise<void> => {
+      if (activeNotificationUserId !== userId) return;
       try {
         await saveUserNotificationToken(userId, token);
       } catch (error) {
@@ -97,13 +100,26 @@ function setupTokenRefreshListener(userId: string) {
 export async function initializePushNotificationsForUser(userId: string): Promise<void> {
   if (!isPushSupported()) return;
 
+  activeNotificationUserId = userId;
+  const isCurrentSession = () => activeNotificationUserId === userId;
+
   const permissionGranted = await requestNotificationPermission();
-  if (!permissionGranted) return;
+  if (!permissionGranted || !isCurrentSession()) return;
 
   await messaging().registerDeviceForRemoteMessages();
+  if (!isCurrentSession()) return;
 
   const token = await messaging().getToken();
-  await saveUserNotificationToken(userId, token);
+  if (!isCurrentSession()) return;
+
+  const tokenWrite = saveUserNotificationToken(userId, token);
+  tokenWriteInFlight = tokenWrite;
+  try {
+    await tokenWrite;
+  } finally {
+    if (tokenWriteInFlight === tokenWrite) tokenWriteInFlight = null;
+  }
+  if (!isCurrentSession()) return;
 
   const settingsKey = getNotificationSettingsStorageKey(userId);
   const alreadyConfigured = await AsyncStorage.getItem(settingsKey);
@@ -116,7 +132,13 @@ export async function initializePushNotificationsForUser(userId: string): Promis
     await subscribeToConfiguredTopics(existingSettings);
   }
 
-  setupTokenRefreshListener(userId);
+  if (isCurrentSession()) setupTokenRefreshListener(userId);
+}
+
+export function cancelPushNotificationSession(): void {
+  activeNotificationUserId = null;
+  tokenRefreshUnsubscribe?.();
+  tokenRefreshUnsubscribe = null;
 }
 
 export async function updateNotificationTopicSetting(
@@ -166,6 +188,16 @@ export async function forceDeleteLocalPushToken(): Promise<void> {
 export async function cleanupPushNotificationsOnLogout(userId: string | null): Promise<void> {
   if (!isPushSupported()) return;
 
+  cancelPushNotificationSession();
+
+  // If token persistence was already underway, let it settle before removing
+  // the token so a late write cannot reattach this device to the old account.
+  try {
+    await tokenWriteInFlight;
+  } catch {
+    // The cleanup below is still safe and should continue.
+  }
+
   let token: string | null = null;
 
   try {
@@ -181,9 +213,6 @@ export async function cleanupPushNotificationsOnLogout(userId: string | null): P
       console.warn('Failed to remove user FCM token from backend:', error);
     }
   }
-
-  tokenRefreshUnsubscribe?.();
-  tokenRefreshUnsubscribe = null;
 
   await forceDeleteLocalPushToken();
 }
