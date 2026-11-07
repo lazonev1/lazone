@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
 
@@ -40,6 +40,26 @@ async function expectDenied(label, operation) {
     throw new Error(`${label} failed for an unexpected reason: ${error.message}`);
   }
   throw new Error(`${label} should be denied`);
+}
+
+function waitForRealtimeValue(subscribe, predicate, label, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    let unsubscribe;
+    const timeout = setTimeout(() => {
+      unsubscribe?.();
+      reject(new Error(`${label} did not arrive within ${timeoutMs}ms`));
+    }, timeoutMs);
+    unsubscribe = subscribe(value => {
+      if (!predicate(value)) return;
+      clearTimeout(timeout);
+      unsubscribe?.();
+      resolve(value);
+    }, error => {
+      clearTimeout(timeout);
+      unsubscribe?.();
+      reject(error);
+    });
+  });
 }
 
 async function writeProviderServicesInBatches(db, providerId, services, batchSize = 5) {
@@ -585,9 +605,35 @@ try {
     { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
   ));
 
+  const requesterListSawAcceptance = waitForRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(requesterClient.db, 'bookings'),
+      where('requesterId', '==', requesterId),
+    ), snapshot => next(snapshot.docs.map(item => item.data())), fail),
+    bookings => bookings.some(booking => booking.status === 'confirmed'),
+    'requester booking list acceptance',
+  );
+  const providerListSawAcceptance = waitForRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(providerClient.db, 'bookings'),
+      where('providerId', '==', providerId),
+    ), snapshot => next(snapshot.docs.map(item => item.data())), fail),
+    bookings => bookings.some(booking => booking.status === 'confirmed'),
+    'provider booking list acceptance',
+  );
+  const detailSawAcceptance = waitForRealtimeValue(
+    (next, fail) => onSnapshot(requesterBookingRef, snapshot => next(snapshot.data()), fail),
+    booking => booking?.status === 'confirmed',
+    'requester booking detail acceptance',
+  );
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
+  await Promise.all([
+    requesterListSawAcceptance,
+    providerListSawAcceptance,
+    detailSawAcceptance,
+  ]);
 
   await expectDenied('requester starts service', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef,
