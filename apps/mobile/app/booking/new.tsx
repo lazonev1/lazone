@@ -6,10 +6,10 @@ import { useBookings } from '@/hooks/useBookings';
 import { useAuth } from '@/contexts/auth';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
-import { CreateBookingInput } from '@/types/booking';
+import { BookingCreationError, CreateBookingInput } from '@/types/booking';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '@lazone/ui';
 import { useTranslation } from 'react-i18next';
 
@@ -23,9 +23,11 @@ export default function NewBookingScreen() {
   const providerId = params.providerId as string;
   const { provider, isLoading: providerLoading } = useProvider(providerId);
   const { user, userProfile } = useAuth();
-  const { createBooking } = useBookings(user?.uid);
+  const { createBooking, createBookingRequestId } = useBookings(user?.uid);
   const { toast, showToast, hideToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const creationRequestId = useMemo(createBookingRequestId, [createBookingRequestId]);
 
   if (providerLoading) {
     return (
@@ -60,16 +62,18 @@ export default function NewBookingScreen() {
   }
 
   const handleSubmit = async (input: CreateBookingInput) => {
+    if (submissionInFlight.current) return;
     if (!user || !userProfile) {
       showToast(t('new.signInRequired'), 'error');
       return;
     }
 
+    submissionInFlight.current = true;
     setIsSubmitting(true);
 
     try {
       const requesterName = `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || 'User';
-      const newBooking = await createBooking(requesterName, input);
+      const newBooking = await createBooking(requesterName, input, creationRequestId);
 
       router.replace({
         pathname: '/booking/success',
@@ -81,9 +85,12 @@ export default function NewBookingScreen() {
       });
     } catch (error) {
       console.error('[NewBooking] Error creating booking:', error);
-      const message = error instanceof Error ? error.message : t('errors.createFailed');
+      const message = error instanceof BookingCreationError
+        ? t(`errors.creation.${error.code}`)
+        : t('errors.createFailed');
       showToast(message, 'error');
     } finally {
+      submissionInFlight.current = false;
       setIsSubmitting(false);
     }
   };

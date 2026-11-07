@@ -79,6 +79,19 @@ export interface CreateBookingInput {
   checklist: BookingChecklistItem[];
 }
 
+export type BookingCreationErrorCode =
+  | 'service-unavailable'
+  | 'service-changed'
+  | 'request-conflict';
+
+/** Expected creation failures that the UI can explain without exposing Firestore details. */
+export class BookingCreationError extends Error {
+  constructor(public readonly code: BookingCreationErrorCode) {
+    super(code);
+    this.name = 'BookingCreationError';
+  }
+}
+
 /**
  * What the edit form submits to update an existing booking.
  * All fields optional — only changed fields need to be sent.
