@@ -25,6 +25,7 @@
     "required": "This field is required",
     "requiredShort": "Required",
     "invalidPrice": "Please enter a valid price",
+    "tooLong": "This value is too long",
     "dateFormat": "Date must be in MM/YYYY format",
     "dateFormatShort": "Use MM/YYYY format"
   },

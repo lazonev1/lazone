@@ -23,7 +23,7 @@ After
 supported Expo 57 / React Native 0.86 / Firebase graph
           │
           ├── patched direct and transitive versions
-          ├── two unpatched build-only advisories, time-boxed below
+          ├── remaining moderate tooling advisories, owned below
           └── PR + weekly CI production-audit gate
                          │
                          └── remote iOS + Android native builds
@@ -46,21 +46,20 @@ Narrow pnpm overrides are limited to patched versions that remain within the aff
 
 ## Remaining advisories
 
-The current production audit reports **0 critical, 2 high, 0 moderate, and 0 low**.
+After reconciling this branch with current `develop` and the 2026-11-06 registry advisories, the production audit reports **0 critical, 0 high, 4 moderate, and 0 low**. Newly patched transitive findings in `body-parser`, `decode-uri-component`, `node-forge`, `re2js`, and Zod are pinned through narrow workspace overrides and current SDK 57 patch releases.
 
 | Advisory | Path and reachability | Decision | Owner / expiry |
 | --- | --- | --- | --- |
-| `GHSA-86w9-cpqp-85rv` (`node-forge` 1.4.0) | Expo CLI build tooling; not imported by the mobile runtime. Upstream publishes no patched release. | Temporarily accepted. Re-evaluate immediately when Expo or `node-forge` ships a fix. | Engineering / 2026-11-17 |
-| `GHSA-vfj7-8cjw-p6xm` (`braces` 3.0.3) | Metro file-map pattern processing during builds; app source patterns are repository-controlled. Upstream publishes no patched release. | Temporarily accepted. Do not process user-supplied glob patterns in build jobs. | Engineering / 2026-11-17 |
+| `GHSA-3g3m-2fjr-6pw4` / `GHSA-g3hv-75wg-m249` (`glob` / `minimatch`) | Expo fingerprinting and Google Firestore package-maintenance paths; app users do not supply these glob patterns. Available fixes require incompatible major versions. | Track upstream Expo/Google releases; do not pass user-controlled patterns to fingerprint or cleanup tooling. | Engineering / 2026-11-17 |
 
-The allowlist lives in `scripts/auditProduction.mjs`. Critical findings always fail. High findings fail unless their exact advisory ID has a non-expired acceptance, so newly reported advisories cannot silently inherit these exceptions.
+The allowlist mechanism lives in `scripts/auditProduction.mjs` and is currently empty. Critical findings always fail. High findings fail unless their exact advisory ID has a non-expired acceptance, so newly reported advisories cannot silently inherit an exception.
 
 ## Verification evidence
 
 - `pnpm install --frozen-lockfile --offline`: pass; lockfile is reproducible from the local package cache.
-- `pnpm audit:prod`: pass; 0 critical, 2 accepted high, 0 moderate, 0 low.
+- `pnpm audit:prod`: pass; 0 critical, 0 high, 4 moderate, 0 low. All reported paths and ownership are documented above.
 - `pnpm --filter ./apps/mobile typecheck`: pass.
-- `pnpm --filter ./apps/mobile lint`: pass with 0 errors and 108 warnings exposed by the newer React compiler rules.
+- `pnpm --filter ./apps/mobile lint`: pass with 0 errors and 105 warnings exposed by the newer React compiler rules after reconciling current `develop`.
 - Auth + Firestore emulator rules suite: pass.
 - Production iOS JavaScript export: pass.
 - Production Android JavaScript export: pass.
@@ -75,4 +74,4 @@ The allowlist lives in `scripts/auditProduction.mjs`. Critical findings always f
 
 ## Completion status
 
-S09 is complete on this branch. The dependency graph, production-audit gate, native builds, guest platform smoke tests, and authenticated requester/provider journey all pass. The two accepted high build-tool advisories remain owned, narrowly allowlisted, and scheduled for review by 2026-11-17; any new or expired high finding fails CI.
+S09 is complete on this branch. The dependency graph, production-audit gate, native builds, guest platform smoke tests, and authenticated requester/provider journey all pass. The remaining moderate advisories are build/package-maintenance paths with explicit ownership and a 2026-11-17 review date. No high advisory is currently allowlisted; any new high finding fails CI.

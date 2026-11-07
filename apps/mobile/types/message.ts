@@ -23,11 +23,11 @@ export interface MessageViewModel {
  */
 export interface ConversationViewModel {
   _id: string;
-  participants: Array<{
+  participants: {
     userId: string;
     name: string;
     avatar?: string;
-  }>;
+  }[];
   lastMessage?: {
     messageId: string;
     text: string;
@@ -60,4 +60,11 @@ export interface ConversationListItem {
   unreadCount: number;
   isTyping: boolean;
   updatedAt: string;
+}
+
+/** Participant identity derived from the authorized conversation document. */
+export interface ConversationPeer {
+  userId: string;
+  name: string;
+  avatar?: string;
 }

@@ -28,4 +28,6 @@ export interface Provider {
   portfolio?: DocumentReference; // Reference to a Portfolio document
   pricing?: string; // Price range display (e.g., "50000 - 150000 CFA")
   services: { id: string; name: string; description: string; price: string; availability?: string | null }[];
+  /** Constant-time membership index used by Firestore rules for service writes. */
+  serviceIds: Record<string, true>;
 }

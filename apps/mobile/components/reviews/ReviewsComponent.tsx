@@ -50,6 +50,7 @@ export default function ReviewsComponent({
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'highest' | 'lowest'>('all');
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
+  const [submittingResponseId, setSubmittingResponseId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(expandedByDefault);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [editingRating, setEditingRating] = useState(0);
@@ -65,18 +66,19 @@ export default function ReviewsComponent({
   };
 
   const handleSubmitResponse = async (reviewId: string) => {
-    if (!responseText.trim()) return;
-    
+    if (!responseText.trim() || submittingResponseId) return;
+    setSubmittingResponseId(reviewId);
     try {
       if (onRespondToReview) {
-        await onRespondToReview(reviewId, responseText);
+        await onRespondToReview(reviewId, responseText.trim());
       }
-      
       setRespondingTo(null);
       setResponseText('');
     } catch (error) {
       console.error('Failed to submit response:', error);
       Alert.alert(t('common:alerts.error'), t('reviews.submitResponseFailed'));
+    } finally {
+      setSubmittingResponseId(null);
     }
   };
 
@@ -351,13 +353,15 @@ export default function ReviewsComponent({
                         variant="secondary"
                         size="small"
                         style={styles.responseButton}
+                        disabled={submittingResponseId === review.id}
                       />
                       <Button
-                        label={t('reviews.submit')}
+                        label={submittingResponseId === review.id ? t('reviews.submittingResponse') : t('reviews.submit')}
                         onPress={() => handleSubmitResponse(review.id)}
                         variant="primary"
                         size="small"
                         style={styles.responseButton}
+                        disabled={submittingResponseId === review.id || !responseText.trim()}
                       />
                     </View>
                   </View>
@@ -380,7 +384,8 @@ export default function ReviewsComponent({
                   <TouchableOpacity
                     style={[
                       styles.helpfulButton,
-                      (currentUserId === review.userId || currentUserId === review.providerId) && styles.helpfulButtonDisabled
+                      (!onMarkHelpful || currentUserId === review.userId || currentUserId === review.providerId || review.isHelpfulPending)
+                        && styles.helpfulButtonDisabled
                     ]}
                     onPress={() => {
                       // Do not allow authors or the reviewed provider to vote.
@@ -388,17 +393,35 @@ export default function ReviewsComponent({
                       if (!requireAuth(currentUserId, t('reviews.signInToVote'))) return;
                       onMarkHelpful && onMarkHelpful(review.id);
                     }}
-                    disabled={currentUserId === review.userId || currentUserId === review.providerId}
+                    disabled={!onMarkHelpful || currentUserId === review.userId || currentUserId === review.providerId || review.isHelpfulPending}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('reviews.helpfulAction')}
+                    accessibilityHint={t('reviews.helpfulHint')}
+                    accessibilityState={{
+                      selected: Boolean(review.hasCurrentUserHelpfulVote),
+                      disabled: !onMarkHelpful || currentUserId === review.userId || currentUserId === review.providerId,
+                      busy: Boolean(review.isHelpfulPending),
+                    }}
                   >
-                    <Ionicons
-                      name={currentUserId && review.helpfulBy?.includes(currentUserId) ? "thumbs-up" : "thumbs-up-outline"}
-                      size={18}
-                      color={
-                        (currentUserId === review.userId || currentUserId === review.providerId)
-                          ? theme.icon
-                          : (currentUserId && review.helpfulBy?.includes(currentUserId) ? '#0A58A5' : theme.icon)
-                      }
-                    />
+                    {review.isHelpfulPending ? (
+                      <ActivityIndicator size="small" color={theme.tint} />
+                    ) : (
+                      <Ionicons
+                        name={review.hasCurrentUserHelpfulVote ? "thumbs-up" : "thumbs-up-outline"}
+                        size={18}
+                        color={
+                          (currentUserId === review.userId || currentUserId === review.providerId)
+                            ? theme.icon
+                            : (review.hasCurrentUserHelpfulVote ? '#0A58A5' : theme.icon)
+                        }
+                      />
+                    )}
+                    <ThemedText style={[
+                      styles.helpfulLabel,
+                      review.hasCurrentUserHelpfulVote && styles.helpfulLabelSelected,
+                    ]}>
+                      {t('reviews.helpful')}
+                    </ThemedText>
                     {(review.isHelpful ?? 0) > 0 && (
                       <ThemedText style={styles.helpfulCount}>({review.isHelpful})</ThemedText>
                     )}
@@ -656,6 +679,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 20,
     backgroundColor: 'rgba(128, 128, 128, 0.1)',
+    minHeight: 44,
   },
   helpfulButtonDisabled: {
     opacity: 0.5,
@@ -665,6 +689,14 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     opacity: 0.8,
     fontWeight: '500',
+  },
+  helpfulLabel: {
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  helpfulLabelSelected: {
+    color: '#0A58A5',
+    fontWeight: '600',
   },
   responseInputContainer: {
     marginTop: 16,

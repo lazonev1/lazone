@@ -25,6 +25,7 @@
     "required": "Ce champ est obligatoire",
     "requiredShort": "Obligatoire",
     "invalidPrice": "Veuillez saisir un prix valide",
+    "tooLong": "Cette valeur est trop longue",
     "dateFormat": "La date doit être au format MM/AAAA",
     "dateFormatShort": "Format MM/AAAA"
   },

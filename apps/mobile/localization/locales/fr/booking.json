@@ -12,10 +12,28 @@
   },
   "edit": {
     "title": "Modifier la réservation",
+    "loading": "Chargement des dernières informations de réservation...",
     "confirmTitle": "Confirmer les modifications",
     "confirmMessage": "Voulez-vous vraiment modifier cette réservation ?",
     "update": "Mettre à jour",
-    "updated": "Réservation mise à jour"
+    "updated": "Réservation mise à jour",
+    "viewBooking": "Voir la réservation",
+    "invalidLinkTitle": "Lien de réservation invalide",
+    "invalidLinkMessage": "Ce lien de modification ne contient pas de réservation valide.",
+    "unavailableTitle": "Réservation indisponible",
+    "unavailableMessage": "Impossible de charger les dernières informations. Vérifiez votre connexion et réessayez.",
+    "notFoundTitle": "Réservation introuvable",
+    "notFoundMessage": "Cette réservation a peut-être été supprimée ou n'est plus disponible.",
+    "unauthorizedTitle": "Modification indisponible",
+    "unauthorizedMessage": "Seul le demandeur ayant créé cette réservation peut la modifier.",
+    "noLongerEditableTitle": "Cette réservation ne peut plus être modifiée",
+    "noLongerEditableMessage": "Le prestataire a déjà traité cette demande. Consultez la réservation pour voir son statut et les prochaines étapes.",
+    "providerUnavailableTitle": "Informations du prestataire indisponibles",
+    "providerUnavailableMessage": "Impossible de charger les services actuels du prestataire. Réessayez avant de modifier cette demande.",
+    "invalidDataTitle": "Cette réservation nécessite une vérification",
+    "invalidDataMessage": "Certaines informations enregistrées ne peuvent pas être modifiées en toute sécurité. Consultez la réservation et contactez l'assistance si le problème persiste.",
+    "conflictTitle": "La réservation a changé pendant votre modification",
+    "conflictMessage": "Le prestataire a traité cette demande avant l'enregistrement. Vos saisies restent affichées, mais les conditions acceptées ne peuvent pas être remplacées."
   },
   "form": {
     "selectService": "Sélectionnez un service *",
@@ -35,8 +53,11 @@
     "errors": {
       "service": "Veuillez sélectionner un service",
       "date": "Veuillez sélectionner une date",
-      "price": "Veuillez saisir votre prix proposé",
-      "checklist": "Ajoutez une description pour chaque élément de la liste"
+      "dateRange": "Choisissez une heure comprise entre cinq minutes et un an à partir de maintenant",
+      "price": "Saisissez un prix positif dans la plage CFA prise en charge",
+      "checklist": "Ajoutez une description pour chaque élément de la liste",
+      "checklistLimit": "Ajoutez entre un et {{count}} éléments clairs",
+      "detailsTooLong": "Limitez les détails supplémentaires à 2 000 caractères"
     }
   },
   "review": {
@@ -127,7 +148,6 @@
     "viewProfile": "Voir le profil",
     "message": "Message",
     "requestChecklist": "Liste des demandes",
-    "reviewChecklistNotice": "Vérifiez les résultats demandés. La progression du prestataire est affichée à titre indicatif ; utilisez les actions ci-dessous pour confirmer ou demander des modifications.",
     "changesRequested": "Modifications demandées : {{reason}}",
     "additionalDetails": "Détails supplémentaires",
     "timelineTitle": "Historique de la réservation",
@@ -154,18 +174,33 @@
       "submitting": "Envoi...",
       "editBooking": "Modifier la réservation",
       "cancelBooking": "Annuler la réservation",
+      "cancelling": "Annulation...",
       "confirmWorkCompleted": "Confirmer le travail terminé",
+      "confirming": "Confirmation...",
       "requestChanges": "Demander des modifications",
+      "sendRequest": "Envoyer la demande",
       "sending": "Envoi...",
       "leaveReview": "Laisser un avis"
     },
     "changeRequest": {
       "label": "Besoin de modifications ?",
-      "placeholder": "Décrivez ce qui manque encore"
+      "placeholder": "Décrivez ce qui manque encore",
+      "hint": "Expliquez ce que le prestataire doit encore accomplir avant que vous puissiez confirmer le travail."
     },
     "notices": {
-      "awaitingRequesterReview": "Soumis pour vérification par le demandeur. Vous serez notifié lorsqu'il confirmera ou demandera des modifications.",
-      "providerSubmitted": "Le prestataire a soumis ce travail pour votre vérification. Vérifiez chaque résultat demandé avant de confirmer."
+      "provider": {
+        "pending": "Vérifiez la demande, puis acceptez-la ou refusez-la.",
+        "confirmed": "La demande est acceptée. Commencez le service lorsque le travail débute.",
+        "in_progress": "Mettez la liste à jour pendant le travail, puis soumettez-la au demandeur.",
+        "awaiting_confirmation": "Travail soumis au demandeur. Vous serez notifié lorsqu'il confirmera ou demandera des modifications."
+      },
+      "requester": {
+        "pending": "En attente de la réponse du prestataire. Vous pouvez modifier ou annuler la demande entre-temps.",
+        "confirmed": "Le prestataire a accepté votre demande. Vous pouvez l'annuler avant le début du travail.",
+        "in_progress": "Le travail est en cours. Le prestataire le soumettra lorsqu'il sera prêt pour votre vérification.",
+        "awaiting_confirmation": "Vérifiez les résultats demandés, puis confirmez le travail ou demandez des modifications.",
+        "completed": "Le travail est terminé. Partagez votre expérience en laissant un avis."
+      }
     },
     "alerts": {
       "cancelTitle": "Annuler la réservation",

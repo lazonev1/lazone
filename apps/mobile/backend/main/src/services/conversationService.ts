@@ -238,7 +238,8 @@ export async function updateReadStatus(
  */
 export function getConversations(
   userId: string,
-  onConversationsUpdate: (conversations: Conversation[]) => void
+  onConversationsUpdate: (conversations: Conversation[]) => void,
+  onError?: (error: Error) => void,
 ) {
   const q = query(
     collection(db, COLLECTIONS.CONVERSATIONS),
@@ -250,6 +251,30 @@ export function getConversations(
         (doc) => ({_id: doc.id, ...doc.data()} as Conversation)
     );
     onConversationsUpdate(conversations);
+  }, (error) => {
+    console.warn("Conversations subscription error:", error.message);
+    onError?.(error);
+  });
+}
+
+/**
+ * Subscribes to one authorized conversation. Firestore rules ensure only a
+ * participant can read an existing conversation document.
+ */
+export function subscribeToConversation(
+  conversationId: string,
+  onConversationUpdate: (conversation: Conversation | null) => void,
+  onError?: (error: Error) => void,
+): () => void {
+  const conversationDocRef = doc(db, COLLECTIONS.CONVERSATIONS, conversationId);
+
+  return onSnapshot(conversationDocRef, (snapshot) => {
+    onConversationUpdate(snapshot.exists()
+      ? ({_id: snapshot.id, ...snapshot.data()} as Conversation)
+      : null);
+  }, (error) => {
+    console.warn("Conversation subscription error:", error.message);
+    onError?.(error);
   });
 }
 

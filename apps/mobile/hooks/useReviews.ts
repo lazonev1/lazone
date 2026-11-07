@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Review, ReviewStats } from '@/types/provider';
 import {
   getProviderReviews,
@@ -42,6 +42,7 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const pendingHelpfulVotes = useRef(new Set<string>());
 
   // Fetch reviews when providerId changes
   const fetchReviews = useCallback(async () => {
@@ -194,7 +195,10 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
     ));
     
     try {
-      await repoRespondToReview(reviewId, responseText);
+      const updatedReview = await repoRespondToReview(reviewId, responseText);
+      setReviews(prev => prev.map(review =>
+        review.id === reviewId ? updatedReview : review
+      ));
     } catch (err) {
       // Revert on error
       setReviews(previousReviews);
@@ -210,29 +214,37 @@ export function useReviews(providerId?: string, userId?: string): UseReviewsResu
       throw new Error('Please sign in to vote');
     }
 
+    if (pendingHelpfulVotes.current.has(reviewId)) return;
+    pendingHelpfulVotes.current.add(reviewId);
+
+    setReviews(prev => prev.map(review => review.id === reviewId
+      ? { ...review, isHelpfulPending: true }
+      : review));
+
     try {
-      const result = await markReviewHelpful(reviewId, userId);
+      const result = await markReviewHelpful(reviewId);
       console.log(`[useReviews] Helpful ${result.added ? 'added' : 'removed'}, new count: ${result.newCount}`);
 
-      // Update local state with both count and helpfulBy array
+      // Reconcile the protected public count and this user's private vote state.
       setReviews(prev => prev.map(review => {
         if (review.id !== reviewId) return review;
-
-        const currentHelpfulBy = review.helpfulBy || [];
-        const newHelpfulBy = result.added
-          ? [...currentHelpfulBy, userId]
-          : currentHelpfulBy.filter(id => id !== userId);
 
         return {
           ...review,
           isHelpful: result.newCount,
-          helpfulBy: newHelpfulBy
+          hasCurrentUserHelpfulVote: result.added,
+          isHelpfulPending: false,
         };
       }));
     } catch (err) {
+      setReviews(prev => prev.map(review => review.id === reviewId
+        ? { ...review, isHelpfulPending: false }
+        : review));
       const error = err instanceof Error ? err : new Error('Failed to mark review as helpful');
       setError(error);
       throw error;
+    } finally {
+      pendingHelpfulVotes.current.delete(reviewId);
     }
   }, [userId]);
 

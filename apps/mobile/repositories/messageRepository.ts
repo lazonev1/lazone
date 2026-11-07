@@ -17,6 +17,7 @@ import {
   MessageViewModel,
   ConversationViewModel,
   ConversationListItem,
+  ConversationPeer,
 } from "@/types/message";
 
 /**
@@ -122,11 +123,15 @@ export async function setTypingStatus(
  */
 export function subscribeToConversations(
   userId: string,
-  onUpdate: (conversations: ConversationViewModel[]) => void
+  onUpdate: (conversations: ConversationViewModel[]) => void,
+  onError?: (error: Error) => void,
 ): () => void {
-  return conversationService.getConversations(
+  let active = true;
+  let sequence = 0;
+  const unsubscribe = conversationService.getConversations(
     userId,
     async (conversations) => {
+      const currentSequence = ++sequence;
       try {
         // Transform all conversations to UI format
         const uiConversations = await Promise.all(
@@ -135,13 +140,23 @@ export function subscribeToConversations(
           )
         );
 
-        onUpdate(uiConversations);
+        if (active && currentSequence === sequence) onUpdate(uiConversations);
       } catch (error) {
         console.error("Error transforming conversations:", error);
-        onUpdate([]);
+        if (active && currentSequence === sequence) {
+          onError?.(toError(error));
+        }
       }
-    }
+    },
+    (error) => {
+      if (active) onError?.(error);
+    },
   );
+  return () => {
+    active = false;
+    sequence += 1;
+    unsubscribe();
+  };
 }
 
 /**
@@ -149,11 +164,15 @@ export function subscribeToConversations(
  */
 export function subscribeToConversationsList(
   userId: string,
-  onUpdate: (conversations: ConversationListItem[]) => void
+  onUpdate: (conversations: ConversationListItem[]) => void,
+  onError?: (error: Error) => void,
 ): () => void {
-  return conversationService.getConversations(
+  let active = true;
+  let sequence = 0;
+  const unsubscribe = conversationService.getConversations(
     userId,
     async (conversations) => {
+      const currentSequence = ++sequence;
       try {
         // Transform to list items
         const listItems = await Promise.all(
@@ -166,12 +185,55 @@ export function subscribeToConversationsList(
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
 
-        onUpdate(listItems);
+        if (active && currentSequence === sequence) onUpdate(listItems);
       } catch (error) {
         console.error("Error transforming conversation list:", error);
-        onUpdate([]);
+        if (active && currentSequence === sequence) {
+          onError?.(toError(error));
+        }
       }
-    }
+    },
+    (error) => {
+      if (active) onError?.(error);
+    },
+  );
+  return () => {
+    active = false;
+    sequence += 1;
+    unsubscribe();
+  };
+}
+
+/**
+ * Reads the counterpart from the conversation document instead of trusting
+ * route parameters, which are caller-controlled and may be stale or forged.
+ */
+export function subscribeToConversationPeer(
+  conversationId: string,
+  currentUserId: string,
+  onUpdate: (peer: ConversationPeer | null) => void,
+  onError?: (error: Error) => void,
+): () => void {
+  return conversationService.subscribeToConversation(
+    conversationId,
+    (conversation) => {
+      if (!conversation) {
+        onUpdate(null);
+        return;
+      }
+      if (!conversation.participants.includes(currentUserId)) {
+        onError?.(new Error("You are not a participant in this conversation"));
+        return;
+      }
+      const peerId = conversation.participants.find((id) => id !== currentUserId);
+      const details = peerId ? conversation.participantDetails?.[peerId] : undefined;
+      onUpdate(peerId ? {
+        userId: peerId,
+        name: details?.name?.trim() || "Unavailable participant",
+        avatar: details?.avatar || undefined,
+      } : null);
+    },
+    onError,
   );
 }
 
@@ -184,17 +246,31 @@ export function subscribeToMessages(
   messageLimit: number = 50,
   onError?: (error: Error) => void
 ): () => void {
-  return conversationService.subscribeToMessages(
+  let active = true;
+  let sequence = 0;
+  const unsubscribe = conversationService.subscribeToMessages(
     conversationId,
     async (messages) => {
-      const uiMessages = await Promise.all(
-        messages.map((msg) => transformMessageToUI(msg))
-      );
-      onUpdate(uiMessages);
+      const currentSequence = ++sequence;
+      try {
+        const uiMessages = await Promise.all(
+          messages.map((msg) => transformMessageToUI(msg))
+        );
+        if (active && currentSequence === sequence) onUpdate(uiMessages);
+      } catch (error) {
+        if (active && currentSequence === sequence) onError?.(toError(error));
+      }
     },
     messageLimit,
-    onError
+    (error) => {
+      if (active) onError?.(error);
+    },
   );
+  return () => {
+    active = false;
+    sequence += 1;
+    unsubscribe();
+  };
 }
 
 // ========== TRANSFORMATION FUNCTIONS ==========
@@ -359,6 +435,10 @@ function timestampToMillis(timestamp: Timestamp | null | undefined): number {
     return Date.now();
   }
   return timestamp.toMillis();
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error("Unable to load messaging data");
 }
 
 async function calculateUnreadCount(

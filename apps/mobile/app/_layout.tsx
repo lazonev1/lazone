@@ -65,11 +65,19 @@ function RootLayoutNav() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
-    // Protected routes that require authentication
-    const protectedRoutes = ['booking', 'messages', 'account'];
-    const inProtectedRoute = protectedRoutes.some(
-      (route) => pathname === `/${route}` || pathname.startsWith(`/${route}/`)
-    );
+    // Route areas that require authentication. Bookings span two prefixes: the
+    // tab is /booked, its detail and creation stack is /booking/* — same feature,
+    // so both are listed.
+    const protectedRoutes = ['booked', 'booking', 'messages', 'account'];
+    // These tab screens render an in-place <LoginPrompt /> for guests instead of
+    // their content, so they stay reachable without a session. The stacks nested
+    // under them (/messages/[id], /account/info, /booking/new, ...) do not.
+    const guestTabRoutes = ['/account', '/booked', '/messages'];
+    const inProtectedRoute =
+      !guestTabRoutes.includes(pathname) &&
+      protectedRoutes.some(
+        (route) => pathname === `/${route}` || pathname.startsWith(`/${route}/`)
+      );
 
     // If authenticated and in auth group, redirect to home
     if (isAuthenticated && inAuthGroup) {

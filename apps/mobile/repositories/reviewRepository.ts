@@ -40,7 +40,9 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
   const latestResponse = review.responses && review.responses.length > 0
     ? review.responses[review.responses.length - 1]
     : null;
-  const responseDate = latestResponse?.date?.toDate?.() || null;
+  const responseDate = review.responseUpdatedAt?.toDate?.() || null;
+
+  const hasCurrentUserHelpfulVote = await ReviewService.hasCurrentUserMarkedHelpful(review._id);
 
   return {
     id: review._id,
@@ -55,7 +57,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
     serviceName: undefined, // Service names are not fetched separately - would need provider context
     images: review.images || [],
     isHelpful: review.isHelpful || 0,
-    helpfulBy: review.helpfulBy || [],
+    hasCurrentUserHelpfulVote,
     userId: requesterId as string,
     response: latestResponse ? {
       text: latestResponse.text,
@@ -227,10 +229,9 @@ export async function deleteReview(reviewId: string): Promise<void> {
  */
 export async function markReviewHelpful(
   reviewId: string,
-  userId: string
 ): Promise<{ added: boolean; newCount: number }> {
   try {
-    return await ReviewService.markReviewHelpful(reviewId, userId);
+    return await ReviewService.markReviewHelpful(reviewId);
   } catch (error) {
     console.error('Error marking review helpful:', error);
     throw error;

@@ -32,8 +32,8 @@ export default function BookingReviewScreen() {
   useEffect(() => {
     let active = true;
     if (!bookingId) { setCheckingReview(false); return () => { active = false; }; }
-    ReviewService.getReviewByBookingId(bookingId)
-      .then((review) => { if (active) setExistingReview(Boolean(review)); })
+    ReviewService.hasBookingBeenReviewed(bookingId)
+      .then((reviewed) => { if (active) setExistingReview(reviewed); })
       .catch(() => { if (active) setError(t('review.checkFailed')); })
       .finally(() => { if (active) setCheckingReview(false); });
     return () => { active = false; };

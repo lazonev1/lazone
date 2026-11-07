@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BookingChecklistItem, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
+import { BookingChecklistItem, BookingEditError, BookingViewModel, CreateBookingInput, UpdateBookingInput } from '@/types/booking';
 import * as bookingRepo from '@/repositories/bookingRepository';
 import i18n from '@/localization';
 
@@ -183,9 +183,13 @@ export function useBookingDetail(bookingId?: string): UseBookingDetailResult {
         console.log('[useBookingDetail] Booking updated');
         return updated;
       } catch (err) {
-        console.error('[useBookingDetail] Error updating booking:', err);
         const error = err instanceof Error ? err : new Error(i18n.t('booking:errors.updateFailed'));
-        setError(error);
+        // Expected ownership/status conflicts belong to the edit workflow and
+        // must not replace the already-loaded booking with a page-load error.
+        if (!(error instanceof BookingEditError)) {
+          console.error('[useBookingDetail] Error updating booking:', error);
+          setError(error);
+        }
         throw error;
       }
     },

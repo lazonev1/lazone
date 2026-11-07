@@ -12,10 +12,28 @@
   },
   "edit": {
     "title": "Edit Booking",
+    "loading": "Loading the latest booking details...",
     "confirmTitle": "Confirm Changes",
     "confirmMessage": "Are you sure you want to modify this booking?",
     "update": "Update",
-    "updated": "Booking updated"
+    "updated": "Booking updated",
+    "viewBooking": "View Booking",
+    "invalidLinkTitle": "Invalid booking link",
+    "invalidLinkMessage": "This edit link does not include a valid booking.",
+    "unavailableTitle": "Booking unavailable",
+    "unavailableMessage": "We could not load the latest booking details. Check your connection and try again.",
+    "notFoundTitle": "Booking not found",
+    "notFoundMessage": "This booking may have been removed or is no longer available.",
+    "unauthorizedTitle": "Editing unavailable",
+    "unauthorizedMessage": "Only the requester who created this booking can edit it.",
+    "noLongerEditableTitle": "This booking can no longer be edited",
+    "noLongerEditableMessage": "The provider has already acted on this request. View the booking for its current status and next steps.",
+    "providerUnavailableTitle": "Provider details unavailable",
+    "providerUnavailableMessage": "We could not load the provider's current services. Try again before editing this request.",
+    "invalidDataTitle": "Booking needs attention",
+    "invalidDataMessage": "Some saved booking details cannot be safely edited. View the booking and contact support if the problem continues.",
+    "conflictTitle": "The booking changed while you were editing",
+    "conflictMessage": "The provider acted on this request before your update was saved. Your entries remain on this screen, but accepted terms cannot be overwritten."
   },
   "form": {
     "selectService": "Select Service *",
@@ -35,8 +53,11 @@
     "errors": {
       "service": "Please select a service",
       "date": "Please select a date",
-      "price": "Please enter your proposed price",
-      "checklist": "Add a description for each checklist item"
+      "dateRange": "Choose a time between five minutes and one year from now",
+      "price": "Enter a positive price within the supported CFA range",
+      "checklist": "Add a description for each checklist item",
+      "checklistLimit": "Add one to {{count}} clear checklist items",
+      "detailsTooLong": "Keep additional details to 2,000 characters or fewer"
     }
   },
   "review": {
@@ -127,7 +148,6 @@
     "viewProfile": "View Profile",
     "message": "Message",
     "requestChecklist": "Request Checklist",
-    "reviewChecklistNotice": "Review these requested outcomes. The provider progress is shown for reference; use the actions below to confirm or request changes.",
     "changesRequested": "Changes requested: {{reason}}",
     "additionalDetails": "Additional Details",
     "timelineTitle": "Booking Timeline",
@@ -154,18 +174,33 @@
       "submitting": "Submitting...",
       "editBooking": "Edit Booking",
       "cancelBooking": "Cancel Booking",
+      "cancelling": "Cancelling...",
       "confirmWorkCompleted": "Confirm Work Completed",
+      "confirming": "Confirming...",
       "requestChanges": "Request Changes",
+      "sendRequest": "Send Request",
       "sending": "Sending...",
       "leaveReview": "Leave a Review"
     },
     "changeRequest": {
       "label": "Need changes?",
-      "placeholder": "Describe what is still missing"
+      "placeholder": "Describe what is still missing",
+      "hint": "Explain what the provider still needs to complete before you can confirm the work."
     },
     "notices": {
-      "awaitingRequesterReview": "Submitted for requester review. You will be notified when they confirm or request changes.",
-      "providerSubmitted": "The provider submitted this work for your review. Check each requested outcome before confirming."
+      "provider": {
+        "pending": "Review the request, then accept or decline it.",
+        "confirmed": "The request is accepted. Start the service when work begins.",
+        "in_progress": "Update the checklist as you work, then submit it for requester review.",
+        "awaiting_confirmation": "Submitted for requester review. You will be notified when they confirm or request changes."
+      },
+      "requester": {
+        "pending": "Waiting for the provider to respond. You can edit or cancel while the request is pending.",
+        "confirmed": "The provider accepted your request. You can cancel before work starts.",
+        "in_progress": "Work is in progress. The provider will submit it when it is ready for your review.",
+        "awaiting_confirmation": "Review the requested outcomes, then confirm the work or ask for changes.",
+        "completed": "The work is complete. Share your experience with a review."
+      }
     },
     "alerts": {
       "cancelTitle": "Cancel Booking",

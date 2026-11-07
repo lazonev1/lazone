@@ -1,9 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
-const acceptedHighAdvisories = new Map([
-  ['GHSA-86w9-cpqp-85rv', '2026-11-17'], // Expo CLI -> node-forge; no patched release.
-  ['GHSA-vfj7-8cjw-p6xm', '2026-11-17'], // Metro -> micromatch -> braces; no patched release.
-]);
+const acceptedHighAdvisories = new Map();
 
 const audit = spawnSync('pnpm', ['audit', '--prod', '--json'], {
   encoding: 'utf8',

@@ -1,5 +1,6 @@
 import { Certification, CertificationErrors, CertificationValidationResult } from '@/types/provider';
 import i18n from '@/localization';
+import { isValidCfaAmount, MARKETPLACE_LIMITS } from '@/constants/Marketplace';
 
 export type ValidationError = {
   field: string;
@@ -15,15 +16,8 @@ const validateRequired = (value: any): string | null => {
 };
 
 const validatePrice = (value: string): string | null => {
-  if (!/^\d+$/.test(value)) {
+  if (!isValidCfaAmount(value)) {
     return i18n.t('common:validation.invalidPrice');
-  }
-  return null;
-};
-
-const validateDate = (value: string): string | null => {
-  if (!/^\d{2}\/\d{4}$/.test(value)) {
-    return i18n.t('common:validation.dateFormat');
   }
   return null;
 };
@@ -54,6 +48,10 @@ export const validateService = (service: any) => {
   const errors: Record<string, string> = {};
 
   if (!service.name?.trim()) errors.name = validateRequired(service.name) ?? i18n.t('common:validation.required');
+  else if (service.name.trim().length > MARKETPLACE_LIMITS.maxServiceNameLength) errors.name = i18n.t('common:validation.tooLong');
+  if ((service.description?.trim?.() ?? '').length > MARKETPLACE_LIMITS.maxServiceDescriptionLength) {
+    errors.description = i18n.t('common:validation.tooLong');
+  }
   const priceError = validatePrice(service.price?.trim?.() ?? '');
   if (priceError) errors.price = priceError;
 
