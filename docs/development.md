@@ -15,6 +15,11 @@ CLI 15.5.1, starts both emulators, runs `testFirestoreRules.mjs`, and stops afte
 Denial tests intentionally log permission errors; the final exit code determines success.
 The first run needs network access to obtain the CLI/emulator binaries.
 
+Storage authorization has a separate isolated suite:
+`pnpm --filter ./apps/mobile test:storage:emulator` (Auth 9099 + Storage 9199,
+`demo-storage-rules`). This does not redirect the running mobile app to Storage emulators
+and does not deploy rules. See [Storage security gates](storage-security-foundation.md).
+
 Fixtures are generated from source with a unique run identifier. No Admin key, production
 export, real phone number, or referral seeder is needed. Keep the `demo-rules` project ID.
 The `demo-` project has no live resources. `serve` excludes Functions because notification
