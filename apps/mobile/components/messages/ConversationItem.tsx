@@ -1,8 +1,8 @@
 import { Appearance, Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "../ThemedText";
-import { ThemedView } from "../ThemedView";
 import { Colors } from "@/constants/Colors";
 import { Image } from "expo-image";
+import { useTranslation } from 'react-i18next';
 
 type ConversationItemProps = {
     sender: string;
@@ -27,6 +27,7 @@ export function ConversationItem({
     isTyping = false,
     onPress
 }: ConversationItemProps) {
+    const { t } = useTranslation('messages');
     const colorScheme = Appearance.getColorScheme()
     const theme = colorScheme === 'dark' ? Colors.dark : Colors.light
     const styles = createStyle(theme, colorScheme)
@@ -69,7 +70,7 @@ export function ConversationItem({
                             numberOfLines={1}
                             ellipsizeMode="tail"
                         >
-                            {isTyping ? 'typing...' : isFromOther ? text : `You: ${text}`}
+                            {isTyping ? t('list.typing') : isFromOther ? text : t('list.fromYou', { text })}
                         </ThemedText>
                     </View>
                 </View>

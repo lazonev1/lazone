@@ -1,6 +1,8 @@
 {
   "title": "Messages",
   "list": {
+    "typing": "Typing…",
+    "fromYou": "You: {{text}}",
     "loginTitle": "Welcome Back!",
     "loginMessage": "Log in to view your messages and chat with providers.",
     "searchPlaceholder": "Search messages",
