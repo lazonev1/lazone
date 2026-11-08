@@ -410,6 +410,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Reset links work; email changes affect the actual authenticated identity only after the proper verification flow; failed edits preserve drafts; the displayed profile and public identity remain consistent without misleading success alerts.
 
+  **Progress — 2026-11-07:** Implemented the truthful email-display slice on `fix/truthful-account-email`: the profile popup shows selectable read-only Auth email with EN/FR explanation instead of an editable value that was discarded on Save. Existing name/contact-phone writes remain unchanged. Actual-component tests verify no email input/write, current/empty display, both translations, and failed-save draft retention; TypeScript passes. Native verification and broader A02/A04 credential features remain open. No deployment/migration/EAS rebuild is required. See [flow and verification](truthful-account-email.md).
+
 ### A03 · P1 · Ship real account deletion, policies, and support
 
 - [ ] **Problem:** Deactivation/deletion and password controls show TODO alerts; Help/Terms routes are placeholders. Signup agreement text is not a complete policy/consent flow. There is no complete user-facing data lifecycle.
