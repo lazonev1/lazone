@@ -2,6 +2,16 @@ import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'fi
 import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
+
+const lifecycleSource = ts.transpileModule(
+  readFileSync(new URL('../utils/bookingLifecycle.ts', import.meta.url), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText;
+const lifecycle = {};
+runInNewContext(`(function(exports) { ${lifecycleSource}\n})`)(lifecycle);
 
 const firebaseConfig = {
   apiKey: 'demo-api-key',
@@ -498,6 +508,34 @@ try {
     updatedAt: serverTimestamp(),
   };
   await expectAllowed('booking creation', () => setDoc(requesterBookingRef, validBookingPayload));
+
+  // Prove the client domain contract matches the actual rule boundary for
+  // every status pair and participant role, including outsider denial.
+  const templateResponse = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents/bookings/${bookingId}`,
+    { headers: { Authorization: 'Bearer owner' } },
+  );
+  assert.equal(templateResponse.status, 200);
+  const templateFields = (await templateResponse.json()).fields;
+  const lifecycleStatuses = ['pending', 'confirmed', 'in_progress', 'awaiting_confirmation', 'completed', 'cancelled'];
+  for (const role of ['requester', 'provider', 'outsider']) {
+    const client = role === 'requester' ? requesterClient : role === 'provider' ? providerClient : outsiderClient;
+    const actorId = role === 'requester' ? requesterId : role === 'provider' ? providerId : outsiderId;
+    for (const from of lifecycleStatuses) for (const to of lifecycleStatuses) {
+      const matrixId = `policy-${role}-${from}-${to}-${runId}`;
+      await seedAdminDocument(`bookings/${matrixId}`, { ...templateFields, status: { stringValue: from } });
+      const label = `policy/rules parity: ${role} ${from} -> ${to}`;
+      const operation = () => writeStatusTransition(
+        client.db, doc(client.db, 'bookings', matrixId), `event-${matrixId}`,
+        from, to, actorId, role === 'outsider' ? 'requester' : role,
+        from === 'awaiting_confirmation' && to === 'in_progress'
+          ? { requesterChangeRequest: 'Finish the remaining work' }
+          : to === 'awaiting_confirmation' ? { requesterChangeRequest: null } : {},
+      );
+      if (lifecycle.canTransitionBooking(from, to, role)) await expectAllowed(label, operation);
+      else await expectDenied(label, operation);
+    }
+  }
 
   const hostileBookingRef = (label) => doc(requesterClient.db, 'bookings', `${label}-${runId}`);
   await expectDenied('self-booking is rejected', () => setDoc(
