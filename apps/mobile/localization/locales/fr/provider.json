@@ -1,5 +1,7 @@
 {
   "registration": {
+    "ownerOnly": "Seul le titulaire du compte peut modifier ce profil de prestataire.",
+    "loadFailed": "Impossible de charger votre profil. Réessayez avant de le modifier ; votre profil enregistré n'a pas été remplacé.",
     "title": "Devenir prestataire",
     "editTitle": "Modifier le profil prestataire",
     "loadingProvider": "Chargement des données du prestataire...",
