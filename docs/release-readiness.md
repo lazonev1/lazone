@@ -574,6 +574,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
 ### E05 · P2 · Establish production rollout, observability, and recovery
 
+  **Progress — 2026-11-07:** Added a read-only release preflight for one explicit project/target and a clean approved commit already reachable from refreshed local `origin/develop`. It hashes reviewed deployment sources, rejects changed/untracked/out-of-checkout inputs and conflicting Storage bucket configuration, and never deploys. Local fixture tests run in CI. The [release and recovery runbook](release-operations.md) defines separate approval, live-version evidence, migration dry-run/backup/isolated-restore gates, compatibility checks, post-deployment verification, and rollback boundaries. Keep E05 open: no live backup/restore/deployment was performed, and monitoring, retention/recovery objectives and support ownership still need implementation and operational verification.
+
 - [ ] **Problem:** The repository does not establish a complete crash/error monitoring, migration, backup/restore, deployment-verification, or support-operations process. Functions retries and failed side effects can go unnoticed.
 
   **Sources:** [Functions][functions], [Firebase deployment config][firebase-json], [CI][ci], [EAS profiles][eas-json].

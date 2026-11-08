@@ -4,6 +4,8 @@
   "private": true,
   "description": "Monorepo for LaZone project",
   "scripts": {
+    "release:preflight": "node scripts/releasePreflight.mjs",
+    "test:release-preflight": "node scripts/testReleasePreflight.mjs",
     "dev:mobile": "pnpm --filter ./apps/mobile start",
     "eas:login": "pnpm --filter ./apps/mobile exec eas login",
     "prebuild:mobile": "pnpm --filter ./apps/mobile exec expo prebuild --clean",

@@ -67,6 +67,11 @@ and record commit, EAS build ID, device/OS, locale, account roles, and results.
 
 ## Explicit deployments and rollback
 
+Start with the [read-only release preflight and recovery runbook](release-operations.md).
+It validates one explicit project/target and a clean approved commit already on
+`origin/develop`; it does not deploy. Refresh remote refs and review live state
+separately before approval. CI runs its local fixture tests, not a deployment.
+
 Deployment is a separate owner-authorized action after review/tests. A merged PR or green
 CI does not deploy Firebase. Capture the deployed policy/version and project before changing
 it; keep migration backups outside Git and build archives.
