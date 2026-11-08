@@ -520,6 +520,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Fresh install, restart, runtime switch, notification entry, form errors, and all core flows remain consistently EN or FR. Add key/interpolation checks to CI and native runtime tests for `ExpoLocalization`; key parity alone is not sufficient.
 
+  **Progress — 2026-11-07:** Implemented the shared date/message-preview and CI-contract slice on `fix/localization-date-contract`: app-selected timestamp locale, DST-safe calendar-day labels, invalid-date handling, prior-year labels, translated typing/own-message previews, and automated checks across all 638 EN/FR leaf keys. Tests cover namespace/key/interpolation parity, malformed fixtures, actual translation/plural rendering, and real helper/adapter behavior. TypeScript passes; the adapter retains one existing lazy-native-import warning. Native language-switch verification and the wider U04 inventory remain open. No deployment/migration/EAS rebuild is required. See [scope and verification](localization-date-contract.md).
+
 ### U05 · P1 · Use honest loading, empty, error, and success states everywhere
 
 - [ ] **Problem:** Several fetch failures render “no results,” unavailable profiles, or empty conversations. Saved-provider failures can be silently filtered out. Some visible actions are no-ops, and edits/selection can claim success before persistence.
