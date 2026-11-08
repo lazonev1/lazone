@@ -1,5 +1,11 @@
 {
   "appName": "LaZone",
+  "select": {
+    "placeholder": "Select an option",
+    "openHint": "Opens the list of options",
+    "close": "Close options",
+    "empty": "No options available"
+  },
   "actions": {
     "ok": "OK",
     "cancel": "Cancel",
