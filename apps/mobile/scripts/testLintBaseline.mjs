@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { evaluateLintReport } from './checkLintBaseline.mjs';
+
+const root = resolve('/tmp/lazone-lint-fixture');
+const warning = { severity: 1, ruleId: 'unused', message: 'unused variable', line: 1 };
+const report = messages => [{ filePath: resolve(root, 'screen.tsx'), messages }];
+const baseline = { 'screen.tsx|unused': 2 };
+assert.equal(evaluateLintReport(report([warning, warning]), baseline, root).failures.length, 0);
+assert.equal(evaluateLintReport(report([warning]), baseline, root).failures.length, 0);
+assert.equal(evaluateLintReport(report([]), baseline, root).warningCount, 0);
+assert.equal(evaluateLintReport(report([warning, warning, warning]), baseline, root).failures.length, 1);
+assert.equal(evaluateLintReport(report([{ ...warning, ruleId: 'new-rule' }]), baseline, root).failures.length, 1);
+assert.equal(evaluateLintReport([{ filePath: resolve(root, 'new.tsx'), messages: [warning] }], baseline, root).failures.length, 1);
+assert.equal(evaluateLintReport(report([{ ...warning, severity: 2 }]), baseline, root).failures.length, 1);
+assert.equal(evaluateLintReport(report([{ ...warning, fatal: true }]), baseline, root).failures.length, 1);
+assert.equal(evaluateLintReport(report([{ ...warning, ruleId: null }]), { 'screen.tsx|null': 1 }, root).failures.length, 0);
+assert.throws(() => evaluateLintReport({}, baseline, root));
+assert.throws(() => evaluateLintReport([{ filePath: resolve(root, '../other.tsx'), messages: [] }], baseline, root));
+assert.throws(() => evaluateLintReport(report([]), { broken: -1 }, root));
+assert.throws(() => evaluateLintReport(report([{ ...warning, severity: 5 }]), baseline, root));
+console.log('Lint baseline tests passed: existing/lower counts, new/increased/moved warnings, errors, fatal parses, malformed reports, and invalid baselines.');

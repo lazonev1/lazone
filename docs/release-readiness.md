@@ -572,6 +572,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** CI fails on the actual defects listed here, executes repeatably from frozen dependencies, and records useful artifacts without secrets. Native smoke/E2E tests cover both role perspectives, not just SDK operations. Every completed backlog item links its regression evidence.
 
+  **Progress — 2026-11-07:** Implemented the enforced lint-baseline slice on `fix/enforce-lint-baseline`. CI now runs comparator regression tests and rejects every lint error plus new/increased file/rule warning counts against develop's explicit 52-warning baseline. Lower counts are allowed; warnings are not suppressed or marked resolved. Comparator and actual baseline scans plus TypeScript pass. Existing warning cleanup and wider E04 device/component/security coverage remain open. No app/native/Firebase/deployment changes are involved. See [gate behavior and maintenance](lint-regression-gate.md).
+
 ### E05 · P2 · Establish production rollout, observability, and recovery
 
 - [ ] **Problem:** The repository does not establish a complete crash/error monitoring, migration, backup/restore, deployment-verification, or support-operations process. Functions retries and failed side effects can go unnoticed.
