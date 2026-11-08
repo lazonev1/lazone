@@ -510,6 +510,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** On small iPhone and Android screens, users can edit the second/last checklist item, dismiss numeric keyboards, select the last category, and reach primary actions without erratic scroll, clipped text, or accidental navigation. Add recorded regression cases for these previously reported problems.
 
+  **Progress — 2026-11-07:** The shared booking-service/provider-category selector slice is implemented on `fix/accessible-scrollable-selectors`: bounded virtualized options, safe-area/reactive sizing, flexible labels, 48-unit targets, localized EN/FR copy, explicit accessibility states, and close/back/escape/focus callbacks. Actual-component structural/handler tests cover 200 options and last-option selection and run in CI; TypeScript/focused lint pass. Native scrolling/screen-reader sign-off remains pending because Simulator control times out. The broader U03 keyboard/layout work remains open. See [selector flow and verification](scrollable-selectors.md).
+
 ### U04 · P1 · Complete localization, not just translation resources
 
 - [ ] **Problem:** EN/FR keys match, but hardcoded strings remain in shared controls, service errors, fallback labels, dates/typing/read previews, and server notifications. Resource copy still describes provider completion in places that now require requester confirmation. Saved language loads asynchronously, and some formatting follows device locale or forced French rather than the selected language.
