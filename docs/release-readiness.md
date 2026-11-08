@@ -356,6 +356,8 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Back/forward, reload, a failed role update, interrupted save, and failed profile fetch do not erase work or downgrade a provider. Provider and requester capabilities work immediately on successful enrollment.
 
+  **Progress — 2026-11-07:** Implemented the session-form recovery slice on `fix/provider-form-recovery`: second-step drafts lift into an account-scoped route, survive Back/forward and failed saves, reserve service IDs only on initialization, and remain intact behind saving UI. Duplicate saves and late unmounted-session success/error UX are guarded. Owner/signed-out checks and edit-load Retry prevent blank replacement forms. Actual-route/step handler tests run in CI; TypeScript/focused lint pass. Reload/disk recovery, discard confirmation, enrollment idempotency, and native form verification remain open; media persistence remains P01/S07. No rules/deployment/migration/EAS rebuild change is required. See [recovery flow and evidence](provider-form-recovery.md).
+
 ### P04 · P1 · Make business visibility a real privacy/product control
 
 - [ ] **Problem:** Business Visibility currently changes local state while stating that the business is hidden. It does not persist or affect discovery/bookability.
