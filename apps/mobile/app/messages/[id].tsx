@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions, AppState, AppStateStatus } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
-import { Audio } from 'expo-av';
+import { Stack, useIsFocused, useLocalSearchParams } from 'expo-router';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
@@ -21,9 +26,11 @@ export default function ConversationScreen() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const scrollRef = useRef<ScrollView | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
   const [messageText, setMessageText] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
+  const isRecording = recorderState.isRecording;
+  const isRecordingRef = useRef(false);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingSentRef = useRef(false);
@@ -109,21 +116,30 @@ export default function ConversationScreen() {
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(clearTyping, 2000);
-  }, [appState, clearTyping, conversationId, isFocused, userId]);
+  }, [appState, clearTyping, conversationId, isFocused, setMessageText, userId]);
 
   useEffect(() => {
     if (!isFocused || appState !== 'active') clearTyping();
   }, [appState, clearTyping, isFocused]);
 
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
   // Clean up typing status on unmount
   useEffect(() => {
     return () => {
       clearTyping();
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      if (isRecordingRef.current) {
+        isRecordingRef.current = false;
+        try {
+          void audioRecorder.stop().catch(() => {});
+        } catch {
+          // Expo may release the native recorder before React runs cleanup.
+        }
       }
     };
-  }, [clearTyping]);
+  }, [audioRecorder, clearTyping]);
 
   const formatDuration = (durationMillis: number) => {
     const totalSeconds = Math.floor(durationMillis / 1000);
@@ -136,56 +152,44 @@ export default function ConversationScreen() {
     if (!userId) return;
 
     if (isRecording) {
-      const activeRecording = recordingRef.current;
-      if (!activeRecording) {
-        setIsRecording(false);
-        return;
-      }
-
       try {
-        await activeRecording.stopAndUnloadAsync();
-        const status = await activeRecording.getStatusAsync();
-        recordingRef.current = null;
-        setIsRecording(false);
+        const durationMillis = audioRecorder.getStatus().durationMillis;
+        isRecordingRef.current = false;
+        await audioRecorder.stop();
 
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
+        await setAudioModeAsync({
+          allowsRecording: false,
         });
 
-        const durationMillis = status.durationMillis ?? 0;
         const voiceNoteText = t('chat.voiceNote', { duration: formatDuration(durationMillis) });
         await sendMessage(userId, voiceNoteText);
       } catch (err) {
         console.error('Failed to stop recording:', err);
-        setIsRecording(false);
-        recordingRef.current = null;
         Alert.alert(t('common:alerts.error'), t('chat.voiceSaveFailed'));
       }
       return;
     }
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(t('chat.micPermissionTitle'), t('chat.micPermissionMessage'));
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
-      setIsRecording(true);
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      isRecordingRef.current = true;
     } catch (err) {
       console.error('Failed to start recording:', err);
       Alert.alert(t('common:alerts.error'), t('chat.voiceStartFailed'));
     }
-  }, [isRecording, sendMessage, userId, t]);
+  }, [audioRecorder, isRecording, sendMessage, userId, t]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !userId) return;

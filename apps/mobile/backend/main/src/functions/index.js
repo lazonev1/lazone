@@ -1,10 +1,13 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const logger = require('firebase-functions/logger');
-const admin = require('firebase-admin');
+const { initializeApp } = require('firebase-admin/app');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 
-admin.initializeApp();
+initializeApp();
 
-const db = admin.firestore();
+const db = getFirestore();
+const messaging = getMessaging();
 
 const USERS_COLLECTION = 'users';
 const CONVERSATIONS_COLLECTION = 'conversations';
@@ -46,8 +49,8 @@ async function removeInvalidTokens(userTokensMap, invalidTokens) {
 
     writes.push(
       db.collection(USERS_COLLECTION).doc(userId).update({
-        notificationTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        notificationTokens: FieldValue.arrayRemove(...tokensToRemove),
+        updatedAt: FieldValue.serverTimestamp(),
       })
     );
   }
@@ -182,7 +185,7 @@ exports.sendNewMessageNotification = onDocumentCreated(
       },
     };
 
-    const response = await admin.messaging().sendEachForMulticast(payload);
+    const response = await messaging.sendEachForMulticast(payload);
 
     const invalidTokens = [];
     response.responses.forEach((sendResult, index) => {
@@ -262,7 +265,7 @@ exports.sendBookingStatusNotification = onDocumentUpdated(
       },
     };
 
-    const response = await admin.messaging().sendEachForMulticast(payload);
+    const response = await messaging.sendEachForMulticast(payload);
     const invalidTokens = response.responses
       .map((result, index) => result.error && INVALID_TOKEN_CODES.has(result.error.code) ? tokens[index] : null)
       .filter(Boolean);

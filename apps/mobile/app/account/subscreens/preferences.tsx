@@ -266,7 +266,7 @@ export default function PreferencesScreen() {
   );
 }
 
-function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+function createStyles(theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
   return StyleSheet.create({
     container: {
       flex: 1,

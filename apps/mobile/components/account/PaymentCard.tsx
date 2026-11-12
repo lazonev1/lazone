@@ -54,7 +54,7 @@ export function PaymentMethodCard({ method, onSetDefault }: Props) {
 	);
 }
 
-const createStyles = (theme: any, colorScheme: 'dark' | 'light' | null | undefined) => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) => StyleSheet.create({
 	card: {
 		flexDirection: 'row',
 		borderRadius: 14,
