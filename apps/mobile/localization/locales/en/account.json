@@ -58,7 +58,8 @@
       "lastName": "Last Name",
       "lastNamePlaceholder": "Enter your last name",
       "email": "Email",
-      "emailPlaceholder": "Enter your email address",
+      "emailReadOnlyLabel": "Sign-in email (read-only)",
+      "emailReadOnlyHint": "This form updates your profile, not your sign-in email. Email changes require a separate verification flow and are not available here.",
       "phone": "Phone",
       "phonePlaceholder": "Enter your phone number"
     }

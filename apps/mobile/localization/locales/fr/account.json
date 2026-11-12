@@ -58,7 +58,8 @@
       "lastName": "Nom",
       "lastNamePlaceholder": "Saisissez votre nom",
       "email": "E-mail",
-      "emailPlaceholder": "Saisissez votre adresse e-mail",
+      "emailReadOnlyLabel": "E-mail de connexion (lecture seule)",
+      "emailReadOnlyHint": "Ce formulaire modifie votre profil, pas votre e-mail de connexion. Un changement d'e-mail nécessite une vérification distincte et n'est pas disponible ici.",
       "phone": "Téléphone",
       "phonePlaceholder": "Saisissez votre numéro de téléphone"
     }

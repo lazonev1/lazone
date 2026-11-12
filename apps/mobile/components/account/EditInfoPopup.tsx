@@ -6,6 +6,7 @@ import { Button } from '@lazone/ui';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';
 import { useTranslation } from 'react-i18next';
+import { ThemedText } from '@/components/ThemedText';
 
 type Props = {
 	visible: boolean;
@@ -21,7 +22,6 @@ type Props = {
 export default function EditInfoPopup({ visible, onClose, initialData }: Props) {
 	const [firstName, setFirstName] = useState(initialData.firstName);
 	const [lastName, setLastName] = useState(initialData.lastName);
-	const [email, setEmail] = useState(initialData.email);
 	const [phone, setPhone] = useState(initialData.phone);
 	const [saving, setSaving] = useState(false);
 
@@ -35,7 +35,6 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 		if (visible) {
 			setFirstName(initialData.firstName);
 			setLastName(initialData.lastName);
-			setEmail(initialData.email);
 			setPhone(initialData.phone);
 		}
 	}, [visible]);
@@ -63,7 +62,7 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 							});
 							Alert.alert(t('common:alerts.success'), t('info.editPopup.successMessage'));
 							onClose();
-						} catch (err) {
+					} catch {
 							Alert.alert(t('common:alerts.error'), t('info.editPopup.errorMessage'));
 						}
 						setSaving(false);
@@ -88,14 +87,13 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 						onChangeText={setLastName}
 						placeholder={t('info.editPopup.lastNamePlaceholder')}
 					/>
-					<EditableField
-						label={t('info.editPopup.email')}
-						value={email}
-						onChangeText={setEmail}
-						keyboardType="email-address"
-						placeholder={t('info.editPopup.emailPlaceholder')}
-						autoCapitalize="none"
-					/>
+					<View style={styles.readOnlyEmail}>
+						<ThemedText style={styles.emailLabel}>{t('info.editPopup.emailReadOnlyLabel')}</ThemedText>
+						<ThemedText selectable>
+							{initialData.email || t('info.noEmail')}
+						</ThemedText>
+						<ThemedText style={styles.emailHint}>{t('info.editPopup.emailReadOnlyHint')}</ThemedText>
+					</View>
 					<EditableField
 						label={t('info.editPopup.phone')}
 						value={phone}
@@ -124,6 +122,9 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 }
 
 const styles = StyleSheet.create({
+	readOnlyEmail: { marginBottom: 16, gap: 6 },
+	emailLabel: { fontSize: 13, fontWeight: '600' },
+	emailHint: { fontSize: 13, opacity: 0.8 },
 	buttonContainer: {
 		marginTop: 8,
 		marginBottom: 16,
