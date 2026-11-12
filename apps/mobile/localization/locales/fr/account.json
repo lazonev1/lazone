@@ -17,7 +17,7 @@
   "tab": {
     "loginTitle": "Bon retour !",
     "loginMessage": "Connectez-vous pour voir et gérer votre compte.",
-    "profileLoadFailed": "Impossible de charger le profil. Cela peut arriver si l'entrée en base de données est manquante pour cet utilisateur.",
+    "profileLoadFailed": "Impossible de charger votre profil. Vérifiez votre connexion et réessayez.",
     "refreshProfile": "Réessayer de charger le profil",
     "logout": "Se déconnecter",
     "businessVisibility": "Visibilité de l'entreprise",
@@ -41,6 +41,9 @@
     "logoutTitle": "Déconnexion",
     "logoutMessage": "Voulez-vous vraiment vous déconnecter ?",
     "logout": "Se déconnecter",
+    "signingOut": "Déconnexion...",
+    "logoutFailedTitle": "Déconnexion impossible",
+    "logoutFailedMessage": "Vous êtes toujours connecté. Vérifiez votre connexion et réessayez.",
     "editPopup": {
       "title": "Modifier les informations",
       "missingInfoTitle": "Informations manquantes",
