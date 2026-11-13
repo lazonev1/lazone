@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 
 
 function RootLayoutNav() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, profileMissing } = useAuth();
   const { t } = useTranslation('auth');
   const segments = useSegments();
   const router = useRouter();
@@ -67,6 +67,9 @@ function RootLayoutNav() {
     }
 
     const inAuthGroup = segments[0] === '(auth)';
+    const onCompleteProfile = inAuthGroup && (segments as string[])[1] === 'complete-profile';
+    // TEMPORARY: the A04 proof screen must stay reachable without a profile.
+    const onDevScreen = __DEV__ && pathname.startsWith('/dev/');
     // Route areas that require authentication. Bookings span two prefixes: the
     // tab is /booked, its detail and creation stack is /booking/* — same feature,
     // so both are listed.
@@ -81,16 +84,21 @@ function RootLayoutNav() {
         (route) => pathname === `/${route}` || pathname.startsWith(`/${route}/`)
       );
 
+    // A signed-in account without a profile (new phone number, interrupted
+    // signup) must finish creating it before using the app.
+    if (isAuthenticated && profileMissing) {
+      if (!onCompleteProfile && !onDevScreen) router.replace('/(auth)/complete-profile');
+    }
     // If authenticated and in auth group, redirect to home
-    if (isAuthenticated && inAuthGroup) {
+    else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
     // If not authenticated and trying to access protected route, redirect to login
-    else if (!isAuthenticated && inProtectedRoute) {
+    else if (!isAuthenticated && (inProtectedRoute || onCompleteProfile)) {
       router.replace('/(auth)/login');
     }
     // Otherwise, allow browsing (home, explore, provider details) without auth
-  }, [isAuthenticated, segments, loading, pathname, router]);
+  }, [isAuthenticated, profileMissing, segments, loading, pathname, router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -116,6 +124,7 @@ function RootLayoutNav() {
     <>
       <Stack>
         <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/complete-profile" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: ''}} />
         <Stack.Screen name="+not-found" />
       </Stack>

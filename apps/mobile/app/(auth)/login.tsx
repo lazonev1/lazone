@@ -27,14 +27,19 @@ import { ThemedText } from '@/components/ThemedText';
 import CheckBox from '@/components/ui/CheckBox';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import PasswordRecoveryScreen from '@/components/auth/PasswordRecoveryScreen';
+import PhoneVerificationForm, { LinkButton } from '@/components/auth/PhoneVerificationForm';
+import { accountAccessErrorKey } from '@/backend/main/src/services/accountAccessErrors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_WIDTH = (SCREEN_WIDTH - 48 - 8) / 2;
 
 type AuthMode = 'login' | 'signup';
+// Phone and email are equal first choices; neither requires the other.
+type AuthMethod = 'choose' | 'phone' | 'email';
 
 export default function LoginScreen() {
   // ── Shared state ──
+  const [method, setMethod] = useState<AuthMethod>('choose');
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,12 +47,11 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const router = useRouter();
-  const { login, signup } = useAuth();
+  const { login, signup, loginWithPhone } = useAuth();
   const { t } = useTranslation(['auth', 'common']);
 
   // ── Signup-only state ──
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(false);
 
   // ── Animated pill indicator ──
@@ -74,8 +78,8 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(email.trim(), password);
-    } catch (error: any) {
-      Alert.alert(t('login.errors.loginFailedTitle'), error.message || t('login.errors.loginFailedMessage'));
+    } catch (error) {
+      Alert.alert(t('login.errors.loginFailedTitle'), t(`accessErrors.${accountAccessErrorKey(error)}`));
     } finally {
       setIsLoading(false);
     }
@@ -92,9 +96,9 @@ export default function LoginScreen() {
     }
     setIsLoading(true);
     try {
-      await signup(fullName, email, password, phone);
-    } catch (error: any) {
-      Alert.alert(t('signup.errors.signupFailedTitle'), error.message || t('signup.errors.signupFailedMessage'));
+      await signup(fullName, email.trim(), password);
+    } catch (error) {
+      Alert.alert(t('signup.errors.signupFailedTitle'), t(`accessErrors.${accountAccessErrorKey(error)}`));
     } finally {
       setIsLoading(false);
     }
@@ -132,185 +136,212 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* ── Pill Toggle ── */}
-          <View style={styles.toggleContainer}>
-            <Animated.View style={[styles.toggleIndicator, animatedIndicator]} />
-            <TouchableOpacity
-              style={styles.toggleTab}
-              onPress={() => switchMode('login')}
-              activeOpacity={0.7}
-            >
-              <ThemedText
-                style={[
-                  styles.toggleLabel,
-                  isLogin && styles.toggleLabelActive,
-                ]}
-              >
-                {t('tabs.login')}
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toggleTab}
-              onPress={() => switchMode('signup')}
-              activeOpacity={0.7}
-            >
-              <ThemedText
-                style={[
-                  styles.toggleLabel,
-                  !isLogin && styles.toggleLabelActive,
-                ]}
-              >
-                {t('tabs.signup')}
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Title & Subtitle ── */}
-          <Animated.View
-            key={mode + '-header'}
-            entering={FadeInDown.duration(300).delay(50)}
-            exiting={FadeOutUp.duration(200)}
-            style={styles.headerZone}
-          >
-            <ThemedText style={styles.title}>{title}</ThemedText>
-            <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
-          </Animated.View>
-
-          {/* ── Form ── */}
-          <Animated.View
-            layout={LinearTransition.springify().damping(18)}
-            style={styles.formZone}
-          >
-            {/* Signup-only: Full Name */}
-            {!isLogin && (
-              <Animated.View
-                entering={FadeInDown.duration(250).delay(50)}
-                exiting={FadeOutUp.duration(200)}
-              >
-                <EditableField
-                  placeholder={t('signup.fullName')}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-              </Animated.View>
-            )}
-
-            {/* Email */}
-            <EditableField
-              placeholder={
-                isLogin
-                  ? t('login.emailAddress')
-                  : t('signup.emailAddress')
-              }
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-            />
-
-            {/* Signup-only: Phone */}
-            {!isLogin && (
-              <Animated.View
-                entering={FadeInDown.duration(250).delay(100)}
-                exiting={FadeOutUp.duration(200)}
-              >
-                <EditableField
-                  placeholder={t('signup.phoneNumber')}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                />
-              </Animated.View>
-            )}
-
-            {/* Password with eye toggle */}
-            <View style={styles.passwordContainer}>
-              <EditableField
-                placeholder={t('login.password')}
-                secureTextEntry={!isPasswordVisible}
-                value={password}
-                onChangeText={setPassword}
-                returnKeyType="done"
-              />
+          {method === 'choose' && (
+            <View style={styles.choiceZone}>
+              <ThemedText style={styles.title}>{t('entry.title')}</ThemedText>
+              <ThemedText style={styles.subtitle}>{t('entry.subtitle')}</ThemedText>
               <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setIsPasswordVisible((v) => !v)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                style={styles.methodButton}
+                onPress={() => setMethod('phone')}
+                activeOpacity={0.85}
               >
-                <Ionicons
-                  name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
-                  color="#888"
-                />
+                <Ionicons name="call-outline" size={20} color="#fff" />
+                <ThemedText style={styles.primaryButtonText}>{t('entry.continueWithPhone')}</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.methodButton}
+                onPress={() => setMethod('email')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="mail-outline" size={20} color="#fff" />
+                <ThemedText style={styles.primaryButtonText}>{t('entry.continueWithEmail')}</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {method === 'phone' && (
+            <View style={styles.choiceZone}>
+              <ThemedText style={styles.title}>{t('phone.title')}</ThemedText>
+              <ThemedText style={styles.subtitle}>{t('phone.subtitle')}</ThemedText>
+              <PhoneVerificationForm
+                submitLabel={t('phone.verify')}
+                onVerified={(credential) => loginWithPhone(credential)}
+              />
+              <LinkButton label={t('entry.back')} color="#fcbd02" onPress={() => setMethod('choose')} />
+            </View>
+          )}
+
+          {method === 'email' && (
+            <>
+            {/* ── Pill Toggle ── */}
+            <View style={styles.toggleContainer}>
+              <Animated.View style={[styles.toggleIndicator, animatedIndicator]} />
+              <TouchableOpacity
+                style={styles.toggleTab}
+                onPress={() => switchMode('login')}
+                activeOpacity={0.7}
+              >
+                <ThemedText
+                  style={[
+                    styles.toggleLabel,
+                    isLogin && styles.toggleLabelActive,
+                  ]}
+                >
+                  {t('tabs.login')}
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.toggleTab}
+                onPress={() => switchMode('signup')}
+                activeOpacity={0.7}
+              >
+                <ThemedText
+                  style={[
+                    styles.toggleLabel,
+                    !isLogin && styles.toggleLabelActive,
+                  ]}
+                >
+                  {t('tabs.signup')}
+                </ThemedText>
               </TouchableOpacity>
             </View>
 
-            {/* Login-only: Password recovery */}
-            {isLogin && (
-              <Animated.View
-                entering={FadeInDown.duration(250)}
-                exiting={FadeOutUp.duration(200)}
-                style={styles.optionsRow}
-              >
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  disabled={isLoading}
-                  style={styles.recoveryLink}
-                  onPress={() => setShowRecovery(true)}
-                  activeOpacity={0.7}
-                >
-                  <ThemedText style={styles.forgotText}>
-                    {t('login.forgotPassword')}
-                  </ThemedText>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-
-            {/* Signup-only: Terms agreement */}
-            {!isLogin && (
-              <Animated.View
-                entering={FadeInDown.duration(250).delay(150)}
-                exiting={FadeOutUp.duration(200)}
-                style={styles.termsRow}
-              >
-                <CheckBox
-                  isChecked={termsAgreed}
-                  setChecked={() => setTermsAgreed((v) => !v)}
-                />
-                <ThemedText style={styles.termsText}>
-                  {t('signup.agreement')}
-                </ThemedText>
-              </Animated.View>
-            )}
-
-            {/* Primary CTA */}
-            <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-              onPress={isLogin ? handleLogin : handleSignup}
-              disabled={isLoading}
-              activeOpacity={0.85}
+            {/* ── Title & Subtitle ── */}
+            <Animated.View
+              key={mode + '-header'}
+              entering={FadeInDown.duration(300).delay(50)}
+              exiting={FadeOutUp.duration(200)}
+              style={styles.headerZone}
             >
-              {isLoading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#fff" size="small" />
+              <ThemedText style={styles.title}>{title}</ThemedText>
+              <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
+            </Animated.View>
+
+            {/* ── Form ── */}
+            <Animated.View
+              layout={LinearTransition.springify().damping(18)}
+              style={styles.formZone}
+            >
+              {/* Signup-only: Full Name */}
+              {!isLogin && (
+                <Animated.View
+                  entering={FadeInDown.duration(250).delay(50)}
+                  exiting={FadeOutUp.duration(200)}
+                >
+                  <EditableField
+                    placeholder={t('signup.fullName')}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                  />
+                </Animated.View>
+              )}
+
+              {/* Email */}
+              <EditableField
+                placeholder={
+                  isLogin
+                    ? t('login.emailAddress')
+                    : t('signup.emailAddress')
+                }
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+              />
+
+              {/* Password with eye toggle */}
+              <View style={styles.passwordContainer}>
+                <EditableField
+                  placeholder={t('login.password')}
+                  secureTextEntry={!isPasswordVisible}
+                  value={password}
+                  onChangeText={setPassword}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setIsPasswordVisible((v) => !v)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={22}
+                    color="#888"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Login-only: Password recovery */}
+              {isLogin && (
+                <Animated.View
+                  entering={FadeInDown.duration(250)}
+                  exiting={FadeOutUp.duration(200)}
+                  style={styles.optionsRow}
+                >
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    disabled={isLoading}
+                    style={styles.recoveryLink}
+                    onPress={() => setShowRecovery(true)}
+                    activeOpacity={0.7}
+                  >
+                    <ThemedText style={styles.forgotText}>
+                      {t('login.forgotPassword')}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+
+              {/* Signup-only: Terms agreement */}
+              {!isLogin && (
+                <Animated.View
+                  entering={FadeInDown.duration(250).delay(150)}
+                  exiting={FadeOutUp.duration(200)}
+                  style={styles.termsRow}
+                >
+                  <CheckBox
+                    isChecked={termsAgreed}
+                    setChecked={() => setTermsAgreed((v) => !v)}
+                  />
+                  <ThemedText style={styles.termsText}>
+                    {t('signup.agreement')}
+                  </ThemedText>
+                </Animated.View>
+              )}
+
+              {/* Primary CTA */}
+              <TouchableOpacity
+                style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                onPress={isLogin ? handleLogin : handleSignup}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                {isLoading ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#fff" size="small" />
+                    <ThemedText style={styles.primaryButtonText}>
+                      {isLogin
+                        ? t('login.loggingIn')
+                        : t('signup.signingUp')}
+                    </ThemedText>
+                  </View>
+                ) : (
                   <ThemedText style={styles.primaryButtonText}>
                     {isLogin
-                      ? t('login.loggingIn')
-                      : t('signup.signingUp')}
+                      ? t('login.loginButton')
+                      : t('signup.signUpButton')}
                   </ThemedText>
-                </View>
-              ) : (
-                <ThemedText style={styles.primaryButtonText}>
-                  {isLogin
-                    ? t('login.loginButton')
-                    : t('signup.signUpButton')}
-                </ThemedText>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+              <LinkButton label={t('entry.back')} color="#fcbd02" disabled={isLoading} onPress={() => setMethod('choose')} />
+            </>
+          )}
 
           {/* ── Bottom Zone ── */}
           <View style={styles.bottomZone}>
@@ -334,6 +365,13 @@ export default function LoginScreen() {
             <ThemedText style={styles.motto}>
               {t('motto')}
             </ThemedText>
+
+            {/* TEMPORARY A04 step-0 proof entry; development builds only. */}
+            {__DEV__ && (
+              <TouchableOpacity onPress={() => router.push('/dev/phone-proof')}>
+                <ThemedText style={styles.motto}>Dev: phone sign-in proof</ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -398,6 +436,21 @@ const styles = StyleSheet.create({
   },
   toggleLabelActive: {
     color: '#fff',
+  },
+
+  /* Method choice and phone flow */
+  choiceZone: {
+    gap: 16,
+  },
+  methodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    minHeight: 52,
+    backgroundColor: '#0A58A5',
+    borderRadius: 14,
+    paddingVertical: 14,
   },
 
   /* Header */

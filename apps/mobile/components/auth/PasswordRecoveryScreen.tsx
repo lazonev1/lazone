@@ -65,6 +65,7 @@ export default function PasswordRecoveryScreen({ initialEmail, onBack }: { initi
           <Text accessibilityRole="header" style={styles.title}>{t(sent ? 'recovery.sentTitle' : 'recovery.title')}</Text>
           <Text style={styles.copy} accessibilityLiveRegion="polite">{t(sent ? 'recovery.sentMessage' : 'recovery.description')}</Text>
           {sent && <Text style={styles.copy}>{email.trim()}</Text>}
+          {!sent && <Text style={styles.copy}>{t('recovery.phoneHint')}</Text>}
           {!sent && <>
             <Text style={styles.label}>{t('login.emailAddress')}</Text>
             <TextInput
