@@ -68,8 +68,6 @@ function RootLayoutNav() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const onCompleteProfile = inAuthGroup && (segments as string[])[1] === 'complete-profile';
-    // TEMPORARY: the A04 proof screen must stay reachable without a profile.
-    const onDevScreen = __DEV__ && pathname.startsWith('/dev/');
     // Route areas that require authentication. Bookings span two prefixes: the
     // tab is /booked, its detail and creation stack is /booking/* — same feature,
     // so both are listed.
@@ -87,7 +85,7 @@ function RootLayoutNav() {
     // A signed-in account without a profile (new phone number, interrupted
     // signup) must finish creating it before using the app.
     if (isAuthenticated && profileMissing) {
-      if (!onCompleteProfile && !onDevScreen) router.replace('/(auth)/complete-profile');
+      if (!onCompleteProfile) router.replace('/(auth)/complete-profile');
     }
     // If authenticated and in auth group, redirect to home
     else if (isAuthenticated && inAuthGroup) {

@@ -365,13 +365,6 @@ export default function LoginScreen() {
             <ThemedText style={styles.motto}>
               {t('motto')}
             </ThemedText>
-
-            {/* TEMPORARY A04 step-0 proof entry; development builds only. */}
-            {__DEV__ && (
-              <TouchableOpacity onPress={() => router.push('/dev/phone-proof')}>
-                <ThemedText style={styles.motto}>Dev: phone sign-in proof</ThemedText>
-              </TouchableOpacity>
-            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

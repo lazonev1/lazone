@@ -57,7 +57,3 @@ export function requestPhoneVerification(
 export function phoneCredential(verificationId: string, code: string): PhoneAuthCredential {
   return PhoneAuthProvider.credential(verificationId, code.trim());
 }
-
-export function nativeAuthUserId(): string | null {
-  return getNativeAuth().currentUser?.uid ?? null;
-}
