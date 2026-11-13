@@ -50,7 +50,8 @@ The JS SDK cannot send SMS codes in React Native (it needs a browser reCAPTCHA).
 native SDK performs app verification (APNs/Play Integrity, reCAPTCHA fallback) and
 returns a verification ID; the JS SDK redeems it. Step-0 proof on Android confirmed that
 a native verification ID signs in through the JS SDK, links to an email account, and
-leaves the native SDK signed out. iOS proof is pending its development build.
+leaves the native SDK signed out. The temporary proof screen has been removed; iOS is
+verified through the real sign-in flow on its development build.
 
 Android "instant verification" can complete without an SMS, leaving nothing the JS
 session can redeem. The form then asks for a new code instead of failing silently.
@@ -150,11 +151,6 @@ number and have no email need a support path (A03).
 The change is client-side. Once phone-only accounts exist, disabling the Phone provider
 would lock them out; roll back by shipping a client fix instead. Removing email/phone
 methods from accounts is never part of rollback.
-
-## Before merging
-
-Remove the temporary step-0 proof screen (`app/dev/phone-proof.tsx`), its login link, and
-the `/dev/` exemption in `app/_layout.tsx`.
 
 References: [Firebase account linking](https://firebase.google.com/docs/auth/web/account-linking),
 [Firebase phone authentication](https://firebase.google.com/docs/auth/ios/phone-auth),
