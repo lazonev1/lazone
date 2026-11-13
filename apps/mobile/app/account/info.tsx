@@ -9,9 +9,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { router, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { formatPhoneNumber } from '@/utils/phone';
 
 export default function AccountInfoScreen() {
-	const { user, userProfile, logout } = useAuth();
+	const { user, userProfile, identities, logout } = useAuth();
 	const { t } = useTranslation(['account', 'common']);
 	const [editPopupVisible, setEditPopupVisible] = useState(false);
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -24,8 +25,12 @@ export default function AccountInfoScreen() {
 	const firstName = userProfile?.firstName ?? '';
 	const lastName = userProfile?.lastName ?? '';
 	const fullName = [firstName, lastName].filter(Boolean).join(' ');
-	const email = user?.email ?? '';
-	const phone = userProfile?.phoneNumber ?? '';
+	// Sign-in identities come from Firebase Authentication, never the profile.
+	const email = identities?.email
+		? `${identities.email}${identities.emailVerified ? '' : ` (${t('info.notConfirmed')})`}`
+		: '';
+	const phone = formatPhoneNumber(identities?.phoneNumber);
+	const hasPassword = identities?.methods.includes('password') ?? false;
 	const avatar = userProfile?.avatar ?? null;
 
 	useEffect(() => {
@@ -34,7 +39,7 @@ export default function AccountInfoScreen() {
 
 	if (!user) { return null; }
 
-	const editData = { firstName, lastName, email, phone };
+	const editData = { firstName, lastName };
 	const handleLogout = () => {
 		Alert.alert(
 			t('info.logoutTitle'),
@@ -85,9 +90,10 @@ export default function AccountInfoScreen() {
 			<ThemedView style={styles.managementSection}>
 				<Pressable
 					style={styles.row}
-					onPress={() => Alert.alert('TODO', 'Handle deactivate')}
+					accessibilityRole="button"
+					onPress={() => router.push('/account/login-methods')}
 				>
-					<ThemedText>{t('info.deactivate')}</ThemedText>
+					<ThemedText>{t('info.signInMethods')}</ThemedText>
 					<ThemedText style={styles.arrow}>›</ThemedText>
 				</Pressable>
 
@@ -95,11 +101,26 @@ export default function AccountInfoScreen() {
 
 				<Pressable
 					style={styles.row}
-					onPress={() => Alert.alert('TODO', 'Handle change password')}
+					onPress={() => Alert.alert('TODO', 'Handle deactivate')}
 				>
-					<ThemedText>{t('info.changePassword')}</ThemedText>
+					<ThemedText>{t('info.deactivate')}</ThemedText>
 					<ThemedText style={styles.arrow}>›</ThemedText>
 				</Pressable>
+
+				{/* Phone-only accounts have no password to change. */}
+				{hasPassword && (
+					<>
+						<View style={styles.divider} />
+
+						<Pressable
+							style={styles.row}
+							onPress={() => Alert.alert('TODO', 'Handle change password')}
+						>
+							<ThemedText>{t('info.changePassword')}</ThemedText>
+							<ThemedText style={styles.arrow}>›</ThemedText>
+						</Pressable>
+					</>
+				)}
 			</ThemedView>
 
 			<Pressable

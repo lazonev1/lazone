@@ -61,7 +61,9 @@
       "emailPlaceholder": "Enter your email address",
       "phone": "Phone",
       "phonePlaceholder": "Enter your phone number"
-    }
+    },
+    "signInMethods": "Sign-in methods",
+    "notConfirmed": "not confirmed"
   },
   "notifications": {
     "title": "Notifications",
@@ -159,5 +161,48 @@
       "dark": "Dark",
       "darkDescription": "Dark background with light text"
     }
+  },
+  "loginMethods": {
+    "title": "Sign-in methods",
+    "description": "Each method signs in to this same account, with the same bookings, messages, and business.",
+    "phoneTitle": "Phone number",
+    "emailTitle": "Email and password",
+    "verified": "Verified",
+    "notConfirmed": "Not confirmed",
+    "none": "Not added",
+    "addPhone": "Add phone number",
+    "changePhone": "Change number",
+    "addEmail": "Add email and password",
+    "remove": "Remove",
+    "onlyMethod": "This is your only sign-in method, so it can't be removed.",
+    "resendConfirmation": "Resend confirmation email",
+    "refreshConfirmation": "I've confirmed my email",
+    "confirmationSent": "We sent a confirmation link to {{email}}. Open it, then tap “I've confirmed my email”.",
+    "confirmationFailed": "We couldn't send the confirmation email. Please try again later.",
+    "removePhoneTitle": "Remove phone sign-in?",
+    "removePhoneMessage": "You won't be able to sign in with {{phone}} anymore. Your account, bookings, and messages stay the same.",
+    "removeEmailTitle": "Remove email sign-in?",
+    "removeEmailMessage": "You won't be able to sign in with {{email}} anymore. Your account, bookings, and messages stay the same.",
+    "phoneAdded": "Phone number added. You can now sign in with it.",
+    "phoneChanged": "Phone number updated. Sign in with the new number from now on.",
+    "emailAdded": "Email added. We sent a confirmation link to {{email}}.",
+    "removed": "Sign-in method removed.",
+    "addPhoneTitle": "Add a phone number",
+    "changePhoneTitle": "Enter your new phone number",
+    "addPhoneSubmit": "Verify and add",
+    "changePhoneSubmit": "Verify new number",
+    "addEmailTitle": "Add email sign-in",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Confirm password",
+    "passwordMismatch": "The passwords don't match.",
+    "addEmailSubmit": "Add email",
+    "adding": "Adding…",
+    "reauthTitle": "Confirm it's you",
+    "reauthPhone": "We'll send a code to your current number.",
+    "reauthPassword": "Enter the password for {{email}}.",
+    "reauthSubmit": "Confirm",
+    "confirming": "Confirming…",
+    "cancel": "Cancel"
   }
 }

@@ -11,11 +11,12 @@ import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
 import { LoginPrompt } from "@/components/auth/LoginPrompt";
 import { Ionicons } from '@expo/vector-icons';
+import { formatPhoneNumber } from '@/utils/phone';
 
 export default function AccountScreen() {
   const router = useRouter();
   const { t } = useTranslation(['account', 'provider']);
-  const { user, userProfile, logout, refreshUserProfile, profileLoading } = useAuth();
+  const { user, userProfile, identities, logout, refreshUserProfile, profileLoading } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
@@ -79,8 +80,8 @@ export default function AccountScreen() {
               <ThemedText type="defaultSemiBold" style={styles.name}>
                 {`${userProfile.firstName} ${userProfile.lastName}`}
               </ThemedText>
-              <ThemedText>{user?.email}</ThemedText>
-              <ThemedText>{userProfile.phoneNumber}</ThemedText>
+              {!!identities?.email && <ThemedText>{identities.email}</ThemedText>}
+              {!!identities?.phoneNumber && <ThemedText>{formatPhoneNumber(identities.phoneNumber)}</ThemedText>}
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.icon} />
           </ThemedView>
