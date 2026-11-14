@@ -17,6 +17,9 @@ import {
 } from '@/services/notifications/messageHandlers';
 import NotificationBanner from '@/components/ui/NotificationBanner';
 import { useTranslation } from 'react-i18next';
+import { firebaseEmulators } from '@/backend/main/src/config/firebaseEnvironment';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ThemedText } from '@/components/ThemedText';
 
 
 function RootLayoutNav() {
@@ -25,6 +28,11 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const pathname = usePathname();
+  const testBanner = firebaseEmulators ? (
+    <SafeAreaView edges={['bottom']} style={styles.emulatorBanner}>
+      <ThemedText style={styles.emulatorLabel}>{t('session.emulator')}</ThemedText>
+    </SafeAreaView>
+  ) : null;
 
   const currentPathRef = useRef<string | null>(null);
   useEffect(() => {
@@ -106,9 +114,12 @@ function RootLayoutNav() {
 
   if (loading) {
     return (
-      <View style={styles.sessionLoading} accessibilityLabel={t('session.loading')}>
-        <ActivityIndicator size="large" />
-      </View>
+      <>
+        <View style={styles.sessionLoading} accessibilityLabel={t('session.loading')}>
+          <ActivityIndicator size="large" />
+        </View>
+        {testBanner}
+      </>
     );
   }
 
@@ -119,6 +130,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: ''}} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      {testBanner}
       
       <NotificationBanner
         visible={bannerConfig.visible}
@@ -149,6 +161,8 @@ function RootLayoutNav() {
 }
 
 const styles = StyleSheet.create({
+  emulatorBanner: { backgroundColor: '#FFF1C2', paddingHorizontal: 12, paddingVertical: 4 },
+  emulatorLabel: { textAlign: 'center', fontSize: 12, color: '#503600' },
   sessionLoading: {
     flex: 1,
     alignItems: 'center',
