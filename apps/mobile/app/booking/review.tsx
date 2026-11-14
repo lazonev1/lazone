@@ -1,6 +1,6 @@
 import { ActivityIndicator, Appearance, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@lazone/ui';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,7 +8,7 @@ import { TextBox } from '@/components/ui/TextBox';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/auth';
 import { useBookingDetail } from '@/hooks/useBookings';
-import { useReviews } from '@/hooks/useReviews';
+import { addReview } from '@/repositories/reviewRepository';
 import * as ReviewService from '@/backend/main/src/services/reviewService';
 import { useTranslation } from 'react-i18next';
 
@@ -23,43 +23,45 @@ export default function BookingReviewScreen() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [existingReview, setExistingReview] = useState(false);
-  const [checkingReview, setCheckingReview] = useState(true);
   const [error, setError] = useState('');
-
-  const { submitReview } = useReviews(booking?.providerId, user?.uid);
-
-  useEffect(() => {
-    let active = true;
-    if (!bookingId) { setCheckingReview(false); return () => { active = false; }; }
-    ReviewService.hasBookingBeenReviewed(bookingId)
-      .then((reviewed) => { if (active) setExistingReview(reviewed); })
-      .catch(() => { if (active) setError(t('review.checkFailed')); })
-      .finally(() => { if (active) setCheckingReview(false); });
-    return () => { active = false; };
-  }, [bookingId, t]);
-
+  const [attempt, setAttempt] = useState(0);
+  const scope = useMemo(() => ({ bookingId, uid: user?.uid, attempt }), [bookingId, user?.uid, attempt]);
+  const [check, setCheck] = useState<{ scope: typeof scope; result: 'new' | 'reviewed' | 'failed' } | null>(null);
+  const submissionPending = useRef(false);
   const canReview = Boolean(
-    user?.uid && booking && booking.requesterId === user.uid && booking.status === 'completed'
+    user?.uid && booking && booking.id === bookingId && booking.requesterId === user.uid && booking.status === 'completed'
   );
+  const checkResult = check?.scope === scope ? check.result : null;
+  const [submittedScope, setSubmittedScope] = useState<typeof scope | null>(null);
+  const submitted = submittedScope === scope;
+  useEffect(() => {
+    if (!canReview || !scope.bookingId) return;
+    let active = true;
+    ReviewService.hasBookingBeenReviewed(scope.bookingId)
+      .then(reviewed => { if (active) setCheck({ scope, result: reviewed ? 'reviewed' : 'new' }); })
+      .catch(() => { if (active) setCheck({ scope, result: 'failed' }); });
+    return () => { active = false; };
+  }, [scope, canReview]);
 
   const handleSubmit = async () => {
-    if (!booking || !bookingId || !canReview) return;
+    if (!booking || !bookingId || !user?.uid || !canReview || submissionPending.current || submitted || checkResult !== 'new') return;
     if (rating < 1) { setError(t('review.selectRating')); return; }
     if (comment.length > 500) { setError(t('review.tooLong')); return; }
+    submissionPending.current = true;
     setSubmitting(true);
     setError('');
     try {
-      await submitReview({ rating, comment: comment.trim(), bookingId, serviceId: booking.serviceId });
-      setExistingReview(true);
-    } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : t('review.submitFailed'));
+      await addReview(booking.providerId, { requesterId: user.uid, rating, comment: comment.trim(), bookingId, serviceId: booking.serviceId });
+      setSubmittedScope(scope);
+    } catch {
+      setError(t('review.submitFailed'));
     } finally {
+      submissionPending.current = false;
       setSubmitting(false);
     }
   };
 
-  if (bookingLoading || checkingReview) {
+  if (bookingLoading || (canReview && !checkResult)) {
     return <View style={[styles.centered, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.tint} /></View>;
   }
 
@@ -73,11 +75,19 @@ export default function BookingReviewScreen() {
             <ThemedText type="title" style={styles.title}>{t('review.unavailableTitle')}</ThemedText>
             <ThemedText style={styles.centerText}>{t('review.unavailableMessage')}</ThemedText>
           </>
-        ) : existingReview ? (
+        ) : checkResult === 'failed' ? (
+          <>
+            <ThemedText accessibilityLiveRegion="polite" style={styles.centerText}>{t('review.checkFailed')}</ThemedText>
+            <Button label={t('review.retry')} onPress={() => setAttempt(value => value + 1)} variant="primary" />
+          </>
+        ) : submitted || checkResult === 'reviewed' ? (
           <>
             <Ionicons name="checkmark-circle" size={64} color="#2E7D32" />
-            <ThemedText type="title" style={styles.title}>{t('review.submittedTitle')}</ThemedText>
-            <ThemedText style={styles.centerText}>{t('review.submittedMessage', { name: booking.providerName })}</ThemedText>
+            <ThemedText type="title" style={styles.title}>{t(submitted ? 'review.submittedTitle' : 'review.alreadyReviewed')}</ThemedText>
+            {submitted && <ThemedText style={styles.centerText}>{t('review.submittedMessage', { name: booking.providerName })}</ThemedText>}
+            <Button label={t('review.seeProviderReviews')} onPress={() => router.push({
+              pathname: '/provider/reviews', params: { id: booking.providerId },
+            })} variant="primary" />
           </>
         ) : (
           <>
@@ -90,6 +100,7 @@ export default function BookingReviewScreen() {
                   accessibilityRole="radio"
                   accessibilityLabel={t('review.starLabel', { count: value })}
                   accessibilityState={{ selected: rating === value }}
+                  disabled={submitting}
                   onPress={() => setRating(value)}
                   style={styles.starButton}
                 >
@@ -106,13 +117,13 @@ export default function BookingReviewScreen() {
               maxLength={500}
               placeholder={t('review.commentPlaceholder')}
               inputStyle={styles.comment}
+              editable={!submitting}
             />
             <ThemedText style={styles.counter}>{comment.length}/500</ThemedText>
             {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
             <Button label={submitting ? t('review.submitting') : t('review.submitReview')} onPress={handleSubmit} disabled={submitting || rating === 0} variant="primary" style={styles.submit} />
           </>
         )}
-        {error && (!canReview || existingReview) ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
         <Button label={t('review.backToBooking')} onPress={() => bookingId ? router.replace(`/booking/${bookingId}`) : router.back()} variant="secondary" style={styles.back} />
       </ScrollView>
     </View>

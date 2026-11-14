@@ -91,6 +91,8 @@ export default function ProviderProfileScreen() {
     reviews: reviewItems,
     stats: reviewStats,
     isLoading: reviewsLoading,
+    hasLoadError: reviewsLoadError,
+    refreshReviews,
     respondToReview,
     updateReview,
     deleteReview,
@@ -181,7 +183,11 @@ export default function ProviderProfileScreen() {
               </TouchableOpacity>
             </View>
             <ThemedText>{provider.profession}</ThemedText>
-            <ThemedText style={styles.rating}>{t('profile.ratingSummary', { rating: provider.rating, count: provider.reviews })}</ThemedText>
+            {reviewStats.totalReviews > 0 && (
+              <ThemedText style={styles.rating}>{t('profile.ratingSummary', {
+                rating: reviewStats.averageRating, count: reviewStats.totalReviews,
+              })}</ThemedText>
+            )}
           </View>
         </ThemedView>
 
@@ -301,7 +307,7 @@ export default function ProviderProfileScreen() {
             <ThemedText type="subtitle">{t('profile.reviews')}</ThemedText>
             <View style={styles.reviewActions}>
               <TouchableOpacity
-                onPress={() => router.push(`/provider/reviews?id=${providerId}`)}
+                onPress={() => router.push({ pathname: '/provider/reviews', params: { id: providerId } })}
                 style={styles.viewAllButton}
               >
                 <ThemedText style={styles.viewAllText}>{t('profile.viewAll')}</ThemedText>
@@ -310,9 +316,12 @@ export default function ProviderProfileScreen() {
             </View>
           </View>
           <ReviewsComponent
+            key={JSON.stringify([providerId, currentUserId])}
             reviews={reviewItems}
             stats={reviewStats}
             isLoading={reviewsLoading}
+            hasLoadError={reviewsLoadError}
+            onRetry={refreshReviews}
             showStats={false}
             showFilters={false}
             allowResponding={currentUserId === providerId}
