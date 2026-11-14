@@ -1,7 +1,6 @@
 import * as BookmarkService from "@/backend/main/src/services/bookmarkService";
 import { getProviderViewModel } from "@/repositories/providerRepository";
-import { ProviderViewModel } from "@/types/provider";
-import { Coordinates } from "@/backend/main/src/utils/geo";
+import type { ProviderViewModel } from "@/types/provider";
 
 /**
  * Bookmark Repository — Transforms bookmark data for UI consumption
@@ -19,34 +18,24 @@ export async function getBookmarkedIds(userId: string): Promise<string[]> {
 
 /**
  * Get full ProviderViewModel data for all bookmarked providers.
- * Fetches in parallel. Silently filters out providers that no longer exist.
- *
- * @param userId - The user whose bookmarks to fetch
- * @param userLocation - Optional location for distance calculation
- * @param prefetchedIds - Optional pre-fetched bookmark IDs to avoid a redundant Firestore read
+ * An unavailable listing is different from one that failed to load.
  */
 export async function getBookmarkedProviders(
-  userId: string,
-  userLocation?: Coordinates | null,
-  prefetchedIds?: string[]
-): Promise<ProviderViewModel[]> {
-  const providerIds = prefetchedIds ?? await BookmarkService.getBookmarkedProviderIds(userId);
-
-  if (providerIds.length === 0) {
-    return [];
-  }
-
-  const results = await Promise.allSettled(
-    providerIds.map((id) => getProviderViewModel(id, userLocation))
-  );
-
-  return results
-    .filter(
-      (r): r is PromiseFulfilledResult<ProviderViewModel | null> =>
-        r.status === "fulfilled" && r.value !== null
-    )
-    .map((r) => r.value!);
+  providerIds: readonly string[],
+): Promise<SavedProviderEntry[]> {
+  return Promise.all(providerIds.map(async (id): Promise<SavedProviderEntry> => {
+    try {
+      const provider = await getProviderViewModel(id);
+      return provider ? { id, status: 'available', provider } : { id, status: 'unavailable' };
+    } catch {
+      return { id, status: 'failed' };
+    }
+  }));
 }
+
+export type SavedProviderEntry =
+  | { id: string; status: 'available'; provider: ProviderViewModel; stale?: boolean }
+  | { id: string; status: 'unavailable' | 'failed' };
 
 /**
  * Add a bookmark for a provider.

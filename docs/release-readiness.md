@@ -527,6 +527,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
 ### U05 · P1 · Use honest loading, empty, error, and success states everywhere
 
+  **Progress — 2026-11-13:** [Saved Providers recovery](saved-provider-recovery.md) distinguishes failed reads from a confirmed empty list, keeps previously loaded cards during failures, and leaves a card visible until its removal is acknowledged. Bookmark cache and async work are scoped to the signed-in account. Automated failure/race checks run in CI; the iOS guest launch passes. Signed-in requester/provider simulator checks and the rest of U05 remain open.
+
 - [ ] **Problem:** Several fetch failures render “no results,” unavailable profiles, or empty conversations. Saved-provider failures can be silently filtered out. Some visible actions are no-ops, and edits/selection can claim success before persistence.
 
   **Sources:** [provider hooks][provider-hooks], [booking hooks][booking-hooks], [message mapping][message-repo], [bookmark mapping][bookmark-repo], [account editor][account-editor], [certification picker][cert-picker].
