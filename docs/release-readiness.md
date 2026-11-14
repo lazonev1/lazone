@@ -495,6 +495,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Requester/provider status treatments match, all supported themes are readable, controls share consistent states, and audited text/control combinations pass the chosen accessibility thresholds. Use [WCAG 2.2](https://www.w3.org/TR/WCAG22/) as the contrast/focus baseline, not color alone to communicate state.
 
+  **Progress — 2026-11-07:** The shared button-default slice is implemented on `fix/accessible-shared-buttons`: tested primary/secondary/success/disabled text-surface tokens (7.11/8.05/5.40/6.15:1), 48-unit minimum targets, wrapping/system-font labels, explicit accessible role/name/disabled/busy state, and optional guarded loading state. Actual-component/token tests run in CI; TypeScript and focused package lint pass. Native large-text/layout/screen-reader verification remains pending, and app-wide theme/status/custom-control work remains open. No deployment/migration/EAS rebuild is required. See [button scope and verification](accessible-shared-buttons.md).
+
 ### U02 · P1 · Make critical journeys accessible beyond visual appearance
 
 - [ ] **Problem:** Many icon-only actions, custom checklist/segmented controls, stars, banners, and modal controls lack explicit accessible roles/names/states. Chat buttons are 40×40; several remove/close targets are smaller. Toast-only errors and fixed type/layout can exclude users.
