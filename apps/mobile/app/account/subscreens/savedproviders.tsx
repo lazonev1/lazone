@@ -1,12 +1,11 @@
 import { useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, SafeAreaView, ActivityIndicator, RefreshControl, Platform, Appearance } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
-import { Platform } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { Appearance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookmarks } from '@/hooks/useBookmarks';
+import { Button } from '@lazone/ui';
 import { useTranslation } from 'react-i18next';
 
 export default function SavedProvidersScreen() {
@@ -16,110 +15,92 @@ export default function SavedProvidersScreen() {
     const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
     const styles = createStyles(theme, colorScheme);
 
-    const {
-        bookmarkedProviders,
-        fetchBookmarkedProviders,
-        isLoadingProviders,
-        toggleBookmark,
-    } = useBookmarks();
+    const { entries, bookmarkedIds, fetchBookmarkedProviders, isLoading, hasLoadError, toggleBookmark, isBookmarkPending, canChangeBookmarks } = useBookmarks();
 
-    // Fetch full provider details when screen comes into focus
-    useFocusEffect(
-        useCallback(() => {
-            fetchBookmarkedProviders();
-        }, [fetchBookmarkedProviders])
-    );
+    useFocusEffect(useCallback(() => { void fetchBookmarkedProviders(); }, [fetchBookmarkedProviders]));
 
-    // Navigate to a provider's profile
-    const navigateToProvider = (id: string | number) => {
-        router.push(`/provider/${id}`);
-    };
+    const showRetry = hasLoadError || entries.some(entry => entry.status === 'failed' || (entry.status === 'available' && entry.stale));
+    const waitingForProfiles = !hasLoadError && entries.length === 0 && (isLoading || bookmarkedIds.length > 0);
 
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen
-                options={{
-                    headerTitle: t('saved.title'),
-                    headerStyle: {
-                        backgroundColor: theme.background,
-                    },
-                    headerTintColor: theme.text,
-                }}
-            />
-
+            <Stack.Screen options={{ headerTitle: t('saved.title'), headerStyle: { backgroundColor: theme.background }, headerTintColor: theme.text }} />
             <ScrollView
                 style={styles.scrollContainer}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isLoadingProviders}
-                        onRefresh={fetchBookmarkedProviders}
-                        tintColor={theme.tint}
-                    />
-                }
+                refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchBookmarkedProviders} tintColor={theme.tint} />}
             >
-                {isLoadingProviders && bookmarkedProviders.length === 0 ? (
+                {showRetry && (
+                    <View style={styles.recovery}>
+                        <ThemedText accessibilityLiveRegion="polite">
+                            {t(entries.length ? 'saved.partialFailure' : 'saved.loadFailed')}
+                        </ThemedText>
+                        <Button label={t('saved.retry')} onPress={fetchBookmarkedProviders} disabled={isLoading} variant="secondary" size="small" />
+                    </View>
+                )}
+                {waitingForProfiles ? (
                     <View style={styles.emptyState}>
                         <ActivityIndicator size="large" color={theme.tint} />
                         <ThemedText style={styles.emptySubtext}>{t('saved.loading')}</ThemedText>
                     </View>
-                ) : bookmarkedProviders.length === 0 ? (
+                ) : !hasLoadError && entries.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="bookmark" size={48} color={theme.tabIconDefault} />
-                        <ThemedText style={styles.emptyText}>
-                            {t('saved.emptyTitle')}
-                        </ThemedText>
-                        <ThemedText style={styles.emptySubtext}>
-                            {t('saved.emptySubtitle')}
-                        </ThemedText>
+                        <ThemedText style={styles.emptyText}>{t('saved.emptyTitle')}</ThemedText>
+                        <ThemedText style={styles.emptySubtext}>{t('saved.emptySubtitle')}</ThemedText>
                     </View>
-                ) : (
-                    bookmarkedProviders.map((provider) => (
-                        <TouchableOpacity
-                            key={String(provider.id)}
-                            style={styles.providerCard}
-                            onPress={() => navigateToProvider(provider.id)}
-                        >
-                            <Image
-                                source={
-                                    typeof provider.avatar === 'string'
-                                        ? { uri: provider.avatar }
-                                        : provider.avatar ?? require('@/assets/images/avatar-placeholder.png')
-                                }
-                                style={styles.providerAvatar}
-                            />
-                            <View style={styles.providerInfo}>
-                                <View style={styles.nameRow}>
-                                    <ThemedText type="defaultSemiBold" style={styles.providerName}>
-                                        {provider.name}
-                                    </ThemedText>
-                                    <TouchableOpacity
-                                        onPress={() => toggleBookmark(String(provider.id))}
-                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <Ionicons name="bookmark" size={22} color="#0A58A5" />
-                                    </TouchableOpacity>
-                                </View>
-                                <ThemedText style={styles.providerDescription}>
-                                    {provider.profession}
-                                </ThemedText>
-                                <View style={styles.ratingContainer}>
-                                    <ThemedText style={styles.ratingText}>
-                                        {provider.rating.toFixed(1)} <Ionicons name="star" size={14} color="#FFD700" />
-                                    </ThemedText>
-                                    <ThemedText style={styles.reviewCount}>
-                                        {t('saved.reviewCount', { count: provider.reviews })}
+                ) : entries.map(entry => {
+                    const busy = isBookmarkPending(entry.id);
+                    return (
+                        <View key={entry.id} style={styles.providerCard}>
+                            {entry.status === 'available' ? (
+                                <TouchableOpacity
+                                    style={styles.providerLink}
+                                    accessibilityRole="button"
+                                    onPress={() => router.push({ pathname: '/provider/[id]', params: { id: entry.id } })}
+                                >
+                                    <Image
+                                        source={typeof entry.provider.avatar === 'string' ? { uri: entry.provider.avatar } : entry.provider.avatar ?? require('@/assets/images/avatar-placeholder.png')}
+                                        style={styles.providerAvatar}
+                                    />
+                                    <View style={styles.providerInfo}>
+                                        <ThemedText type="defaultSemiBold" style={styles.providerName}>{entry.provider.name}</ThemedText>
+                                        <ThemedText style={styles.providerDescription}>{entry.provider.profession}</ThemedText>
+                                        <View style={styles.ratingContainer}>
+                                            <ThemedText style={styles.ratingText}>
+                                                {entry.provider.rating.toFixed(1)} <Ionicons name="star" size={14} color="#FFD700" />
+                                            </ThemedText>
+                                            <ThemedText style={styles.reviewCount}>{t('saved.reviewCount', { count: entry.provider.reviews })}</ThemedText>
+                                        </View>
+                                        {entry.stale && <ThemedText style={styles.reviewCount}>{t('saved.stale')}</ThemedText>}
+                                    </View>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={styles.providerInfo}>
+                                    <ThemedText type="defaultSemiBold">{t(entry.status === 'unavailable' ? 'saved.unavailable' : 'saved.profileFailed')}</ThemedText>
+                                    <ThemedText style={styles.providerDescription}>
+                                        {t(entry.status === 'unavailable' ? 'saved.unavailableHint' : 'saved.profileFailedHint')}
                                     </ThemedText>
                                 </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))
-                )}
+                            )}
+                            <TouchableOpacity
+                                style={styles.removeButton}
+                                onPress={() => toggleBookmark(entry.id)}
+                                disabled={!canChangeBookmarks || busy}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('saved.remove')}
+                                accessibilityState={{ busy, disabled: !canChangeBookmarks || busy }}
+                            >
+                                {busy ? <ActivityIndicator color={theme.tint} /> : <Ionicons name="bookmark" size={22} color={theme.tint} />}
+                            </TouchableOpacity>
+                        </View>
+                    );
+                })}
             </ScrollView>
         </SafeAreaView>
     );
 }
 
-function createStyles(theme: any, colorScheme: string | null | undefined) {
+function createStyles(theme: typeof Colors.light, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
     return StyleSheet.create({
         container: {
             flex: 1,
@@ -158,16 +139,15 @@ function createStyles(theme: any, colorScheme: string | null | undefined) {
         providerInfo: {
             flex: 1,
         },
-        nameRow: {
+        providerLink: {
+            flex: 1,
             flexDirection: 'row',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 4,
         },
+        removeButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+        recovery: { gap: 12, paddingVertical: 12 },
         providerName: {
             fontSize: 18,
-            flex: 1,
-            marginRight: 8,
         },
         providerDescription: {
             fontSize: 14,

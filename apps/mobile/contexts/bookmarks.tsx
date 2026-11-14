@@ -1,201 +1,162 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth';
-import * as bookmarkRepository from '@/repositories/bookmarkRepository';
-import { ProviderViewModel } from '@/types/provider';
+import * as repository from '@/repositories/bookmarkRepository';
+import type { SavedProviderEntry } from '@/repositories/bookmarkRepository';
 
-const BOOKMARK_CACHE_PREFIX = 'bookmark_ids_cache_';
+const EMPTY_IDS: readonly string[] = [];
+const EMPTY_ENTRIES: readonly SavedProviderEntry[] = [];
+const BookmarkContext = createContext<ReturnType<typeof useBookmarkState> | undefined>(undefined);
 
-interface BookmarkContextType {
-  /** Set of bookmarked provider IDs (for fast lookups) */
-  bookmarkedIds: string[];
-  /** Check if a provider is bookmarked — O(1) via Set */
-  isBookmarked: (providerId: string) => boolean;
-  /** Toggle bookmark on/off — optimistic UI + Firestore sync */
-  toggleBookmark: (providerId: string) => Promise<boolean>;
-  /** Full provider data for the Saved Providers screen */
-  bookmarkedProviders: ProviderViewModel[];
-  /** Fetch full provider details for all bookmarks */
-  fetchBookmarkedProviders: () => Promise<void>;
-  /** Whether initial bookmark IDs are loading */
-  isLoading: boolean;
-  /** Whether full provider details are loading */
-  isLoadingProviders: boolean;
+function setMembership(ids: readonly string[], id: string, saved: boolean) {
+  return saved ? [id, ...ids.filter(value => value !== id)] : ids.filter(value => value !== id);
 }
 
-const BookmarkContext = createContext<BookmarkContextType | undefined>(undefined);
+function useBookmarkState() {
+  const { user } = useAuth();
+  const { t } = useTranslation('account');
+  const userId = user?.uid;
+  const scope = useMemo(() => ({ userId }), [userId]);
+  const activeScope = useRef<typeof scope | null>(null);
+  const request = useRef(0);
+  const pending = useRef(new Set<string>());
+  const latestIds = useRef<{ scope: typeof scope; ids: readonly string[] } | null>(null);
+  const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(new Set());
+  type Snapshot = {
+    scope: typeof scope;
+    ids: readonly string[];
+    entries: readonly SavedProviderEntry[];
+    phase: 'loading' | 'ready' | 'failed';
+  };
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+
+  const read = useCallback(async (withProfiles: boolean) => {
+    const { userId } = scope;
+    if (!userId || activeScope.current !== scope) return;
+    const version = ++request.current;
+    const isCurrent = () => activeScope.current === scope && request.current === version;
+    const cacheKey = `bookmark_ids_cache_${userId}`;
+    setSnapshot(previous => ({
+      scope, phase: 'loading',
+      ids: previous?.scope === scope ? previous.ids : EMPTY_IDS,
+      entries: previous?.scope === scope ? previous.entries : EMPTY_ENTRIES,
+    }));
+    if (!withProfiles) {
+      try {
+        const cached: unknown = JSON.parse(await AsyncStorage.getItem(cacheKey) ?? 'null');
+        if (isCurrent() && Array.isArray(cached)) {
+          const ids = cached.filter((id): id is string => typeof id === 'string');
+          setSnapshot(previous => previous?.scope === scope ? { ...previous, ids } : previous);
+        }
+      } catch { /* The cache is optional; read Firestore below. */ }
+    }
+    try {
+      const ids = await repository.getBookmarkedIds(userId);
+      if (!isCurrent()) return;
+      const entries = withProfiles ? await repository.getBookmarkedProviders(ids) : null;
+      if (!isCurrent()) return;
+      latestIds.current = { scope, ids };
+      setSnapshot(previous => ({
+        scope, ids, phase: 'ready',
+        entries: entries?.map(entry => {
+          // Preserve the last good profile when only its refresh failed.
+          if (entry.status !== 'failed') return entry;
+          const cached = previous?.scope === scope
+            ? previous.entries.find(item => item.id === entry.id && item.status === 'available')
+            : undefined;
+          return cached?.status === 'available' ? { ...cached, stale: true } : entry;
+        }) ?? (previous?.scope === scope ? previous.entries.filter(entry => ids.includes(entry.id)) : EMPTY_ENTRIES),
+      }));
+      void AsyncStorage.setItem(cacheKey, JSON.stringify(ids)).catch(() => {});
+    } catch {
+      if (isCurrent()) setSnapshot(previous => ({
+        scope, phase: 'failed',
+        ids: previous?.scope === scope ? previous.ids : EMPTY_IDS,
+        entries: previous?.scope === scope ? previous.entries : EMPTY_ENTRIES,
+      }));
+    }
+  }, [scope]);
+
+  useEffect(() => {
+    activeScope.current = scope;
+    const startVersion = request.current;
+    // Defer until the scope is active, including child focus effects.
+    void Promise.resolve().then(() => {
+      if (request.current === startVersion) void read(false);
+    });
+    return () => {
+      activeScope.current = null;
+      latestIds.current = null;
+    };
+  }, [scope, read]);
+
+  const current = snapshot?.scope === scope ? snapshot : null;
+  const bookmarkedIds = current?.ids ?? EMPTY_IDS;
+  const bookmarkSet = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
+  const keyFor = (id: string) => JSON.stringify([userId, id]);
+  const toggleBookmark = async (id: string): Promise<boolean> => {
+    if (!userId || activeScope.current !== scope || current?.phase !== 'ready') return false;
+    if (!id.trim() || id.includes('/')) return false;
+    const key = keyFor(id);
+    const confirmed = latestIds.current;
+    if (pending.current.has(key) || confirmed?.scope !== scope) return false;
+    pending.current.add(key);
+    setPendingKeys(new Set(pending.current));
+    const save = !confirmed.ids.includes(id);
+    try {
+      await (save ? repository.addBookmark(userId, id) : repository.removeBookmark(userId, id));
+      if (activeScope.current === scope) {
+        // Do not let a refresh that began before this write restore the card.
+        request.current++;
+        const ids = setMembership(latestIds.current?.ids ?? confirmed.ids, id, save);
+        latestIds.current = { scope, ids };
+        setSnapshot(previous => previous?.scope === scope ? {
+          ...previous,
+          phase: 'ready',
+          ids,
+          entries: save ? previous.entries : previous.entries.filter(entry => entry.id !== id),
+        } : previous);
+        void AsyncStorage.setItem(`bookmark_ids_cache_${userId}`, JSON.stringify(ids)).catch(() => {});
+      }
+      return true;
+    } catch {
+      if (activeScope.current === scope) Alert.alert(t('saved.changeFailed'));
+      return false;
+    } finally {
+      pending.current.delete(key);
+      setPendingKeys(new Set(pending.current));
+    }
+  };
+  const fetchBookmarkedProviders = useCallback(async () => {
+    // The screen can focus before the parent scope effect is committed.
+    await Promise.resolve();
+    await read(true);
+  }, [read]);
+  const refreshBookmarkIds = useCallback(() => read(false), [read]);
+
+  return {
+    bookmarkedIds,
+    isBookmarked: (id: string) => bookmarkSet.has(id),
+    isBookmarkPending: (id: string) => pendingKeys.has(keyFor(id)),
+    toggleBookmark,
+    entries: current?.entries ?? EMPTY_ENTRIES,
+    fetchBookmarkedProviders,
+    refreshBookmarkIds,
+    isLoading: Boolean(userId && (!current || current.phase === 'loading')),
+    hasLoadError: current?.phase === 'failed',
+    canChangeBookmarks: current?.phase === 'ready',
+  };
+}
 
 export function useBookmarkContext() {
   const context = useContext(BookmarkContext);
-  if (!context) {
-    throw new Error('useBookmarkContext must be used within a BookmarkProvider');
-  }
+  if (!context) throw new Error('useBookmarkContext must be used within a BookmarkProvider');
   return context;
 }
 
-export function BookmarkProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const userId = user?.uid ?? null;
-
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [bookmarkedProviders, setBookmarkedProviders] = useState<ProviderViewModel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
-
-  // Build a Set for O(1) lookups — memoized on the ids array
-  const bookmarkedSet = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
-
-  // ─── Load bookmark IDs on auth change ────────────────────────────────
-  useEffect(() => {
-    if (!userId) {
-      // User signed out — clear everything including cache
-      setBookmarkedIds([]);
-      setBookmarkedProviders([]);
-      setIsLoading(false);
-      // No userId available, so we can't build the key — cache was already
-      // written with the previous userId's key, which is fine; it will be
-      // overwritten if/when that same user logs back in.
-      return;
-    }
-
-    let cancelled = false;
-    const cacheKey = `${BOOKMARK_CACHE_PREFIX}${userId}`;
-
-    const load = async () => {
-      setIsLoading(true);
-
-      // 1. Show cached data immediately (offline-first)
-      try {
-        const cached = await AsyncStorage.getItem(cacheKey);
-        if (cached && !cancelled) {
-          setBookmarkedIds(JSON.parse(cached));
-        }
-      } catch {
-        // Cache miss is fine
-      }
-
-      // 2. Fetch fresh data from Firestore
-      try {
-        const ids = await bookmarkRepository.getBookmarkedIds(userId);
-        if (!cancelled) {
-          setBookmarkedIds(ids);
-          await AsyncStorage.setItem(cacheKey, JSON.stringify(ids));
-        }
-      } catch (error) {
-        console.error('Error loading bookmarks from Firestore:', error);
-        // Cached data (if any) remains visible
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [userId]);
-
-  // ─── O(1) bookmark check ────────────────────────────────────────────
-  const isBookmarked = useCallback(
-    (providerId: string) => bookmarkedSet.has(providerId),
-    [bookmarkedSet]
-  );
-
-  // ─── Toggle with optimistic update ──────────────────────────────────
-  const toggleBookmark = useCallback(
-    async (providerId: string): Promise<boolean> => {
-      if (!userId) {
-        // Not authenticated — caller should handle auth gate
-        return false;
-      }
-
-      const cacheKey = `${BOOKMARK_CACHE_PREFIX}${userId}`;
-      const wasBookmarked = bookmarkedSet.has(providerId);
-
-      // Optimistic: update UI immediately
-      setBookmarkedIds((prev) => {
-        const next = wasBookmarked
-          ? prev.filter((id) => id !== providerId)
-          : [providerId, ...prev]; // Newest first
-        // Fire-and-forget cache update
-        AsyncStorage.setItem(cacheKey, JSON.stringify(next)).catch(() => {});
-        return next;
-      });
-
-      // Also update the providers list optimistically if it's loaded
-      if (wasBookmarked) {
-        setBookmarkedProviders((prev) =>
-          prev.filter((p) => String(p.id) !== providerId)
-        );
-      }
-
-      // Sync to Firestore
-      try {
-        if (wasBookmarked) {
-          await bookmarkRepository.removeBookmark(userId, providerId);
-        } else {
-          await bookmarkRepository.addBookmark(userId, providerId);
-        }
-        return true;
-      } catch (error) {
-        console.error('Error toggling bookmark:', error);
-
-        // Rollback optimistic update on failure
-        setBookmarkedIds((prev) => {
-          const rolledBack = wasBookmarked
-            ? [providerId, ...prev]
-            : prev.filter((id) => id !== providerId);
-          AsyncStorage.setItem(cacheKey, JSON.stringify(rolledBack)).catch(() => {});
-          return rolledBack;
-        });
-
-        return false;
-      }
-    },
-    [userId, bookmarkedSet]
-  );
-
-  // ─── Fetch full provider details (lazy, for Saved screen) ───────────
-  const fetchBookmarkedProviders = useCallback(async () => {
-    if (!userId) {
-      setBookmarkedProviders([]);
-      return;
-    }
-
-    setIsLoadingProviders(true);
-    try {
-      // Pass already-loaded IDs to avoid a redundant Firestore read
-      const providers = await bookmarkRepository.getBookmarkedProviders(
-        userId,
-        null,
-        bookmarkedIds.length > 0 ? bookmarkedIds : undefined
-      );
-      setBookmarkedProviders(providers);
-    } catch (error) {
-      console.error('Error fetching bookmarked providers:', error);
-    } finally {
-      setIsLoadingProviders(false);
-    }
-  }, [userId, bookmarkedIds]);
-
-  // ─── Context value ──────────────────────────────────────────────────
-  const value = useMemo<BookmarkContextType>(
-    () => ({
-      bookmarkedIds,
-      isBookmarked,
-      toggleBookmark,
-      bookmarkedProviders,
-      fetchBookmarkedProviders,
-      isLoading,
-      isLoadingProviders,
-    }),
-    [bookmarkedIds, isBookmarked, toggleBookmark, bookmarkedProviders, fetchBookmarkedProviders, isLoading, isLoadingProviders]
-  );
-
-  return (
-    <BookmarkContext.Provider value={value}>
-      {children}
-    </BookmarkContext.Provider>
-  );
+export function BookmarkProvider({ children }: { children: ReactNode }) {
+  const value = useBookmarkState();
+  return <BookmarkContext.Provider value={value}>{children}</BookmarkContext.Provider>;
 }
-
