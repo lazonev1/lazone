@@ -1,6 +1,8 @@
 {
   "title": "Messages",
   "list": {
+    "typing": "Écrit…",
+    "fromYou": "Vous : {{text}}",
     "loginTitle": "Bon retour !",
     "loginMessage": "Connectez-vous pour voir vos messages et discuter avec les prestataires.",
     "searchPlaceholder": "Rechercher des messages",
