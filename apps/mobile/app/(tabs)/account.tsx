@@ -1,11 +1,10 @@
-import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, ActivityIndicator, Switch, Appearance } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image, ScrollView, TouchableOpacity, ActivityIndicator, Appearance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { getProfileMenuItems } from '@/constants/account';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
 import { MenuSection } from '@/components/ui/MenuSection';
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@lazone/ui';
@@ -21,7 +20,6 @@ export default function AccountScreen() {
   const styles = createStyles(theme, colorScheme);
 
   const isProvider = userProfile?.role === 'provider' || userProfile?.role === 'both';
-  const [businessVisible, setBusinessVisible] = useState(true);
   const menuItems = getProfileMenuItems();
 
   // Show a loading indicator while the initial auth check is happening.
@@ -60,11 +58,6 @@ export default function AccountScreen() {
   };
 
 
-  const handleToggleBusinessVisibility = (value: boolean) => {
-    setBusinessVisible(value);
-    // TODO: persist this to Firestore on the provider document
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -100,29 +93,6 @@ export default function AccountScreen() {
           onPress={navigateTo}
           styles={styles}
         />
-
-        {/* ── Business visibility toggle (providers only) ── */}
-        {isProvider && (
-          <ThemedView style={styles.toggleSection}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="storefront-outline" size={24} style={styles.menuIcon} />
-                <View>
-                  <ThemedText type="defaultSemiBold">{t('tab.businessVisibility')}</ThemedText>
-                  <ThemedText style={styles.toggleHint}>
-                    {businessVisible ? t('tab.businessVisible') : t('tab.businessHidden')}
-                  </ThemedText>
-                </View>
-              </View>
-              <Switch
-                value={businessVisible}
-                onValueChange={handleToggleBusinessVisibility}
-                trackColor={{ false: '#767577', true: '#0A58A5' }}
-                thumbColor="#fff"
-              />
-            </View>
-          </ThemedView>
-        )}
 
         {/* ── Support (everyone) ──────────────────────────── */}
         <MenuSection
@@ -235,31 +205,6 @@ function createStyles(theme: any, colorScheme: ReturnType<typeof Appearance.getC
       marginLeft: 36,
       marginRight: 25,
       marginVertical: 8,
-    },
-
-    // ── Business visibility toggle ──
-    toggleSection: {
-      marginBottom: 24,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: cardBg,
-    },
-    toggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    toggleLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      marginRight: 12,
-    },
-    toggleHint: {
-      fontSize: 12,
-      opacity: 0.5,
-      marginTop: 2,
     },
 
     // ── Become a Provider CTA ──

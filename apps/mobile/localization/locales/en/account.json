@@ -20,9 +20,6 @@
     "profileLoadFailed": "We could not load your profile. Check your connection and try again.",
     "refreshProfile": "Try to Refresh Profile",
     "logout": "Logout",
-    "businessVisibility": "Business Visibility",
-    "businessVisible": "Your business is visible to clients",
-    "businessHidden": "Your business is hidden from clients",
     "becomeProviderHint": "Offer your services and start earning"
   },
   "info": {
