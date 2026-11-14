@@ -1,5 +1,7 @@
 {
   "registration": {
+    "ownerOnly": "Only the account owner can edit this provider profile.",
+    "loadFailed": "We couldn't load your provider profile. Retry before editing; your saved profile has not been replaced.",
     "title": "Become a Provider",
     "editTitle": "Edit Provider Profile",
     "loadingProvider": "Loading provider data...",
