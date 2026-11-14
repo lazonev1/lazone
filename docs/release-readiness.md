@@ -361,6 +361,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
 ### P04 · P1 · Make business visibility a real privacy/product control
 
+  **Progress — 2026-11-13:** Removed the local-only Account switch and misleading hidden/visible text. The public listing, booking behavior, and access rules are unchanged. Component regression tests cover all account roles. P04 remains open for an authoritative pause/publication policy and end-to-end enforcement. See [visibility guard](business-visibility-guard.md).
+
 - [ ] **Problem:** Business Visibility currently changes local state while stating that the business is hidden. It does not persist or affect discovery/bookability.
 
   **Sources:** [account tab][account-ui], [provider service][provider-service], [rules][rules].
