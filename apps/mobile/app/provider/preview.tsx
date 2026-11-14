@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import ReviewsComponent from '@/components/reviews/ReviewsComponent';
 import type { ProviderViewModel } from '@/types/provider';
 import { useProvider } from '@/hooks/useProvider';
+import { useReviews } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/auth';
 import { useTranslation } from 'react-i18next';
 
@@ -41,7 +42,7 @@ export default function ProviderPreviewScreen() {
   const [provider, setProvider] = useState<ProviderViewModel | null>(null);
   const [portfolioExpanded, setPortfolioExpanded] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
-  const [testimonialsExpanded, setTestimonialsExpanded] = useState(false);
+  const reviews = useReviews(resolvedProviderId, user?.uid);
   const [mainTabsPosition, setMainTabsPosition] = useState(0);
 
   useEffect(() => {
@@ -163,22 +164,6 @@ export default function ProviderPreviewScreen() {
     }
   };
 
-  // Calculate review statistics for ReviewsComponent
-  const reviewItems = provider.reviewItems || [];
-  const totalRatings = reviewItems.reduce((sum, review) => sum + review.rating, 0);
-  const avgRating = totalRatings / reviewItems.length || 0;
-
-  const counts = [0, 0, 0, 0, 0];
-  reviewItems.forEach(review => {
-    counts[Math.floor(review.rating) - 1]++;
-  });
-
-  const reviewStats = {
-    averageRating: avgRating,
-    totalReviews: reviewItems.length,
-    ratingCounts: counts
-  };
-
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Animated.View style={[styles.tabsRowSticky, { opacity: stickyHeaderOpacity }]}> 
@@ -225,7 +210,11 @@ export default function ProviderPreviewScreen() {
           <View style={{ flex: 1 }}>
             <ThemedText type="defaultSemiBold" style={styles.name}>{provider.name}</ThemedText>
             <ThemedText>{provider.profession}</ThemedText>
-            <ThemedText style={styles.rating}>{t('profile.ratingSummary', { rating: provider.rating, count: provider.reviews })}</ThemedText>
+            {reviews.stats.totalReviews > 0 && (
+              <ThemedText style={styles.rating}>{t('profile.ratingSummary', {
+                rating: reviews.stats.averageRating, count: reviews.stats.totalReviews,
+              })}</ThemedText>
+            )}
           </View>
         </ThemedView>
 
@@ -301,12 +290,15 @@ export default function ProviderPreviewScreen() {
         <View style={styles.section} ref={testimonialRef}>
           <ThemedText type="subtitle">{t('preview.clientReviews')}</ThemedText>
           <ReviewsComponent
-            reviews={reviewItems}
-            stats={reviewStats}
+            key={JSON.stringify([resolvedProviderId, user?.uid])}
+            reviews={reviews.reviews}
+            stats={reviews.stats}
+            isLoading={reviews.isLoading}
+            hasLoadError={reviews.hasLoadError}
+            onRetry={reviews.refreshReviews}
             showStats={false}
             showFilters={false}
             allowResponding={false}
-            expandedByDefault={testimonialsExpanded}
             maxReviewsCollapsed={1}
           />
         </View>

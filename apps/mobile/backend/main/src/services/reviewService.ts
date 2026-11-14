@@ -108,7 +108,7 @@ export async function createReview(reviewData: {
     console.log('[ReviewService] Review created with ID:', reviewRef.id);
 
     console.log('[ReviewService] Review creation complete');
-    await recalculateProviderRating(reviewData.providerId);
+    await syncRatingAfterReviewWrite(reviewData.providerId);
     return reviewRef.id;
   } catch (error) {
     console.error("[ReviewService] Error creating review:", error);
@@ -137,14 +137,13 @@ export async function getReviewById(reviewId: string): Promise<Review | null> {
 }
 
 /**
- * Fetches all reviews for a provider, ordered by creation date (newest first)
+ * Fetches provider reviews. The review UI chooses the display order.
  */
 export async function getReviewsByProviderId(providerId: string): Promise<Review[]> {
   try {
     const q = query(
       collection(db, COLLECTIONS.REVIEWS),
-      where("providerId", "==", providerId),
-      orderBy("createdAt", "desc")
+      where("providerId", "==", providerId)
     );
 
     const snapshot = await getDocs(q);
@@ -215,14 +214,9 @@ export async function hasBookingBeenReviewed(bookingId: string): Promise<boolean
   const existingReview = await getReviewByBookingId(bookingId);
   if (existingReview) return true;
   if (!auth?.currentUser) return false;
-  try {
-    const claim = await getDoc(doc(db, COLLECTIONS.REVIEW_CLAIMS, bookingId));
-    return claim.exists();
-  } catch {
-    // Non-requester booking participants cannot read the claim and cannot use
-    // this screen to submit a review anyway.
-    return false;
-  }
+  // Called only by the requester after checking the authorized booking.
+  const claim = await getDoc(doc(db, COLLECTIONS.REVIEW_CLAIMS, bookingId));
+  return claim.exists();
 }
 
 // ========== UPDATE OPERATIONS ==========
@@ -259,7 +253,7 @@ export async function updateReview(
     });
 
     if (updates.rating !== undefined) {
-      await recalculateProviderRating(currentReview.providerId as unknown as string);
+      await syncRatingAfterReviewWrite(currentReview.providerId);
     }
   } catch (error) {
     console.error("Error updating review:", error);
@@ -373,7 +367,7 @@ export async function deleteReview(reviewId: string): Promise<void> {
     // same booking. Private orphan votes are inaccessible and can be removed
     // by the future trusted cleanup job introduced with backend aggregation.
     await deleteDoc(doc(db, COLLECTIONS.REVIEWS, reviewId));
-    await recalculateProviderRating(providerId);
+    await syncRatingAfterReviewWrite(providerId);
   } catch (error) {
     console.error("Error deleting review:", error);
     throw error;
@@ -383,16 +377,22 @@ export async function deleteReview(reviewId: string): Promise<void> {
 /**
  * TEMPORARY: move this aggregation to a trusted backend before production.
  */
-export async function recalculateProviderRating(providerId: string): Promise<void> {
-  const reviews = await getReviewsByProviderId(providerId);
-  const reviewCount = reviews.length;
-  const averageRating = reviewCount
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount
-    : 0;
-  console.log(`[ReviewService] New stats - Reviews: ${reviewCount}, Avg Rating: ${averageRating.toFixed(1)}`);
-  await updateDoc(doc(db, COLLECTIONS.PROVIDERS, providerId), {
-    averageRating: Math.round(averageRating * 10) / 10,
-    reviewCount,
-    updatedAt: serverTimestamp(),
-  });
+async function syncRatingAfterReviewWrite(providerId: string): Promise<void> {
+  // The source write is already committed. A derived summary failure must not
+  // tell the requester to repeat a one-time submission or completed deletion.
+  try {
+    const reviews = await getReviewsByProviderId(providerId);
+    const ratings = reviews.map(review => review.rating)
+      .filter(rating => Number.isInteger(rating) && rating >= 1 && rating <= 5);
+    const averageRating = ratings.length
+      ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+      : 0;
+    await updateDoc(doc(db, COLLECTIONS.PROVIDERS, providerId), {
+      averageRating: Math.round(averageRating * 10) / 10,
+      reviewCount: reviews.length,
+      updatedAt: serverTimestamp(),
+    });
+  } catch {
+    console.warn('[ReviewService] Saved review change; provider rating summary did not refresh');
+  }
 }

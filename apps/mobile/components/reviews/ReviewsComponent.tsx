@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert, Image, Appearance } from 'react-native';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@lazone/ui';
@@ -8,15 +8,17 @@ import { Colors } from '@/constants/Colors';
 import { Review, ReviewStats } from '@/types/provider';
 import { requireAuth } from '@/utils/auth';
 import { useTranslation } from 'react-i18next';
+import { REVIEW_SORT_ORDERS, sortReviews, type ReviewSortOrder } from '@/utils/reviewPresentation';
 
 type ReviewsComponentProps = {
   reviews: Review[];
   stats: ReviewStats;
   isLoading?: boolean;
+  hasLoadError?: boolean;
+  onRetry?: () => void;
   allowResponding?: boolean; // Whether to allow responding to reviews
   showStats?: boolean; // Whether to show the stats summary
   showFilters?: boolean; // Whether to show filter options
-  onFilterChange?: (filter: 'all' | 'recent' | 'highest' | 'lowest') => void;
   onRespondToReview?: (reviewId: string, responseText: string) => Promise<void>;
   onMarkHelpful?: (reviewId: string) => Promise<void>; // Mark review as helpful
   onDeleteReview?: (reviewId: string) => Promise<void>; // Delete review (for review authors)
@@ -30,10 +32,11 @@ export default function ReviewsComponent({
   reviews,
   stats,
   isLoading = false,
+  hasLoadError = false,
+  onRetry,
   allowResponding = false,
   showStats = true,
   showFilters = true,
-  onFilterChange,
   onRespondToReview,
   onMarkHelpful,
   onDeleteReview,
@@ -45,9 +48,9 @@ export default function ReviewsComponent({
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { t, i18n } = useTranslation(['provider', 'common']);
-  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+  const dateLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-US';
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'highest' | 'lowest'>('all');
+  const [sortOrder, setSortOrder] = useState<ReviewSortOrder>('recent');
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
   const [submittingResponseId, setSubmittingResponseId] = useState<string | null>(null);
@@ -56,28 +59,22 @@ export default function ReviewsComponent({
   const [editingRating, setEditingRating] = useState(0);
   const [editingComment, setEditingComment] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-
-  const handleFilterChange = (filter: 'all' | 'recent' | 'highest' | 'lowest') => {
-    setActiveFilter(filter);
-    if (onFilterChange) {
-      onFilterChange(filter);
-      //Should handle filtering logic here if needed 
-    }
-  };
+  const editPending = useRef(false);
+  const responsePending = useRef(false);
+  const sortedReviews = useMemo(() => sortReviews(reviews, sortOrder), [reviews, sortOrder]);
 
   const handleSubmitResponse = async (reviewId: string) => {
-    if (!responseText.trim() || submittingResponseId) return;
+    if (!onRespondToReview || !responseText.trim() || responsePending.current) return;
+    responsePending.current = true;
     setSubmittingResponseId(reviewId);
     try {
-      if (onRespondToReview) {
-        await onRespondToReview(reviewId, responseText.trim());
-      }
+      await onRespondToReview(reviewId, responseText.trim());
       setRespondingTo(null);
       setResponseText('');
-    } catch (error) {
-      console.error('Failed to submit response:', error);
+    } catch {
       Alert.alert(t('common:alerts.error'), t('reviews.submitResponseFailed'));
     } finally {
+      responsePending.current = false;
       setSubmittingResponseId(null);
     }
   };
@@ -89,14 +86,16 @@ export default function ReviewsComponent({
   };
 
   const saveEdit = async (reviewId: string) => {
-    if (!onUpdateReview || editingRating < 1 || editingComment.length > 500) return;
+    if (!onUpdateReview || editingRating < 1 || editingComment.length > 500 || editPending.current) return;
+    editPending.current = true;
     setSavingEdit(true);
     try {
       await onUpdateReview(reviewId, { rating: editingRating, comment: editingComment.trim() });
       setEditingReviewId(null);
-    } catch (error) {
-      Alert.alert(t('common:alerts.error'), error instanceof Error ? error.message : t('reviews.updateFailed'));
+    } catch {
+      Alert.alert(t('common:alerts.error'), t('reviews.updateFailed'));
     } finally {
+      editPending.current = false;
       setSavingEdit(false);
     }
   };
@@ -117,22 +116,15 @@ export default function ReviewsComponent({
   };
 
   const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString(dateLocale, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return t('reviews.invalidDate');
-    }
+    const date = new Date(dateString);
+    if (!Number.isFinite(date.getTime())) return t('reviews.dateUnavailable');
+    return date.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   // Determine which reviews to display based on expanded state
-  const displayedReviews = expanded ? reviews : reviews.slice(0, maxReviewsCollapsed);
+  const displayedReviews = expanded ? sortedReviews : sortedReviews.slice(0, maxReviewsCollapsed);
 
-  if (isLoading) {
+  if (isLoading && !reviews.length) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.tint} />
@@ -143,8 +135,16 @@ export default function ReviewsComponent({
 
   return (
     <View style={styles.container}>
+      {hasLoadError && (
+        <View style={styles.loadingContainer}>
+          <ThemedText accessibilityLiveRegion="polite">
+            {t(reviews.length ? 'reviews.refreshFailed' : 'reviews.loadFailed')}
+          </ThemedText>
+          {onRetry && <Button label={t('reviews.retry')} onPress={onRetry} variant="secondary" size="small" />}
+        </View>
+      )}
       {/* Stats Summary Card */}
-      {showStats && (
+      {showStats && reviews.length > 0 && (
         <ThemedView style={styles.statsCard}>
           <View style={styles.ratingHeaderRow}>
             <View style={styles.averageRatingContainer}>
@@ -183,7 +183,7 @@ export default function ReviewsComponent({
       )}
 
       {/* Filter Tabs - Fix styling to make them more visible */}
-      {showFilters && (
+      {showFilters && reviews.length > 1 && (
         <View style={styles.filterWrapper}>
           <ScrollView 
             horizontal 
@@ -191,25 +191,22 @@ export default function ReviewsComponent({
             style={styles.filterContainer}
             contentContainerStyle={styles.filterContent}
           >
-            {[
-              { id: 'all', label: t('reviews.filters.all') },
-              { id: 'recent', label: t('reviews.filters.recent') },
-              { id: 'highest', label: t('reviews.filters.highest') },
-              { id: 'lowest', label: t('reviews.filters.lowest') }
-            ].map(filter => (
+            {REVIEW_SORT_ORDERS.map(order => (
               <TouchableOpacity
-                key={filter.id}
+                key={order}
                 style={[
                   styles.filterTab,
-                  activeFilter === filter.id && styles.activeFilterTab
+                  sortOrder === order && styles.activeFilterTab
                 ]}
-                onPress={() => handleFilterChange(filter.id as any)}
+                onPress={() => setSortOrder(order)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: sortOrder === order }}
               >
                 <ThemedText style={[
                   styles.filterTabText,
-                  activeFilter === filter.id && styles.activeFilterTabText
+                  sortOrder === order && styles.activeFilterTabText
                 ]}>
-                  {filter.label}
+                  {t(`reviews.filters.${order}`)}
                 </ThemedText>
               </TouchableOpacity>
             ))}
@@ -219,7 +216,7 @@ export default function ReviewsComponent({
 
       {/* Reviews List */}
       <View style={styles.reviewsContainer}>
-        {reviews.length === 0 ? (
+        {reviews.length === 0 ? (!hasLoadError &&
           <View style={styles.emptyState}>
             <Ionicons name="star-outline" size={48} color={theme.icon} />
             <ThemedText style={styles.emptyStateTitle}>{t('reviews.emptyTitle')}</ThemedText>
@@ -247,6 +244,9 @@ export default function ReviewsComponent({
                     {currentUserId && currentUserId === review.userId && onDeleteReview && (
                       <TouchableOpacity
                         style={styles.deleteButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('reviews.deleteTitle')}
+                        disabled={savingEdit}
                         onPress={() => {
                           Alert.alert(
                             t('reviews.deleteTitle'),
@@ -266,7 +266,7 @@ export default function ReviewsComponent({
                       </TouchableOpacity>
                     )}
                     {currentUserId && currentUserId === review.userId && onUpdateReview && (
-                      <TouchableOpacity style={styles.deleteButton} onPress={() => startEditing(review)} accessibilityLabel={t('reviews.editReview')}>
+                      <TouchableOpacity style={styles.deleteButton} onPress={() => startEditing(review)} accessibilityRole="button" accessibilityLabel={t('reviews.editReview')} disabled={savingEdit}>
                         <Ionicons name="create-outline" size={18} color={theme.tint} />
                       </TouchableOpacity>
                     )}
@@ -280,7 +280,7 @@ export default function ReviewsComponent({
                   <View style={styles.editContainer}>
                     <View style={styles.starsContainer}>
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <TouchableOpacity key={star} onPress={() => setEditingRating(star)} style={styles.starEditButton} accessibilityLabel={t('reviews.starsLabel', { count: star })}>
+                        <TouchableOpacity key={star} onPress={() => setEditingRating(star)} style={styles.starEditButton} accessibilityRole="radio" accessibilityLabel={t('reviews.starsLabel', { count: star })} accessibilityState={{ selected: editingRating === star }} disabled={savingEdit}>
                           <Ionicons name={star <= editingRating ? 'star' : 'star-outline'} size={22} color="#F4B400" />
                         </TouchableOpacity>
                       ))}
@@ -291,9 +291,11 @@ export default function ReviewsComponent({
                       onChangeText={setEditingComment}
                       maxLength={500}
                       multiline
+                      editable={!savingEdit}
+                      accessibilityLabel={t('reviews.editReview')}
                     />
                     <View style={styles.responseActions}>
-                      <Button label={t('common:actions.cancel')} onPress={() => setEditingReviewId(null)} variant="secondary" size="small" style={styles.responseButton} />
+                      <Button label={t('common:actions.cancel')} onPress={() => setEditingReviewId(null)} variant="secondary" size="small" style={styles.responseButton} disabled={savingEdit} />
                       <Button label={savingEdit ? t('reviews.saving') : t('common:actions.save')} onPress={() => saveEdit(review.id)} variant="primary" size="small" style={styles.responseButton} disabled={savingEdit || editingRating === 0} />
                     </View>
                   </View>
@@ -332,7 +334,7 @@ export default function ReviewsComponent({
                 )}
                 
                 {/* Response Input */}
-                {allowResponding && respondingTo === review.id ? (
+                {allowResponding && onRespondToReview && respondingTo === review.id ? (
                   <View style={styles.responseInputContainer}>
                     <TextInput
                       style={[styles.responseInput, { color: theme.text, borderColor: theme.icon }]}
@@ -342,6 +344,8 @@ export default function ReviewsComponent({
                       onChangeText={setResponseText}
                       multiline
                       maxLength={500}
+                      editable={!submittingResponseId}
+                      accessibilityLabel={t('reviews.writeResponse')}
                     />
                     <View style={styles.responseActions}>
                       <Button
@@ -370,13 +374,17 @@ export default function ReviewsComponent({
                 {/* Action Row: Respond Button + Helpful Button */}
                 <View style={styles.reviewActionsRow}>
                   {/* Respond Button */}
-                  {(allowResponding && !review.response) && (
+                  {allowResponding && onRespondToReview && !respondingTo && (
                     <TouchableOpacity
                       style={styles.respondButton}
-                      onPress={() => setRespondingTo(review.id)}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setResponseText(review.response?.text ?? '');
+                        setRespondingTo(review.id);
+                      }}
                     >
                       <Ionicons name="chatbox-outline" size={18} color={theme.tint} />
-                      <ThemedText style={styles.respondButtonText}>{t('reviews.respondToReview')}</ThemedText>
+                      <ThemedText style={styles.respondButtonText}>{t(review.response ? 'reviews.editResponse' : 'reviews.respondToReview')}</ThemedText>
                     </TouchableOpacity>
                   )}
 
