@@ -547,6 +547,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Business rules can be unit-tested without React/Firebase UI, malformed stored data is handled at boundaries, screens do not invent permission/state logic, and no client path is mistaken for an authorization boundary. Refactor in tested slices rather than an unbounded rewrite.
 
+  **Progress — 2026-11-07:** The role-aware booking-transition contract slice is implemented on `fix/booking-transition-policy`. A pure client domain module replaces the service's general transition map/partial role checks; the transaction validates the current record before staging a status/audit write. Actual-service unit tests and all 108 requester/provider/outsider status-pair cases against Firestore emulator rules pass, alongside the full authorization/migration suite, TypeScript, and focused lint. This does not change permissions or rules and needs no deployment/migration/EAS build. Broader E01 work remains open. See [policy and verification](booking-transition-policy.md).
+
 ### E02 · P2 · Bound reads and make indexes reproducible
 
 - [ ] **Problem:** Discovery scans and populates all providers; apparent pagination often slices an already-loaded array. Review/profile hydration and per-message sender/unread lookups add N+1 reads. Conversation unread counts can reread full histories. Composite-index configuration is not checked in; summary/list limits can hide older data.

@@ -15,6 +15,7 @@ import {
 import { auth, db, COLLECTIONS } from '../config/firebase';
 import { BookingChecklistItem, BookingEditError, BookingStatus } from '@/types/booking';
 import { assertValidBookingDraft } from '@/utils/bookingValidation';
+import { requireBookingTransition } from '@/utils/bookingLifecycle';
 
 /**
  * Booking Service — Firebase Firestore Operations
@@ -271,33 +272,7 @@ export async function updateBookingStatus(
       if (!snapshot.exists()) throw new Error('Booking not found');
       const existing = { _id: snapshot.id, ...snapshot.data() } as BookingDocument;
 
-      const validTransitions: Record<BookingStatus, BookingStatus[]> = {
-        pending: ['confirmed', 'cancelled'],
-        confirmed: ['in_progress', 'cancelled'],
-        in_progress: ['awaiting_confirmation'],
-        awaiting_confirmation: ['completed', 'in_progress'],
-        completed: [],
-        cancelled: [],
-      };
-      if (!validTransitions[existing.status].includes(newStatus)) {
-        throw new Error(`Cannot transition from "${existing.status}" to "${newStatus}"`);
-      }
-
-      const actorRole = actorId === existing.providerId
-        ? 'provider'
-        : actorId === existing.requesterId
-          ? 'requester'
-          : null;
-      if (!actorRole) throw new Error('Only booking participants can update the booking status');
-      if (newStatus === 'awaiting_confirmation' && actorRole !== 'provider') {
-        throw new Error('Only the provider can submit work for confirmation');
-      }
-      if (newStatus === 'completed' && actorRole !== 'requester') {
-        throw new Error('Only the requester can confirm completed work');
-      }
-      if (newStatus === 'in_progress' && existing.status === 'awaiting_confirmation' && actorRole !== 'requester') {
-        throw new Error('Only the requester can request changes');
-      }
+      const actorRole = requireBookingTransition(existing, actorId, newStatus);
 
       const bookingUpdate: Record<string, unknown> = {
         status: newStatus,
