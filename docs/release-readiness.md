@@ -559,6 +559,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
 ### E03 · P1 · Make environments and native builds reproducible
 
+  **Progress — 2026-11-13:** [Isolated simulator mode](isolated-simulator-testing.md) replaces the unsafe Firestore-only switch with a fixed demo project, separate Auth session, local Auth/Firestore/Storage and no app-driven push. The default development configuration remains unchanged. Service integration tests and iOS local-banner/empty-catalogue smoke passed. Keep E03/E04 open for signed-in two-role native verification, Android device checking and the broader release environment work.
+
 - [ ] **Problem:** The app defaults to the production Firebase project; the emulator toggle connects Firestore but not Auth/Storage. Duplicate config names different buckets and auth initialization can swallow failure into `undefined`. EAS profiles/config files need a repeatable native credential strategy. Android explicitly targets API 34.
 
   **Sources:** [active Firebase config][firebase-config], [legacy Firebase config][legacy-firebase], [app config][app-json], [EAS profiles][eas-json], [root README][root-readme].
