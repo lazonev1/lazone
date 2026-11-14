@@ -30,5 +30,6 @@ jobs:
       - run: pnpm --filter ./apps/mobile lint
       - run: pnpm --filter ./apps/mobile typecheck
       - run: pnpm --filter ./apps/mobile test:rules:emulator
+      - run: pnpm --filter ./apps/mobile test:storage:emulator
       - run: node --check apps/mobile/backend/main/src/functions/index.js
       - run: cd apps/mobile && pnpm dlx firebase-tools@15.5.1 emulators:exec --project demo-recovery --only auth "node scripts/testPasswordRecovery.mjs"
