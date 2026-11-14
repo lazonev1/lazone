@@ -319,6 +319,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
 ### B09 · P1 · Finish the complete review/response experience
 
+  **Progress — 2026-11-13:** Fixed the Business review shortcut, switched owner/public profiles to the canonical review collection, made sorting and retry work, and exposed provider-only reply editing with draft preservation. The booking review form fails closed on a failed claim check, blocks repeat submission, and distinguishes a committed write from a later summary refresh failure. Automated regression coverage and a guest iOS profile-to-reviews smoke test pass. Keep B09 open for the authenticated native journey, direct single-review navigation and pagination. See [review flow and remaining checks](provider-review-experience.md).
+
 - [ ] **Problem:** Review sort/filter tabs do not actually sort without a supplied callback; existing-review bookings still advertise Leave a Review. Provider dashboard Reviews omits the provider ID. Preview reviews depend on provider reference arrays that review creation does not maintain. Some wrappers catch errors and resolve, causing editors to close as if saving succeeded.
 
   **Sources:** [review UI][reviews-ui], [provider reviews route][reviews-route], [booking review][booking-review], [provider preview][preview-ui], [review mapping][review-repo].
