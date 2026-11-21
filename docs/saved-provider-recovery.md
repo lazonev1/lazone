@@ -36,3 +36,20 @@ complete the signed-in simulator checks before marking this slice ready.
    loaded cards remain and Retry is available. Verify a rejected removal keeps its card.
 3. Switch to a different disposable account and confirm the first account's saved
    providers never appear. Repeat save/remove as a provider.
+
+### Native verification — November 21, 2026
+
+Passed on iPhone 15 Plus (iOS 17.5, existing SDK 57 client), testing feature source
+at `164c3ae` with only PR #114's local-Firebase configuration temporarily overlaid
+in a separate checkout. All accounts and writes used `demo-lazone-mobile` locally.
+
+- Requester saved a provider through its profile, opened the saved card, restarted
+  the app and found the bookmark persisted.
+- A rejected removal displayed an error and retained the card. Rejected provider
+  reads retained the known card with last-loaded copy and Retry; restoring the
+  local rules and retrying recovered normally. Successful removal showed empty.
+- Switching to the provider showed its own empty list, not the requester's saved
+  provider. The provider then saved and removed a second local provider.
+
+The original emulator rules were restored after each fault injection. Shared
+Firebase and EAS builds were not changed. Android was not run in this check.
