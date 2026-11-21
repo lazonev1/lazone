@@ -13,4 +13,8 @@ The popup now shows the actual passed Auth email as selectable text, with a read
 
 iOS and Android production JavaScript exports pass; those are compilation checks, not native UI sign-off.
 
+November 21 regression rerun: the component fixture now explicitly selects its
+CommonJS import behavior rather than depending on TypeScript defaults. The
+account-email suite passes with TypeScript 6.0.3; native verification is still pending.
+
 Broader A02 verification/reauthentication/password/avatar work and A04 phone login remain open. No Firebase rules/config/deployment, migration, native dependency, or EAS rebuild is needed.

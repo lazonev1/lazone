@@ -6,7 +6,8 @@ import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 const compiled = ts.transpileModule(readFileSync(new URL('../components/account/EditInfoPopup.tsx', import.meta.url), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  // Keep default-export stubs consistent with TypeScript 5 and 6.
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: false },
 }).outputText;
 const resources = Object.fromEntries(['en', 'fr'].map(language => [language,
   JSON.parse(readFileSync(new URL(`../localization/locales/${language}/account.json`, import.meta.url), 'utf8')).info,
