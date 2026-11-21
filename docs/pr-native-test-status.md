@@ -39,11 +39,19 @@ Supplementary component/service suites passed on #101, #102, #104, #105, #107,
 #109, #111, #112 and #113. The tests on #107 and #109 needed explicit
 `esModuleInterop: false` for their fixture loaders under installed TypeScript 6;
 the fixes were pushed (`f5afccc`, `365dc47`) and both PR checks passed.
-These runs used shared installed tooling, not an install of each older lockfile.
+The initial runs used shared installed tooling. Subsequently, an isolated offline
+install reused all 1,336 cached packages for the eight older branches. Their
+lockfiles have the same Git blob (`7e603de0b51c0bf3209746e839dd1f860f200c89`):
+Expo 54.0.23, React Native 0.81.5, TypeScript 5.9.3 and Firebase 12.10.0.
+The six older component suites (#101, #102, #104, #105, #107, #109) passed again
+with that exact dependency tree, and all eight older branches passed typecheck.
 
 The complete integration scripts from #98 and #100 also passed against each
 branch's exact Firestore rules loaded into the separate local `demo-rules`
-project. The native flows below remain required; SDK assertions are not UI tests.
+project, first with shared tooling and then again with their locked Firebase
+12.10.0 dependency and loopback-only emulator configuration. The native flows
+below remain required; SDK assertions are not UI tests. CI also passed on the
+latest pushed #107, #109, #111, #112 and #114 commits.
 
 ## Resume prerequisites
 
@@ -57,14 +65,19 @@ failed with `ENOSPC`. No shared Firebase rules or EAS builds were changed.
 
 Eight branches (#98, #100–#102, #104–#105, #107, #109) still declare Expo 54 and
 React Native 0.81. The currently installed dependencies and iPhone 15 Plus client
-use Expo 57 and React Native 0.86. Install/use a matching dependency and client pair
-for those branches, or separately agree how to update their base. Do not claim
-native validation from mixing the old branch with the newer runtime.
+use Expo 57 and React Native 0.86. The matching older dependencies are now prepared
+in the separate temporary test checkout; use the corresponding older native
+client, not the iPhone 15 Plus SDK 57 client. Do not claim native validation from
+mixing the old branch with the newer runtime. No rebase or base update was made.
+The existing iPhone 15 installation includes EXConstants 18.0.10, matching the
+older branches' declared package. It was preserved, not rebuilt or overwritten.
+Loading each branch on that client is still required after the Mac is unlocked.
 
 ## Remaining cases
 
-These are remaining checks, not completed results. The eight SDK 54 branches
-are additionally blocked on a matching dependency/client pair, as explained above.
+These are remaining checks, not completed results. All native work is blocked by
+the locked Mac. The eight SDK 54 branches must use their matching older client,
+as explained above; their matching JavaScript dependencies are prepared.
 
 | PR | Feature | In-app acceptance checks |
 | --- | --- | --- |
