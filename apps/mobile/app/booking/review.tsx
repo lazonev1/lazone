@@ -124,7 +124,7 @@ export default function BookingReviewScreen() {
             <Button label={submitting ? t('review.submitting') : t('review.submitReview')} onPress={handleSubmit} disabled={submitting || rating === 0} variant="primary" style={styles.submit} />
           </>
         )}
-        <Button label={t('review.backToBooking')} onPress={() => bookingId ? router.replace(`/booking/${bookingId}`) : router.back()} variant="secondary" style={styles.back} />
+        <Button label={t('review.backToBooking')} onPress={() => bookingId ? router.dismissTo(`/booking/${bookingId}`) : router.back()} variant="secondary" style={styles.back} />
       </ScrollView>
     </View>
   );

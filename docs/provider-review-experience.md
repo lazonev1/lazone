@@ -40,3 +40,25 @@ a completed booking; verify the Business shortcut, sort with at least two differ
 edit/delete the review, submit/edit the provider reply, and check guest visibility. Dedicated
 single-review navigation and scalable review pagination remain follow-ups. S10 still owns
 trusted aggregate ratings used in discovery; this PR does not change that policy.
+
+## Native follow-up — November 21, 2026
+
+The iPhone 15 Plus SDK 57 client ran this branch's feature source with only
+PR #114's local Firebase/push/banner configuration temporarily overlaid in a
+separate checkout. All records were disposable local `demo-lazone-mobile` data.
+Completed bookings were fixture setup, not a native test of the booking lifecycle.
+
+Passed: Business → Reviews, requester submission, rejected-save rating retention
+and retry, already-reviewed blocking, high/low sorting, helpful voting, requester
+rating editing, and the derived mean changing from 3.5 to 3.0. No shared Firebase
+or EAS build was changed. Original local rules were restored after fault injection.
+
+The walkthrough found that Back to Booking could duplicate Booking Details in
+the navigation stack. It now dismisses to the existing details route rather than
+replacing the review with a second details page. The actual form regression test,
+typecheck and targeted lint pass. Its native retest was interrupted by the Mac
+locking after simulator coordinate/multiline control failures.
+
+Still pending: native navigation retest, provider reply/edit, multiline comment
+recovery, requester deletion, guest visibility, and Android. Keep the PR in draft
+until these acceptance checks are verified; automated tests do not replace them.

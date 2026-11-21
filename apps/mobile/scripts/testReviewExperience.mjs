@@ -129,6 +129,50 @@ await repo.updateReview('review-id', { rating: 4 });
 await repo.respondToReview('review-id', 'Thank you');
 assert.equal(repo.calculateReviewStats(reviews).averageRating, 4);
 
+// Return to the existing details screen instead of replacing the review with a
+// second copy of that screen. Deep links without a booking still use Back.
+let formScope;
+let formSlot = 0;
+let formBookingId = 'booking';
+const dismissed = [];
+let backCalls = 0;
+const { default: BookingReview } = load('app/booking/review.tsx', {
+  react: {
+    useState(initial) {
+      const slot = formSlot++;
+      return [slot === 5 ? { scope: formScope, result: 'reviewed' } : initial, () => {}];
+    },
+    useMemo: factory => (formScope = factory()),
+    useRef: value => ({ current: value }),
+    useEffect: () => {},
+  },
+  'react-native': {
+    ...Object.fromEntries(['View', 'ScrollView', 'TouchableOpacity', 'ActivityIndicator'].map(key => [key, key])),
+    StyleSheet: { create: styles => styles }, Appearance: { getColorScheme: () => 'light' },
+  },
+  'expo-router': {
+    Stack: { Screen: 'Screen' },
+    useLocalSearchParams: () => ({ bookingId: formBookingId }),
+    useRouter: () => ({ dismissTo: path => dismissed.push(path), back: () => backCalls++ }),
+  },
+  '@/components/ThemedText': { ThemedText: 'ThemedText' },
+  '@/components/ui/TextBox': { TextBox: 'TextBox' },
+  '@lazone/ui': { Button: 'Button' },
+  '@expo/vector-icons': { Ionicons: 'Ionicons' },
+  '@/constants/Colors': { Colors: { light: {} } },
+  '@/contexts/auth': { useAuth: () => ({ user: { uid: 'author' } }) },
+  '@/hooks/useBookings': { useBookingDetail: () => ({ booking: { id: 'booking', requesterId: 'author', status: 'completed' }, isLoading: false }) },
+  '@/repositories/reviewRepository': {},
+  '@/backend/main/src/services/reviewService': {},
+  'react-i18next': { useTranslation: () => ({ t: key => key }) },
+});
+control(all(BookingReview()), 'review.backToBooking').props.onPress();
+assert.deepEqual(dismissed, ['/booking/booking']);
+formBookingId = undefined;
+formSlot = 0;
+control(all(BookingReview()), 'review.backToBooking').props.onPress();
+assert.equal(backCalls, 1);
+
 for (const ns of ['provider', 'booking']) {
   const section = ns === 'provider' ? 'reviews' : 'review';
   const keys = lang => Object.keys(JSON.parse(readFileSync(new URL(`../localization/locales/${lang}/${ns}.json`, import.meta.url), 'utf8'))[section]).sort();
