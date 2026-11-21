@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { compileFunction } from 'node:vm';
 import ts from 'typescript';
 
@@ -102,6 +104,13 @@ try {
   assert.equal(auth.currentUser, null);
   await authService.loginUser(user.email, 'Local-test-only-123');
   assert.equal(auth.currentUser.uid, user.uid);
+  const seedPath = fileURLToPath(new URL('./seedSimulatorFixtures.mjs', import.meta.url));
+  const seed = () => JSON.parse(execFileSync(process.execPath, [seedPath], { encoding: 'utf8', env: process.env }));
+  const firstSeed = seed();
+  const secondSeed = seed();
+  assert.equal(firstSeed.projectId, local.projectId);
+  assert.deepEqual(firstSeed.fixtures, secondSeed.fixtures, 'rerunning fixtures must reuse the same disposable accounts');
+  assert.notEqual(firstSeed.fixtures.requester.uid, firstSeed.fixtures.provider.uid);
   console.log('Simulator Firebase checks passed: fail-closed config, local account and profile, local Storage round trip, no push, logout and sign-in.');
 } finally {
   await appSdk.deleteApp(appSdk.getApp('lazone-emulator'));

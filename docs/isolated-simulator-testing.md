@@ -33,6 +33,19 @@ credentials. Emulator records are disposable and are not imported from live Fire
 Stop both owned sessions when done. Restart Metro without the two variables to return
 to the normal shared environment. Do not put test variables on EAS build profiles.
 
+For repeatable signed-in walkthroughs, run this while the local suite is running:
+
+```sh
+cd apps/mobile
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/seedSimulatorFixtures.mjs
+```
+
+It creates `requester@lazone-example.test` and `provider@lazone-example.test`, both
+with the disposable local password `Local-test-only-123`. The latter owns a published
+test service and retains requester capabilities. The script refuses other hosts and
+always uses the demo project. Rerunning reuses the fixtures without resetting existing
+profile edits. These credentials must never be used with live Firebase.
+
 If you used the old `EXPO_PUBLIC_USE_FIRESTORE_EMULATOR` or
 `EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST` variables, remove those settings rather than
 mixing them with the new mode. A missing or invalid local host, a former Firestore-only
@@ -55,7 +68,13 @@ runs the actual application Firebase wiring and account service against it. The 
 test checks fail-closed options, local signup/private+public profile creation,
 Storage upload/read/delete, no native push calls, and login after sign-out.
 
-The existing iPhone 15 Plus build rendered the local banner and empty demo catalogue
-without showing the shared providers. Signing in via the native screen and the
-two-account requester/provider journey remain to be verified; Android routing is
-covered by the host checks but not by an Android device run here.
+On November 21, 2026, the existing iPhone 15 Plus build rendered the local banner
+and disposable catalog without showing shared providers. The native login screen
+successfully signed in the requester; its session survived app termination and
+reopening. Logout returned to Login, and signing in the provider showed its own
+identity, Business dashboard, and requester booking access. The Firestore/Auth/
+Storage integration suite also passed, including repeatable fixture creation.
+Android routing is covered by host checks but still needs an Android device run.
+
+The [native test checklist](pr-native-test-status.md) records the remaining per-PR
+cases and workstation blockers. Passing service tests does not clear native gates.
