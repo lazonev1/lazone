@@ -41,7 +41,8 @@ function harness() {
 }
 function load(path, dependencies) {
   const compiled = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    // Keep CommonJS fixture imports stable across TypeScript 5/6 defaults.
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: false },
   }).outputText;
   const exports = {};
   runInNewContext(`(function(require, exports) { ${compiled}\n})`, { console: { error() {} } })(name =>

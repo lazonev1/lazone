@@ -19,6 +19,11 @@ The second step publishes its session draft upward without mirroring parent arra
 
 `test:provider-recovery` exercises the actual route/step with mocked hooks/native primitives: draft publication and remount, stable service IDs, Back/forward, failed saves, duplicate submission, stale sessions, account-key reset, signed-out access, owner guard, and failed-load Retry. It runs in CI. TypeScript and focused lint pass.
 
+November 21 regression rerun: explicitly pin the fixture compiler's CommonJS import
+behavior so TypeScript 5 and 6 interpret default-export stubs consistently. The
+route/step checks pass with TypeScript 6.0.3. This is test-harness compatibility,
+not completion of the native walkthrough below.
+
 The full Auth/Firestore provider-capability, authorization, and migration regression suite passes, as do iOS/Android production JavaScript exports. Those checks do not replace native form/keyboard verification.
 
 This is session recovery, not disk persistence: reload/restart recovery, discard confirmation, and enrollment idempotency remain P03 work. Media persistence remains P01/S07 and is not claimed fixed. Simulator UI control is unavailable, so native onboarding/edit/keyboard walkthroughs remain pending. No native dependency, schema/rules change, migration, Firebase deployment, or EAS rebuild is required.
