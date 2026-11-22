@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, TextStyle, ActivityIndicator, View } from 'react-native';
+import { buttonColors, buttonMinimumTarget } from './buttonTokens';
 
 type ButtonSize = 'small' | 'medium' | 'large';
 type ButtonVariant = 'primary' | 'secondary' | 'success';
@@ -9,6 +10,10 @@ type Props = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
+  loading?: boolean;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  testID?: string;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 };
@@ -19,22 +24,37 @@ export default function Button({
   variant = 'primary',
   size = 'medium',
   disabled = false,
+  loading = false,
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
   style,
   textStyle
 }: Props) {
+  const inactive = disabled || loading;
+  const colors = inactive ? buttonColors.disabled : buttonColors[variant];
   return (
     <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
+      onPress={() => { if (!inactive) onPress(); }}
+      disabled={inactive}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      testID={testID}
       style={[
         styles.button,
-        styles[variant],
+        { backgroundColor: colors.background },
         styles[size],
-        disabled && styles.disabled,
-        style
+        style,
+        inactive && { backgroundColor: colors.background },
       ]}
     >
-      <Text style={[styles.text, textStyle]}>{label}</Text>
+      <View style={styles.content} pointerEvents="none">
+        {loading && <ActivityIndicator color={colors.foreground} accessible={false} />}
+        <Text style={[styles.text, { color: colors.foreground }, textStyle,
+          inactive && { color: colors.foreground }]}>{label}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -43,16 +63,11 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: buttonMinimumTarget,
+    minWidth: buttonMinimumTarget,
   },
-  primary: {
-    backgroundColor: '#0A58A5',
-  },
-  secondary: {
-    backgroundColor: '#FF9900',
-  },
-  success: {
-    backgroundColor: '#56B224',
-  },
+  content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 1 },
   small: {
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -65,13 +80,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
   },
-  disabled: {
-    opacity: 0.5,
-  },
   text: {
-    color: '#FFFFFF',
     fontSize: 16,
-    fontFamily: 'OpenSans-Regular',
     fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });
