@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Review, ReviewStats } from '@/types/provider';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import type { Review } from '@/types/provider';
 import {
   getProviderReviews,
-  addReview,
   updateReview as repoUpdateReview,
   deleteReview as repoDeleteReview,
   respondToReview as repoRespondToReview,
@@ -10,259 +10,102 @@ import {
   calculateReviewStats,
 } from '@/repositories/reviewRepository';
 
-export interface UseReviewsResult {
-  reviews: Review[];
-  stats: ReviewStats;
-  isLoading: boolean;
-  error: Error | null;
-  submitReview: (data: {
-    rating: number;
-    comment: string;
-    bookingId?: string;
-    serviceId?: string;
-    images?: string[];
-  }) => Promise<Review>;
-  updateReview: (reviewId: string, data: {
-    rating?: number;
-    comment?: string;
-    images?: string[];
-  }) => Promise<Review>;
-  deleteReview: (reviewId: string) => Promise<void>;
-  respondToReview: (reviewId: string, responseText: string) => Promise<void>;
-  markHelpful: (reviewId: string) => Promise<void>;
-  refreshReviews: () => Promise<void>;
-}
+const EMPTY_REVIEWS: Review[] = [];
 
-export function useReviews(providerId?: string, userId?: string): UseReviewsResult {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [stats, setStats] = useState<ReviewStats>({
-    averageRating: 0,
-    totalReviews: 0,
-    ratingCounts: [0, 0, 0, 0, 0]
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const pendingHelpfulVotes = useRef(new Set<string>());
+export function useReviews(providerId?: string, userId?: string) {
+  // A fresh scope prevents stale reads/mutations (including private vote state)
+  // appearing after switching providers or authentication sessions.
+  const scope = useMemo(() => ({ providerId, userId }), [providerId, userId]);
+  type ReviewState = { scope: typeof scope; reviews: Review[]; loading: boolean; error: boolean };
+  const [state, setState] = useState<ReviewState | null>(null);
+  const latestRequest = useRef(0);
+  const focusedScope = useRef<typeof scope | null>(null);
+  const pendingVotes = useRef(new Set<string>());
+  const mutationVersion = useRef(0);
 
-  // Fetch reviews when providerId changes
-  const fetchReviews = useCallback(async () => {
-    if (!providerId) return;
-    
-    setIsLoading(true);
-    setError(null);
-
+  const refreshReviews = useCallback(async () => {
+    if (!scope.providerId) return;
+    const request = ++latestRequest.current;
+    const version = mutationVersion.current;
+    setState(previous => ({
+      scope, reviews: previous?.scope === scope ? previous.reviews : EMPTY_REVIEWS, loading: true, error: false,
+    }));
     try {
-      const data = await getProviderReviews(providerId);
-      setReviews(data);
-      setStats(calculateReviewStats(data));
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch reviews'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [providerId]);
-
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
-
-  // Submit a new review
-  const submitReview = useCallback(async (data: {
-    rating: number;
-    comment: string;
-    bookingId?: string;
-    serviceId?: string;
-    localImageUris?: string[]; // Local URIs from image picker
-  }): Promise<Review> => {
-    if (!providerId || !userId) {
-      throw new Error('Provider ID and User ID are required');
-    }
-
-    console.log('[useReviews] Submitting review...');
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (!data.bookingId || !data.serviceId) {
-        throw new Error('Open a completed booking to leave its review');
+      const reviews = await getProviderReviews(scope.providerId);
+      if (request === latestRequest.current) {
+        if (version === mutationVersion.current) {
+          setState({ scope, reviews, loading: false, error: false });
+        } else {
+          setState(previous => previous?.scope === scope ? { ...previous, loading: false } : previous);
+        }
       }
-      const newReview = await addReview(providerId, {
-        requesterId: userId,
-        rating: data.rating,
-        comment: data.comment,
-        bookingId: data.bookingId,
-        serviceId: data.serviceId,
-        localImageUris: data.localImageUris,
-      });
-
-      console.log('[useReviews] Review submitted successfully');
-
-      // Update local state optimistically
-      setReviews(prev => [newReview, ...prev]);
-      setStats(calculateReviewStats([newReview, ...reviews]));
-
-      return newReview;
-    } catch (err) {
-      console.error('[useReviews] Error submitting review:', err);
-      const error = err instanceof Error ? err : new Error('Failed to submit review');
-      setError(error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+    } catch {
+      if (request === latestRequest.current) {
+        setState(previous => ({
+          scope, reviews: previous?.scope === scope ? previous.reviews : EMPTY_REVIEWS, loading: false, error: true,
+        }));
+      }
     }
-  }, [providerId, userId, reviews]);
+  }, [scope]);
 
-  // Update an existing review
-  const updateReview = useCallback(async (
-    reviewId: string,
-    data: {
-      rating?: number;
-      comment?: string;
-      images?: string[];
-    }
-  ): Promise<Review> => {
-    const previousReviews = [...reviews];
+  useFocusEffect(useCallback(() => {
+    focusedScope.current = scope;
+    void refreshReviews();
+    return () => { focusedScope.current = null; latestRequest.current++; };
+  }, [refreshReviews, scope]));
 
-    // Optimistic update
-    setReviews(prev => prev.map(review =>
-      review.id === reviewId
-        ? { ...review, ...data }
-        : review
-    ));
+  const updateList = (apply: (reviews: Review[]) => Review[]) => {
+    if (focusedScope.current !== scope) return;
+    mutationVersion.current++;
+    setState(previous => previous?.scope === scope ? { ...previous, reviews: apply(previous.reviews) } : previous);
+  };
 
-    try {
-      const updatedReview = await repoUpdateReview(reviewId, data);
+  const updateReview = async (reviewId: string, data: { rating?: number; comment?: string }) => {
+    await repoUpdateReview(reviewId, data);
+    updateList(reviews => reviews.map(item => item.id === reviewId ? {
+      ...item, rating: data.rating ?? item.rating, comment: data.comment?.trim() ?? item.comment,
+    } : item));
+  };
 
-      // Update with actual server response
-      setReviews(prev => prev.map(review =>
-        review.id === reviewId ? updatedReview : review
-      ));
-      setStats(calculateReviewStats(
-        reviews.map(r => r.id === reviewId ? updatedReview : r)
-      ));
+  const deleteReview = async (reviewId: string) => {
+    await repoDeleteReview(reviewId);
+    updateList(reviews => reviews.filter(item => item.id !== reviewId));
+  };
 
-      return updatedReview;
-    } catch (err) {
-      // Revert on error
-      setReviews(previousReviews);
-      const error = err instanceof Error ? err : new Error('Failed to update review');
-      setError(error);
-      throw error;
-    }
-  }, [reviews]);
+  const respondToReview = async (reviewId: string, responseText: string) => {
+    await repoRespondToReview(reviewId, responseText);
+    updateList(reviews => reviews.map(item => item.id === reviewId
+      ? { ...item, response: { text: responseText.trim(), date: '' } }
+      : item));
+    // Re-read the server timestamp without making the saved reply depend on it.
+    if (focusedScope.current === scope) void refreshReviews();
+  };
 
-  // Delete a review
-  const deleteReview = useCallback(async (reviewId: string): Promise<void> => {
-    const previousReviews = [...reviews];
+  const markHelpful = async (reviewId: string) => {
+    if (!scope.userId) throw new Error('Please sign in to vote');
+    const voteKey = JSON.stringify([scope.userId, reviewId]);
+    if (pendingVotes.current.has(voteKey)) return;
+    pendingVotes.current.add(voteKey);
+    const patchVote = (patch: Partial<Review>) => updateList(reviews =>
+      reviews.map(item => item.id === reviewId ? { ...item, ...patch } : item));
 
-    // Optimistic update
-    setReviews(prev => prev.filter(review => review.id !== reviewId));
-
-    try {
-      await repoDeleteReview(reviewId);
-
-      // Update stats
-      const remainingReviews = reviews.filter(r => r.id !== reviewId);
-      setStats(calculateReviewStats(remainingReviews));
-
-    } catch (err) {
-      // Revert on error
-      setReviews(previousReviews);
-      const error = err instanceof Error ? err : new Error('Failed to delete review');
-      setError(error);
-      throw error;
-    }
-  }, [reviews]);
-
-  // Respond to a review (provider action)
-  const respondToReview = useCallback(async (
-    reviewId: string,
-    responseText: string
-  ): Promise<void> => {
-    const previousReviews = [...reviews];
-
-    // Optimistic update
-    setReviews(prev => prev.map(review =>
-      review.id === reviewId
-        ? {
-            ...review,
-            response: {
-              text: responseText,
-              date: new Date().toISOString()
-            }
-          }
-        : review
-    ));
-    
-    try {
-      const updatedReview = await repoRespondToReview(reviewId, responseText);
-      setReviews(prev => prev.map(review =>
-        review.id === reviewId ? updatedReview : review
-      ));
-    } catch (err) {
-      // Revert on error
-      setReviews(previousReviews);
-      const error = err instanceof Error ? err : new Error('Failed to respond to review');
-      setError(error);
-      throw error;
-    }
-  }, [reviews]);
-
-  // Mark a review as helpful (toggle)
-  const markHelpful = useCallback(async (reviewId: string): Promise<void> => {
-    if (!userId) {
-      throw new Error('Please sign in to vote');
-    }
-
-    if (pendingHelpfulVotes.current.has(reviewId)) return;
-    pendingHelpfulVotes.current.add(reviewId);
-
-    setReviews(prev => prev.map(review => review.id === reviewId
-      ? { ...review, isHelpfulPending: true }
-      : review));
-
+    patchVote({ isHelpfulPending: true });
     try {
       const result = await markReviewHelpful(reviewId);
-      console.log(`[useReviews] Helpful ${result.added ? 'added' : 'removed'}, new count: ${result.newCount}`);
-
-      // Reconcile the protected public count and this user's private vote state.
-      setReviews(prev => prev.map(review => {
-        if (review.id !== reviewId) return review;
-
-        return {
-          ...review,
-          isHelpful: result.newCount,
-          hasCurrentUserHelpfulVote: result.added,
-          isHelpfulPending: false,
-        };
-      }));
-    } catch (err) {
-      setReviews(prev => prev.map(review => review.id === reviewId
-        ? { ...review, isHelpfulPending: false }
-        : review));
-      const error = err instanceof Error ? err : new Error('Failed to mark review as helpful');
-      setError(error);
-      throw error;
+      patchVote({ isHelpful: result.newCount, hasCurrentUserHelpfulVote: result.added });
     } finally {
-      pendingHelpfulVotes.current.delete(reviewId);
+      pendingVotes.current.delete(voteKey);
+      patchVote({ isHelpfulPending: false });
     }
-  }, [userId]);
+  };
 
-  // Refresh reviews
-  const refreshReviews = useCallback(async (): Promise<void> => {
-    await fetchReviews();
-  }, [fetchReviews]);
-
+  const current = state?.scope === scope ? state : null;
+  const reviews = current?.reviews ?? EMPTY_REVIEWS;
+  const stats = useMemo(() => calculateReviewStats(reviews), [reviews]);
   return {
-    reviews,
-    stats,
-    isLoading,
-    error,
-    submitReview,
-    updateReview,
-    deleteReview,
-    respondToReview,
-    markHelpful,
-    refreshReviews,
+    reviews, stats,
+    isLoading: Boolean(providerId && (!current || current.loading)),
+    hasLoadError: current?.error ?? false,
+    updateReview, deleteReview, respondToReview, markHelpful, refreshReviews,
   };
 }

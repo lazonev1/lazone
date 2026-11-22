@@ -8,27 +8,33 @@ import { requireAuth } from '@/utils/auth';
 import Toast from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
+import { ThemedText } from '@/components/ThemedText';
 
 /** Public review list. New reviews are created from a completed booking. */
 export default function ProviderReviewsScreen() {
   const { t } = useTranslation('provider');
   const { id } = useLocalSearchParams();
-  const providerId = id?.toString();
+  const providerId = typeof id === 'string' && id.trim() && !id.includes('/') ? id : undefined;
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { user } = useAuth();
   const currentUserId = user?.uid;
   const { toast, showToast, hideToast } = useToast();
-  const { reviews, stats, isLoading, respondToReview, updateReview, markHelpful, deleteReview } = useReviews(providerId, currentUserId);
+  const { reviews, stats, isLoading, hasLoadError, refreshReviews, respondToReview, updateReview, markHelpful, deleteReview } = useReviews(providerId, currentUserId);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <Stack.Screen options={{ title: t('reviews.title'), headerTintColor: theme.text }} />
-      <ScrollView style={{ flex: 1 }}>
-        <ReviewsComponent
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+        {!providerId ? (
+          <ThemedText style={{ padding: 24, textAlign: 'center' }}>{t('reviews.noProvider')}</ThemedText>
+        ) : <ReviewsComponent
+          key={JSON.stringify([providerId, currentUserId])}
           reviews={reviews}
           stats={stats}
           isLoading={isLoading}
+          hasLoadError={hasLoadError}
+          onRetry={refreshReviews}
           allowResponding={currentUserId === providerId}
           showStats={true}
           showFilters={true}
@@ -50,7 +56,7 @@ export default function ProviderReviewsScreen() {
             catch { showToast(t('reviews.toasts.reviewDeleteFailed'), 'error'); }
           }}
           expandedByDefault={true}
-        />
+        />}
       </ScrollView>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onDismiss={hideToast} />
     </SafeAreaView>

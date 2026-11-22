@@ -393,7 +393,9 @@ export default function BusinessScreen() {
           <QuickActionCard
             icon="star-outline"
             label={t('business.quickActions.reviews')}
-            onPress={() => router.push('/provider/reviews')}
+            onPress={() => {
+              if (user?.uid) router.push({ pathname: '/provider/reviews', params: { id: user.uid } });
+            }}
             theme={theme}
             colorScheme={colorScheme}
           />

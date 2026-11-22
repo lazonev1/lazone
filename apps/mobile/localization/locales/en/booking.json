@@ -63,6 +63,9 @@
   "review": {
     "title": "Review your booking",
     "checkFailed": "We could not check this booking yet. Please try again.",
+    "retry": "Try again",
+    "alreadyReviewed": "You’ve already reviewed this booking",
+    "seeProviderReviews": "See provider reviews",
     "selectRating": "Select a rating to continue.",
     "tooLong": "Keep your review to 500 characters or fewer.",
     "submitFailed": "Could not submit your review.",

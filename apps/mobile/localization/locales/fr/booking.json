@@ -63,6 +63,9 @@
   "review": {
     "title": "Évaluer votre réservation",
     "checkFailed": "Impossible de vérifier cette réservation pour le moment. Veuillez réessayer.",
+    "retry": "Réessayer",
+    "alreadyReviewed": "Vous avez déjà laissé un avis sur cette réservation",
+    "seeProviderReviews": "Voir les avis du prestataire",
     "selectRating": "Sélectionnez une note pour continuer.",
     "tooLong": "Limitez votre avis à 500 caractères maximum.",
     "submitFailed": "Impossible d'envoyer votre avis.",

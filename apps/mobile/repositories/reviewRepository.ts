@@ -34,7 +34,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
   }
 
   // Transform timestamps to ISO strings
-  const createdAt = review.createdAt?.toDate?.() || new Date();
+  const createdAt = review.createdAt?.toDate?.();
 
   // Get the latest response from responses array (if any)
   const latestResponse = review.responses && review.responses.length > 0
@@ -52,7 +52,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
     clientAvatar,
     rating: review.rating,
     comment: review.comment,
-    date: createdAt.toISOString(),
+    date: createdAt?.toISOString() ?? '',
     serviceId: review.serviceId,
     serviceName: undefined, // Service names are not fetched separately - would need provider context
     images: review.images || [],
@@ -61,7 +61,7 @@ async function transformToViewModel(review: ReviewModel): Promise<Review> {
     userId: requesterId as string,
     response: latestResponse ? {
       text: latestResponse.text,
-      date: responseDate?.toISOString() || new Date().toISOString()
+      date: responseDate?.toISOString() ?? ''
     } : undefined
   };
 }
@@ -103,112 +103,20 @@ export async function getUserReviews(userId: string): Promise<Review[]> {
   }
 }
 
-/**
- * Add a new review
- */
+/** Save the review without making success depend on a follow-up read. */
 export async function addReview(
   providerId: string,
-  reviewData: {
-    requesterId: string;
-    bookingId: string;
-    serviceId: string;
-    rating: number;
-    comment: string;
-    localImageUris?: string[]; // Local URIs from image picker (disabled for now)
-  }
-): Promise<Review> {
-  console.log('[ReviewRepository] Adding review for provider:', providerId);
-
-  try {
-    // TODO: Enable image upload when ready for production
-    // Image upload is disabled to avoid Firebase Storage costs during development
-    // When ready, uncomment the code below:
-    /*
-    let imageUrls: string[] = [];
-    if (reviewData.localImageUris && reviewData.localImageUris.length > 0) {
-      console.log(`[ReviewRepository] Uploading ${reviewData.localImageUris.length} images...`);
-      const { uploadReviewImages } = await import('@/backend/main/src/services/storageService');
-      const tempId = `temp_${Date.now()}`;
-      imageUrls = await uploadReviewImages(reviewData.localImageUris, tempId);
-      console.log('[ReviewRepository] Images uploaded successfully');
-    }
-    */
-
-    // For now, just log if images were selected but not uploaded
-    if (reviewData.localImageUris && reviewData.localImageUris.length > 0) {
-      console.log(`[ReviewRepository] Note: ${reviewData.localImageUris.length} images selected but upload is disabled`);
-    }
-
-    const reviewId = await ReviewService.createReview({
-      providerId,
-      requesterId: reviewData.requesterId,
-      bookingId: reviewData.bookingId,
-      serviceId: reviewData.serviceId,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      images: [], // Empty for now - images disabled
-    });
-
-    console.log('[ReviewRepository] Review created with ID:', reviewId);
-
-    // Fetch the created review and transform it
-    const createdReview = await ReviewService.getReviewById(reviewId);
-    if (!createdReview) {
-      throw new Error('Failed to fetch created review');
-    }
-
-    return await transformToViewModel(createdReview);
-  } catch (error) {
-    console.error('[ReviewRepository] Error adding review:', error);
-    throw error;
-  }
+  reviewData: { requesterId: string; bookingId: string; serviceId: string; rating: number; comment: string },
+): Promise<string> {
+  return ReviewService.createReview({ providerId, ...reviewData, images: [] });
 }
 
-/**
- * Respond to a review (provider response)
- */
-export async function respondToReview(reviewId: string, responseText: string): Promise<Review> {
-  try {
-    await ReviewService.addProviderResponse(reviewId, responseText);
-
-    // Fetch the updated review and transform it
-    const updatedReview = await ReviewService.getReviewById(reviewId);
-    if (!updatedReview) {
-      throw new Error('Review not found after update');
-    }
-
-    return await transformToViewModel(updatedReview);
-  } catch (error) {
-    console.error('Error responding to review:', error);
-    throw error;
-  }
+export async function respondToReview(reviewId: string, responseText: string): Promise<void> {
+  await ReviewService.addProviderResponse(reviewId, responseText);
 }
 
-/**
- * Update a review
- */
-export async function updateReview(
-  reviewId: string,
-  reviewData: {
-    rating?: number;
-    comment?: string;
-    images?: string[];
-  }
-): Promise<Review> {
-  try {
-    await ReviewService.updateReview(reviewId, reviewData);
-
-    // Fetch the updated review and transform it
-    const updatedReview = await ReviewService.getReviewById(reviewId);
-    if (!updatedReview) {
-      throw new Error('Review not found after update');
-    }
-
-    return await transformToViewModel(updatedReview);
-  } catch (error) {
-    console.error('Error updating review:', error);
-    throw error;
-  }
+export async function updateReview(reviewId: string, data: { rating?: number; comment?: string }): Promise<void> {
+  await ReviewService.updateReview(reviewId, data);
 }
 
 /**
@@ -254,16 +162,18 @@ export function calculateReviewStats(reviews: Review[]): ReviewStats {
 
   const ratingCounts = [0, 0, 0, 0, 0];
   let totalRating = 0;
+  let ratedReviews = 0;
 
   reviews.forEach(review => {
-    totalRating += review.rating;
-    if (review.rating >= 1 && review.rating <= 5) {
+    if (Number.isInteger(review.rating) && review.rating >= 1 && review.rating <= 5) {
+      totalRating += review.rating;
+      ratedReviews++;
       ratingCounts[review.rating - 1]++;
     }
   });
 
   return {
-    averageRating: Math.round((totalRating / totalReviews) * 10) / 10,
+    averageRating: ratedReviews ? Math.round((totalRating / ratedReviews) * 10) / 10 : 0,
     totalReviews,
     ratingCounts
   };
