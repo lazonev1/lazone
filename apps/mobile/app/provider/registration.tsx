@@ -1,5 +1,5 @@
 import { View, StyleSheet, Appearance, Pressable, Alert, ActivityIndicator } from 'react-native';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import BusinessInfoStep from '@/components/provider/BusinessInfoStep';
 import ServiceDetailsStep from '@/components/provider/ServiceDetailsStep';
@@ -10,6 +10,8 @@ import { useProvider } from '@/hooks/useProvider';
 import { useAuth } from '@/contexts/auth';
 import { ThemedText } from '@/components/ThemedText';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@lazone/ui';
+import { LoginPrompt } from '@/components/auth/LoginPrompt';
 
 /**
  * Helper function to transform ProviderViewModel to ProviderRegistration format
@@ -36,29 +38,44 @@ function transformProviderViewModelToRegistration(
 }
 
 export default function ProviderRegistrationScreen() {
+  const { user } = useAuth();
+  // Changing accounts must discard the previous account's in-memory form.
+  return <ProviderRegistrationForm key={user?.uid ?? 'signed-out'} />;
+}
+
+function ProviderRegistrationForm() {
   const { editMode, providerId } = useLocalSearchParams();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const { t } = useTranslation(['provider', 'common']);
-  const { userProfile, refreshUserProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const isEditMode = editMode === 'true';
   const requestedProviderId = Array.isArray(providerId) ? providerId[0] : providerId;
   const resolvedProviderId = isEditMode
     ? requestedProviderId || userProfile?._id
     : undefined;
+  const isOwner = !isEditMode || resolvedProviderId === user?.uid;
 
   // Use the provider hook to fetch existing provider data and save functionality
-  const { provider, isLoading, saveProviderProfile } = useProvider(resolvedProviderId);
+  const { provider, isLoading, refetch, saveProviderProfile } = useProvider(isOwner ? resolvedProviderId : undefined);
 
   const [step, setStep] = useState<'business-info' | 'service-details'>('business-info');
   const [formData, setFormData] = useState<Partial<ProviderRegistration>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const saveInFlightRef = useRef(false);
+  const activeRef = useRef(true);
+  useEffect(() => {
+    activeRef.current = true;
+    return () => { activeRef.current = false; };
+  }, []);
 
   // Populate form data when provider data is loaded
   useEffect(() => {
     if (isEditMode && provider) {
       setFormData(transformProviderViewModelToRegistration(provider));
+      setHydrated(true);
     }
   }, [provider, isEditMode]);
 
@@ -66,16 +83,22 @@ export default function ProviderRegistrationScreen() {
     setFormData(prev => ({ ...prev, ...data }));
     setStep('service-details');
   };
+  const handleDraftChange = useCallback((data: Partial<ProviderRegistration>) => {
+    setFormData(previous => ({ ...previous, ...data }));
+  }, []);
 
   const handleSubmit = async (finalData: Partial<ProviderRegistration>) => {
+    if (saveInFlightRef.current) return;
     const completeData = { ...formData, ...finalData } as ProviderRegistration;
     
     // Validate user is authenticated
-    if (!userProfile) {
+    if (!user || !userProfile || userProfile._id !== user.uid || !isOwner) {
       Alert.alert(t('common:alerts.error'), t('registration.alerts.loginRequired'));
       return;
     }
 
+    saveInFlightRef.current = true;
+    setFormData(completeData);
     setIsSaving(true);
     
     try {
@@ -85,6 +108,7 @@ export default function ProviderRegistrationScreen() {
         isEditMode ? resolvedProviderId || null : null,
         completeData
       );
+      if (!activeRef.current) return;
 
       // Creating a provider profile promotes the user to the `both` role in
       // Firestore. Refresh the AuthContext immediately so Business access is
@@ -92,6 +116,7 @@ export default function ProviderRegistrationScreen() {
       if (!isEditMode) {
         await refreshUserProfile();
       }
+      if (!activeRef.current) return;
 
       if (isEditMode) {
         Alert.alert(
@@ -107,13 +132,15 @@ export default function ProviderRegistrationScreen() {
         );
       }
     } catch (error) {
+      if (!activeRef.current) return;
       console.error('Error saving provider profile:', error);
       Alert.alert(
         t('common:alerts.error'),
         isEditMode ? t('registration.alerts.updateFailed') : t('registration.alerts.createFailed')
       );
     } finally {
-      setIsSaving(false);
+      saveInFlightRef.current = false;
+      if (activeRef.current) setIsSaving(false);
     }
   };
 
@@ -125,8 +152,20 @@ export default function ProviderRegistrationScreen() {
     return false; // Allows default back to account screen
   }, [step]);
 
+  if (!user) return <LoginPrompt title={t('common:auth.signInRequiredTitle')} message={t('common:auth.signInRequiredMessage')} />;
+
+  if (!isOwner || (isEditMode && !isLoading && !provider)) {
+    return <View style={[styles.container, styles.centerContent, { padding: 24 }]}>
+      <ThemedText accessibilityRole="alert" style={{ textAlign: 'center', marginBottom: 16 }}>
+        {t(!isOwner ? 'registration.ownerOnly' : 'registration.loadFailed')}
+      </ThemedText>
+      {isOwner && <Button label={t('common:actions.retry')} onPress={() => void refetch()} />}
+      <Button label={t('common:actions.back')} onPress={() => router.back()} variant="secondary" style={{ marginTop: 12 }} />
+    </View>;
+  }
+
   // Show loading indicator while fetching provider data in edit mode
-  if (isEditMode && isLoading) {
+  if (!isSaving && isEditMode && (isLoading || !hydrated)) {
     return (
       <>
         <Stack.Screen
@@ -190,6 +229,7 @@ export default function ProviderRegistrationScreen() {
           <ServiceDetailsStep
             initialData={formData}
             onSubmit={handleSubmit}
+            onDraftChange={handleDraftChange}
             onBack={() => setStep('business-info')}
             isEditMode={isEditMode}
           />

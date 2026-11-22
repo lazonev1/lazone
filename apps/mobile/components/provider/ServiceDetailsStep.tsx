@@ -17,16 +17,17 @@ interface Props {
   initialData: Partial<ProviderRegistration>;
   onSubmit: (data: Partial<ProviderRegistration>) => void;
   onBack: () => void;  // Add back handler prop
+  onDraftChange?: (data: Partial<ProviderRegistration>) => void;
   isEditMode?: boolean;
 }
 
-export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEditMode = false }: Props) {
+export default function ServiceDetailsStep({ initialData, onSubmit, onDraftChange, isEditMode = false }: Props) {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
   const { t } = useTranslation('provider');
 
-  const [services, setServices] = useState<ServiceItem[]>(initialData?.services || [{
+  const [services, setServices] = useState<ServiceItem[]>(() => initialData?.services?.length ? initialData.services : [{
     id: generateServiceId(),
     name: '',
     description: '',
@@ -35,19 +36,12 @@ export default function ServiceDetailsStep({ initialData, onSubmit, onBack, isEd
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(initialData?.portfolio || []);
   const [certificates, setCertificates] = useState(initialData?.certifications || []);
 
-  // Keep the second step in sync with the provider profile fetched for edit mode.
+  // The route mounts this step after hydration. Publish its draft upward so
+  // Back/forward and failed saves can remount it without erasing edits. Do not
+  // mirror parent arrays back into local state: that would overwrite typing.
   useEffect(() => {
-    if (!isEditMode) return;
-
-    setServices(initialData.services?.length ? initialData.services : [{
-      id: generateServiceId(),
-      name: '',
-      description: '',
-      price: '',
-    }]);
-    setPortfolio(initialData.portfolio || []);
-    setCertificates(initialData.certifications || []);
-  }, [initialData.services, initialData.portfolio, initialData.certifications, isEditMode]);
+    onDraftChange?.({ services, portfolio, certifications: certificates });
+  }, [services, portfolio, certificates, onDraftChange]);
 
   const addServiceField = () => {
     if (services.length >= MARKETPLACE_LIMITS.maxProviderServices) {
