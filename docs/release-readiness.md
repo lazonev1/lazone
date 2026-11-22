@@ -209,6 +209,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Storage emulator tests deny cross-user, oversized, wrong-type, and private reads; real-device uploads persist across restart and another account sees only intended public assets. Deployment targets the verified bucket and source rules.
 
+  **Progress — 2026-11-07:** Public-image rule/test foundation implemented on `fix/storage-rules-foundation`: owner mutations, nonempty JPEG/PNG/WebP ≤5 MiB, public get without directory listing, explicit legacy deletion, and closed review/private/unknown writes. Actual Auth/Storage emulator tests run in CI and pass with TypeScript/focused lint. A read-only bucket listing returned no names; the conflicting live bucket configuration remains unresolved, so nothing was deployed or rewritten. Full private-media/persistence/device/rollout criteria remain open. See [policy, tests, and deployment gates](storage-security-foundation.md).
+
 ### S08 · P1 · Add abuse prevention, reporting, and operational enforcement
 
 - [ ] **Problem:** There is no complete block/report/moderation/dispute path or server-side booking/message abuse control. Account creation alone should not permit unlimited spam, uploads, or review abuse.

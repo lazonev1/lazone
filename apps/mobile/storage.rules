@@ -1,28 +1,48 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public profile/portfolio images only. MIME checks are not content
+    // scanning; private evidence must never be placed in these public paths.
+    function isPublicImage() {
+      return request.resource.size > 0
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
     }
 
     // Review-image uploads are disabled in the app until reviews have a
     // server-verified upload flow. Do not leave an unauthorised write path open.
     match /reviews/{reviewId}/{allPaths=**} {
-      allow read: if true; // Anyone can view review images
+      allow get: if true; // Preserve existing public review-image reads.
+      allow list: if false;
       allow write: if false;
     }
 
     // User profile images
     match /users/{userId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isOwner(userId) && isPublicImage();
+      // Deletion has no request.resource and must also permit cleanup of old
+      // files that no longer satisfy the upload policy.
+      allow delete: if isOwner(userId);
     }
 
     // Provider images (portfolio, cover, etc.)
     match /providers/{providerId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAuthenticated() && request.auth.uid == providerId;
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isOwner(providerId) && isPublicImage();
+      allow delete: if isOwner(providerId);
+    }
+
+    // Reserved for private evidence. No client access until a separately
+    // reviewed persistence/retrieval/retention flow is implemented (P01/S07).
+    match /private/{allPaths=**} {
+      allow read, write: if false;
     }
 
     // Default: deny all other paths
