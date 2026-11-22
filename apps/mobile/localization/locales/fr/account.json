@@ -20,9 +20,6 @@
     "profileLoadFailed": "Impossible de charger votre profil. Vérifiez votre connexion et réessayez.",
     "refreshProfile": "Réessayer de charger le profil",
     "logout": "Se déconnecter",
-    "businessVisibility": "Visibilité de l'entreprise",
-    "businessVisible": "Votre entreprise est visible pour les clients",
-    "businessHidden": "Votre entreprise est masquée pour les clients",
     "becomeProviderHint": "Proposez vos services et commencez à gagner de l'argent"
   },
   "info": {
