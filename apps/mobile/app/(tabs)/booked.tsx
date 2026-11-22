@@ -1,6 +1,5 @@
 import { SafeAreaView, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, View, Appearance, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState, useMemo } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { BookingCard } from '@/components/booking/BookingCard';

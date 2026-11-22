@@ -98,14 +98,18 @@ export async function getBookingDetail(bookingId: string): Promise<BookingViewMo
 
 // ========== Write ==========
 
+export const createBookingRequestId = (): string => BookingService.createBookingRequestId();
+
 export async function createBooking(
   userId: string,
   requesterName: string,
-  input: CreateBookingInput
+  input: CreateBookingInput,
+  creationRequestId: string,
 ): Promise<BookingViewModel> {
   console.log('[BookingRepository] Creating booking...');
 
   const bookingId = await BookingService.createBooking({
+    creationRequestId,
     requesterId: userId,
     requesterName,
     providerId: input.providerId,
@@ -118,14 +122,27 @@ export async function createBooking(
     checklist: input.checklist,
   });
 
-  // Fetch the created document to get server timestamps
-  const created = await BookingService.getBookingById(bookingId);
-  if (!created) {
-    throw new Error('Booking was created but could not be retrieved');
-  }
-
   console.log('[BookingRepository] Booking created successfully');
-  return toViewModel(created);
+  const acknowledgedAt = new Date().toISOString();
+  return {
+    id: bookingId,
+    requesterId: userId,
+    requesterName,
+    providerId: input.providerId,
+    providerName: input.providerName,
+    serviceId: input.serviceId,
+    serviceName: input.serviceName,
+    bookingDate: input.bookingDate.toISOString(),
+    price: input.price,
+    notes: input.notes,
+    checklist: input.checklist,
+    checklistTotal: input.checklist.length,
+    checklistCompletedCount: 0,
+    status: 'pending',
+    createdAt: acknowledgedAt,
+    updatedAt: acknowledgedAt,
+    statusHistory: [],
+  };
 }
 
 export async function updateBooking(

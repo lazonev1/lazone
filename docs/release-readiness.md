@@ -2,6 +2,8 @@
 
 Last audited: **2026-09-17**. Delivery status reconciled with `develop`: **2026-10-10**.
 
+S09 completed locally: **2026-10-23** (supported mobile/Functions upgrades, production audit gate, remote iOS and Android builds, installed platform smoke tests, and an authenticated two-account requester/provider journey).
+
 S01 completed: **2026-09-19** (implementation, live migration, rules deployment, regression coverage, and two-account production-safe native smoke test). Other findings retain their audit-baseline status.
 
 S02 completed: **2026-09-20** (account allowlists, atomic provider promotion, live rules deployment, regression coverage, and disposable-account native verification). Ratings and referrals were explicitly separated into S10 and C03 rather than treated as completed.
@@ -105,7 +107,7 @@ The additional probes were temporary audit diagnostics, **not added to the repos
 
 ## Recommended delivery order
 
-1. **Close the remaining active trust boundary:** S03, S05, S07, and S09, with schema/migration work from E01 and regression tests from E04. S01/S02/S04/S06 are complete; preserve those boundaries while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
+1. **Close the remaining active trust boundary:** S03, S05, and S07, with schema/migration work from E01 and regression tests from E04. S01/S02/S04/S06 and S09 dependency remediation are complete; preserve those gains while addressing later security work. Complete deferred rating item S10 before public launch or before rating-based ranking becomes consequential.
 2. **Finish the main requester/provider journey:** B01, B03–B09, P01–P06, A01–A02, and M01–M02. Apply U01–U05 while changing each screen, not as a cosmetic cleanup at the end.
 3. **Finish trust and communication:** A03, S08, N01–N02; establish the support path before relying on reminders or escalation.
 4. **Resolve launch scope:** C01–C04. No fake wallet, reward, verification, or voice-message promises may survive into a release candidate.
@@ -136,7 +138,18 @@ S01's implementation, migration, deployment, regression coverage, and production
 - [x] Pass TypeScript, lint (0 errors / 61 pre-existing warnings), and the full Auth/Firestore emulator suite. Deploy only Firestore rules to `lazonev1-5da5a`.
 - [x] Complete a disposable-account iPhone 15 / iOS 17.5 smoke test covering live signup, profile editing, bookmark add/remove, notification-token registration, provider registration with a required service, immediate Business-tab refresh, and stored trust values. Remove the disposable Auth account and all three test documents afterward.
 
-## Security and data integrity
+### S09 · P0 · Dependency advisories — complete
+
+- [x] Upgrade the supported runtime coherently to Expo 57, React Native 0.86, React 19.2, Firebase JS 13, RNFirebase 26, Firebase Admin 14, Functions 7, and Node 22.
+- [x] Replace deprecated audio and namespaced Firebase APIs, align the Android SDK/Kotlin toolchain, and make remote native build inputs reproducible.
+- [x] Reduce the production audit from 149 findings (4 critical) to 0 critical, 0 high, 4 moderate, and 0 low after reconciling current `develop`. Record the remaining moderate tooling paths, review them by 2026-11-17, and enforce exact-ID high-severity checks in PR and weekly CI.
+- [x] Pass frozen offline install, TypeScript, lint (0 errors / 108 warnings), Auth/Firestore emulator rules, production iOS/Android exports, and remote EAS iOS/Android builds.
+- [x] Complete installed native smoke tests on iOS and Android, then an authenticated iOS two-account journey: provider discovery, booking, acceptance, start, submission, requester confirmation, complete five-event timeline, first-contact messaging, completed history, provider metrics, and review-form eligibility.
+- [x] Fix the Expo Audio chat-unmount crash found by that journey and verify that both participants can open and leave the conversation safely. Correct discovery so its default radius does not silently hide providers without coordinates and provider services participate in text search.
+
+Detailed versions, advisory decisions, build IDs, and verification evidence are recorded in [dependency security remediation](dependency-security-remediation.md).
+
+## Remaining work — security and data integrity
 
 ### S03 · P0 · Enforce helpful votes and review integrity
 
@@ -206,16 +219,6 @@ S01's implementation, migration, deployment, regression coverage, and production
 
   **Done when:** Reports reach a real queue, staff can act, blocked users cannot bypass enforcement, rate limits have clear recoverable UX, and support has a documented response path. App Check must not substitute for authorization.
 
-### S09 · P0 · Triage and remediate dependency advisories
-
-- [ ] **Problem:** The production dependency graph audit reports 149 findings: 4 critical, 89 high, 48 moderate, 8 low. The graph includes build tooling and unused package branches, so this is **not 149 demonstrated app exploits**. Critical reported modules include `protobufjs`, `shell-quote`, `websocket-driver`, and `tar`; server dependency chains also have advisories.
-
-  **Sources:** [pnpm lockfile][lockfile], [mobile package][mobile-package], [Functions package][functions-package].
-
-  **Required:** Record advisory IDs, installed versions, actual runtime/build reachability, remediation, and retest evidence. Update supported Expo/Firebase/React Native and Functions dependencies coherently; avoid blind forced upgrades/overrides. Include CI/build-machine exposure, not only code shipped to phones.
-
-  **Done when:** Reachable critical/high issues are fixed; remaining non-applicable reports have evidence, owner, and review expiry. Clean install, native builds, rule tests, and journey tests pass after the dependency changes. Add continuous advisory monitoring.
-
 ### S10 · P0 before public launch · Make rating aggregates authoritative
 
 - [ ] **Problem:** The temporary provider-rule exception lets any signed-in client write `averageRating` and `reviewCount`. Review create/edit/delete then recalculates aggregates on the reviewer's device, so the displayed aggregate can be forged, race, or fail after the review itself succeeds.
@@ -239,6 +242,8 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Share domain validation with S05, normalize price/currency, bound checklist/notes, revalidate provider/service availability on submission, and use an idempotent request identity. Keep an entered draft on recoverable failure; distinguish waiting for server acknowledgement from a completed request.
 
   **Done when:** Double tap, slow response, app backgrounding, network loss before/after commit, stale service, invalid amount, and retry produce at most one booking with accurate feedback. Valid users can enter and submit all required information without extra entrance friction.
+
+  **Progress — 2026-11-07:** Implemented on `fix/idempotent-booking-creation`. One stable request ID now survives retries, a Firestore transaction returns an already-committed request instead of creating another, and submission revalidates the current public provider/service. Rapid double taps are synchronously blocked; bounded shared validation remains in the form/service/rules; recoverable failures keep the draft and provide safe localized retry guidance. Rules bind the request ID to the booking document ID. TypeScript, focused ESLint, and the complete Auth/Firestore emulator suite pass, including an idempotent retry that cannot overwrite the original. See [the before/after flow and rollout guide](idempotent-booking-creation.md). Keep B01 open until the PR is merged, compatible rules are deployed, and a two-account native booking retry is verified.
 
 ### B02 · P1 · Load editable bookings from the authoritative record — complete
 
@@ -397,6 +402,8 @@ S01's implementation, migration, deployment, regression coverage, and production
   **Required:** Define explicit startup/auth/profile states, repair incomplete profiles, make token registration safe, use finally/error boundaries and stale-request cancellation, and clear private caches/subscriptions on logout. Handle sign-out failure truthfully. Store unknown DOB as absent/null; migrate synthetic values appropriately rather than treating them as real birthdays.
 
   **Done when:** Signup interruption, missing profile, denied read, network loss, background/foreground, role refresh, and rapid account switching have bounded, recoverable UI with no cross-account flash or blank app.
+
+  **Progress — 2026-10-16:** Implemented on `fix/auth-session-resilience`. The auth listener is now the single session authority and applies profile results only to the matching UID/session; profile refresh no longer triggers the global startup loader. Missing or failed profiles reach retry UI, unexpected Auth initialization fails visibly, notification initialization is account-scoped, and failed sign-out keeps the truthful signed-in state and restores notification setup. Signup rolls back a new Auth account when the required private/public profile batch fails, and new accounts no longer store the current time as a fake DOB. TypeScript, focused lint, EN/FR parity, the full Auth/Firestore emulator suite, and persisted-session reload on iPhone 15 pass. See [the before/after flow](auth-session-resilience.md). Keep A01 open until disposable native failure-injection verifies signup rollback/retry, failed sign-out, and rapid two-account switching; no live records were changed.
 
 ### A02 · P1 · Finish credential and profile-edit promises
 

@@ -62,3 +62,20 @@ Creating the message and updating the parent conversation summary now happen in 
 - iPhone 15 / iOS 17.5 live smoke test sent a real message, reloaded the app, and confirmed it persisted exactly once in both the conversation list and chat.
 
 No native dependency changed, so this work does not require new iOS or Android EAS builds.
+
+## Develop integration refresh — November 21, 2026
+
+The chat-screen conflict was resolved by retaining this PR's `FlatList` history
+and current develop's `expo-audio` recorder hooks. The old `expo-av` recording
+reference was not restored. Dependencies and Firestore rules match develop.
+
+With the current SDK 57 dependencies, typechecking and the complete local
+Auth/Firestore/migration regression suite passed, including pagination beyond
+100 messages and same-ID retry. Focused lint reported no errors and 10 React-hook
+warnings under the newer tooling; those warnings remain follow-up work.
+
+The existing iPhone 15 Plus client opened chat, sent a labelled message to the
+existing QA account, and displayed it once in both the conversation preview and
+chat after app restart. Recorder initialization worked; microphone capture and
+an Android device run were not repeated during this conflict-resolution check.
+No Firebase deployment or new EAS build was needed.

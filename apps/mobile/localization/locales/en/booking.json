@@ -113,7 +113,12 @@
   "errors": {
     "fetchBookings": "Failed to fetch bookings",
     "signInRequired": "User must be signed in to book",
-    "createFailed": "Failed to create booking",
+    "createFailed": "We could not confirm your request. Your details are still here, so you can safely try again.",
+    "creation": {
+      "service-unavailable": "This service is no longer available. Choose another service and try again.",
+      "service-changed": "This service changed while you were booking. Go back to the provider profile to review the latest details.",
+      "request-conflict": "We could not safely match this request. Reopen the booking form and try again."
+    },
     "cancelFailed": "Failed to cancel booking",
     "fetchBooking": "Failed to fetch booking",
     "noBookingLoaded": "No booking loaded",
