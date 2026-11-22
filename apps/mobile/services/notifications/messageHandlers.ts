@@ -7,9 +7,9 @@ import {
   RemoteMessage,
 } from '@react-native-firebase/messaging';
 import type { ImperativeRouter } from 'expo-router';
+import { firebaseEmulators } from '@/backend/main/src/config/firebaseEnvironment';
 
 export const SHOW_NOTIFICATION_BANNER = 'SHOW_NOTIFICATION_BANNER';
-const messaging = getMessaging();
 
 function handleNewMessageNavigation(
   router: ImperativeRouter,
@@ -50,7 +50,8 @@ function isBookingStatusNotification(
 }
 
 export function registerForegroundMessageHandler(getCurrentPath: () => string | null) {
-  return onMessage(messaging, async (remoteMessage: RemoteMessage) => {
+  if (firebaseEmulators) return () => {};
+  return onMessage(getMessaging(), async (remoteMessage: RemoteMessage) => {
     if (!isNewMessageNotification(remoteMessage) && !isBookingStatusNotification(remoteMessage)) return;
 
     if (isBookingStatusNotification(remoteMessage)) {
@@ -82,6 +83,8 @@ export function registerForegroundMessageHandler(getCurrentPath: () => string | 
 }
 
 export function registerNotificationOpenHandlers(router: ImperativeRouter) {
+  if (firebaseEmulators) return () => {};
+  const messaging = getMessaging();
   const unsubscribe = onNotificationOpenedApp(
     messaging,
     (remoteMessage: RemoteMessage | null) => {

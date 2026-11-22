@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | `test:rules:emulator` | Local Auth + Firestore, `demo-rules` | Allowed and denied SDK writes |
 | `serve` | Same local demo project, no persisted import | Manual emulator inspection |
+| `serve:simulator` + explicit test-mode Metro | Separate local `demo-lazone-mobile` project | Isolated Auth, Firestore and Storage on iOS/Android emulators |
 | Mobile development client | Shared `lazonev1-5da5a` | Native flows against deployed services |
 | EAS build | Remote build service | Native compilation and packaged app |
 
@@ -20,10 +21,9 @@ export, real phone number, or referral seeder is needed. Keep the `demo-rules` p
 The `demo-` project has no live resources. `serve` excludes Functions because notification
 handlers can call external FCM services; emulating Functions alone does not isolate those calls.
 
-The mobile `EXPO_PUBLIC_USE_FIRESTORE_EMULATOR` switch redirects **only Firestore**, not
-Auth, Storage, or native messaging. It is not a fully isolated device test mode. Do not
-substitute it for the automated demo-project suite. Full device emulator configuration
-needs separate implementation and verification under E04.
+For disposable native test accounts, follow the [isolated simulator guide](isolated-simulator-testing.md).
+The old Firestore-only switch is rejected because it could leave Auth and Storage
+pointing at shared Firebase while Firestore was local.
 
 ## Remote EAS archive and native runtime
 
