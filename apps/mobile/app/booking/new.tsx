@@ -27,7 +27,7 @@ export default function NewBookingScreen() {
   const { toast, showToast, hideToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionInFlight = useRef(false);
-  const creationRequestId = useMemo(createBookingRequestId, [createBookingRequestId]);
+  const creationRequestId = useMemo(() => createBookingRequestId(), [createBookingRequestId]);
 
   if (providerLoading) {
     return (

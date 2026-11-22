@@ -79,3 +79,8 @@ existing QA account, and displayed it once in both the conversation preview and
 chat after app restart. Recorder initialization worked; microphone capture and
 an Android device run were not repeated during this conflict-resolution check.
 No Firebase deployment or new EAS build was needed.
+
+Full CI also exposed an inherited SDK 57 lint error in booking creation: the
+`useMemo` factory must be inline. Wrapping the existing request-ID factory in an
+inline callback fixes that diagnostic without changing its dependencies or
+retry-safe ID lifetime. The full mobile lint command is part of the recheck.
