@@ -17,7 +17,7 @@ type Props = {
 };
 
 export default function ProviderListItem({ id, name, description, avatar, rating, onPress }: Props) {
-  const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
+  const { isBookmarked, isBookmarkPending, toggleBookmark, isLoading, hasLoadError, refreshBookmarkIds } = useBookmarks();
   const { user } = useAuth();
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -25,6 +25,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
 
   const handleBookmarkPress = () => {
     if (!requireAuth(user?.uid, i18n.t('provider:profile.signInToSave'))) return;
+    if (hasLoadError) { void refreshBookmarkIds(); return; }
     toggleBookmark(id);
   };
 
@@ -45,7 +46,10 @@ export default function ProviderListItem({ id, name, description, avatar, rating
               handleBookmarkPress();
             }}
             style={styles.bookmarkButton}
-            disabled={isLoading}
+            disabled={isLoading || isBookmarkPending(id)}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t(hasLoadError ? 'account:saved.retry' : isBookmarked(id) ? 'account:saved.remove' : 'account:saved.save')}
+            accessibilityState={{ selected: isBookmarked(id), busy: isLoading || isBookmarkPending(id) }}
           >
             <Ionicons 
               name={isBookmarked(id) ? "bookmark" : "bookmark-outline"} 

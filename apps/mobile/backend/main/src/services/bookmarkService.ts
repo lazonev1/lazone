@@ -1,6 +1,6 @@
 import {
   doc,
-  getDoc,
+  getDocFromServer,
   updateDoc,
   arrayUnion,
   arrayRemove,
@@ -52,12 +52,17 @@ export async function removeBookmark(userId: string, providerId: string): Promis
  */
 export async function getBookmarkedProviderIds(userId: string): Promise<string[]> {
   const userRef = doc(db, COLLECTIONS.USERS, userId);
-  const snap = await getDoc(userRef);
+  // Only a server-confirmed list can establish an empty state or toggle direction.
+  const snap = await getDocFromServer(userRef);
 
   if (!snap.exists()) {
-    return [];
+    throw new Error('Bookmark owner profile is unavailable');
   }
 
-  return (snap.data().bookmarked as string[]) || [];
+  const bookmarks: unknown = snap.data().bookmarked;
+  if (!Array.isArray(bookmarks)) return [];
+  return [...new Set(bookmarks.filter((id): id is string =>
+    typeof id === 'string' && id.trim().length > 0 && !id.includes('/'),
+  ))];
 }
 

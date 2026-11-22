@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function ProviderProfileScreen() {
   const { t } = useTranslation('provider');
+  const { t: accountText } = useTranslation('account');
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { id } = useLocalSearchParams();
@@ -72,7 +73,7 @@ export default function ProviderProfileScreen() {
     scrollY.setValue(scrollPosition);
   };
 
-  const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
+  const { isBookmarked, isBookmarkPending, toggleBookmark, isLoading, hasLoadError, refreshBookmarkIds } = useBookmarks();
   const providerId = id.toString();
   const { toast, showToast, hideToast } = useToast();
 
@@ -82,6 +83,7 @@ export default function ProviderProfileScreen() {
 
   const handleBookmarkPress = async () => {
     if (!requireAuth(currentUserId, t('profile.signInToSave'))) return;
+    if (hasLoadError) { await refreshBookmarkIds(); return; }
     toggleBookmark(providerId);
   };
 
@@ -170,7 +172,10 @@ export default function ProviderProfileScreen() {
               <TouchableOpacity 
                 onPress={handleBookmarkPress}
                 style={styles.bookmarkButton}
-                disabled={isLoading}
+                disabled={isLoading || isBookmarkPending(providerId)}
+                accessibilityRole="button"
+                accessibilityLabel={accountText(hasLoadError ? 'saved.retry' : isBookmarked(providerId) ? 'saved.remove' : 'saved.save')}
+                accessibilityState={{ selected: isBookmarked(providerId), busy: isLoading || isBookmarkPending(providerId) }}
               >
                 <Ionicons 
                   name={isBookmarked(providerId) ? "bookmark" : "bookmark-outline"} 

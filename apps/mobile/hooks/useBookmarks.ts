@@ -8,23 +8,5 @@ import { useBookmarkContext } from '@/contexts/bookmarks';
  * AsyncStorage provides offline-first caching.
  */
 export function useBookmarks() {
-  const {
-    bookmarkedIds,
-    isBookmarked,
-    toggleBookmark,
-    bookmarkedProviders,
-    fetchBookmarkedProviders,
-    isLoading,
-    isLoadingProviders,
-  } = useBookmarkContext();
-
-  return {
-    bookmarkedIds,
-    isBookmarked,
-    toggleBookmark,
-    bookmarkedProviders,
-    fetchBookmarkedProviders,
-    isLoading,
-    isLoadingProviders,
-  };
+  return useBookmarkContext();
 }
