@@ -54,7 +54,7 @@ export function BookingRequestForm({
   const [selectedService, setSelectedService] = useState(initialValues?.serviceId || '');
   const [minimumDate] = useState(createMinimumBookingDate);
   const [maximumDate] = useState(createMaximumBookingDate);
-  const [date, setDate] = useState(initialValues?.scheduledDate || new Date(Date.now() + 30 * 60_000));
+  const [date, setDate] = useState(() => initialValues?.scheduledDate || new Date(Date.now() + 30 * 60_000));
   const [price, setPrice] = useState(initialValues?.price || '');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [checklist, setChecklist] = useState<string[]>(initialValues?.checklist?.length ? initialValues.checklist : ['']);

@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -9,17 +9,19 @@ import { AuthProvider, useAuth } from '@/contexts/auth';
 import { BookmarkProvider } from '@/contexts/bookmarks';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { DeviceEventEmitter } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, StyleSheet, View } from 'react-native';
 import {
   registerForegroundMessageHandler,
   registerNotificationOpenHandlers,
   SHOW_NOTIFICATION_BANNER
 } from '@/services/notifications/messageHandlers';
 import NotificationBanner from '@/components/ui/NotificationBanner';
+import { useTranslation } from 'react-i18next';
 
 
 function RootLayoutNav() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useTranslation('auth');
   const segments = useSegments();
   const router = useRouter();
   const pathname = usePathname();
@@ -103,7 +105,11 @@ function RootLayoutNav() {
   }, [isAuthenticated, router]);
 
   if (loading) {
-    return null; 
+    return (
+      <View style={styles.sessionLoading} accessibilityLabel={t('session.loading')}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
@@ -141,6 +147,14 @@ function RootLayoutNav() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  sessionLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

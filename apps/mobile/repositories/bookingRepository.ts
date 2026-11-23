@@ -96,16 +96,87 @@ export async function getBookingDetail(bookingId: string): Promise<BookingViewMo
   }
 }
 
+export function subscribeToUserBookings(
+  userId: string,
+  onUpdate: (bookings: BookingViewModel[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return BookingService.subscribeToRequesterBookings(
+    userId,
+    documents => onUpdate(documents.map(document => toViewModel(document))),
+    onError,
+  );
+}
+
+export function subscribeToProviderBookings(
+  providerId: string,
+  onUpdate: (bookings: BookingViewModel[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return BookingService.subscribeToProviderBookings(
+    providerId,
+    documents => onUpdate(documents.map(document => toViewModel(document))),
+    onError,
+  );
+}
+
+export function subscribeToBookingDetail(
+  bookingId: string,
+  onUpdate: (booking: BookingViewModel | null) => void,
+  onError: (error: Error) => void,
+): () => void {
+  let active = true;
+  let sequence = 0;
+  let lastEvents: BookingStatusEvent[] = [];
+
+  const unsubscribeBooking = BookingService.subscribeToBooking(
+    bookingId,
+    async document => {
+      const currentSequence = ++sequence;
+      if (!document) {
+        if (active && currentSequence === sequence) onUpdate(null);
+        return;
+      }
+      // Status/actions must not wait for optional timeline reads to finish.
+      if (active) onUpdate(toViewModel(document, lastEvents, true));
+      try {
+        const eventDocuments = await BookingService.getBookingStatusEvents(bookingId);
+        if (active && currentSequence === sequence) {
+          lastEvents = eventDocuments.map(toStatusEventViewModel);
+          onUpdate(toViewModel(document, lastEvents));
+        }
+      } catch (error) {
+        console.warn('[BookingRepository] Timeline refresh unavailable:', error);
+        if (active && currentSequence === sequence) onUpdate(toViewModel(document, lastEvents, true));
+      }
+    },
+    error => {
+      sequence += 1;
+      if (active) onError(error);
+    },
+  );
+
+  return () => {
+    active = false;
+    sequence += 1;
+    unsubscribeBooking();
+  };
+}
+
 // ========== Write ==========
+
+export const createBookingRequestId = (): string => BookingService.createBookingRequestId();
 
 export async function createBooking(
   userId: string,
   requesterName: string,
-  input: CreateBookingInput
+  input: CreateBookingInput,
+  creationRequestId: string,
 ): Promise<BookingViewModel> {
   console.log('[BookingRepository] Creating booking...');
 
   const bookingId = await BookingService.createBooking({
+    creationRequestId,
     requesterId: userId,
     requesterName,
     providerId: input.providerId,
@@ -118,14 +189,27 @@ export async function createBooking(
     checklist: input.checklist,
   });
 
-  // Fetch the created document to get server timestamps
-  const created = await BookingService.getBookingById(bookingId);
-  if (!created) {
-    throw new Error('Booking was created but could not be retrieved');
-  }
-
   console.log('[BookingRepository] Booking created successfully');
-  return toViewModel(created);
+  const acknowledgedAt = new Date().toISOString();
+  return {
+    id: bookingId,
+    requesterId: userId,
+    requesterName,
+    providerId: input.providerId,
+    providerName: input.providerName,
+    serviceId: input.serviceId,
+    serviceName: input.serviceName,
+    bookingDate: input.bookingDate.toISOString(),
+    price: input.price,
+    notes: input.notes,
+    checklist: input.checklist,
+    checklistTotal: input.checklist.length,
+    checklistCompletedCount: 0,
+    status: 'pending',
+    createdAt: acknowledgedAt,
+    updatedAt: acknowledgedAt,
+    statusHistory: [],
+  };
 }
 
 export async function updateBooking(

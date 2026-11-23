@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, Image, Appearance } from 'react-native';
+import { View, StyleSheet, Image, Appearance, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import { Colors } from '@/constants/Colors';
 
 type Props = {
   message: string;
@@ -9,13 +8,15 @@ type Props = {
   isOutgoing: boolean;
   senderAvatar?: any;
   attachment?: any;
+  deliveryStatus?: 'pending' | 'sent' | 'failed';
+  statusLabel?: string;
+  retryLabel?: string;
+  onRetry?: () => void;
 };
 
-export default function MessageBubble({ message, time, isOutgoing, senderAvatar, attachment }: Props) {
+export default function MessageBubble({ message, time, isOutgoing, senderAvatar, attachment, deliveryStatus, statusLabel, retryLabel, onRetry }: Props) {
   // Do nothing with attachment for now.
   const colorScheme = Appearance.getColorScheme();
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-
   return (
     <View style={[
       styles.container,
@@ -36,8 +37,13 @@ export default function MessageBubble({ message, time, isOutgoing, senderAvatar,
           {message}
         </ThemedText>
         <ThemedText style={[styles.timeText, isOutgoing && styles.outgoingTimeText]}>
-          {time}
+          {time}{statusLabel ? ` · ${statusLabel}` : ''}
         </ThemedText>
+        {deliveryStatus === 'failed' && onRetry && (
+          <TouchableOpacity onPress={onRetry} accessibilityRole="button" accessibilityLabel={retryLabel}>
+            <ThemedText style={styles.retryText}>{retryLabel}</ThemedText>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -89,5 +95,12 @@ const styles = StyleSheet.create({
   },
   outgoingTimeText: {
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+    textDecorationLine: 'underline',
   },
 });
