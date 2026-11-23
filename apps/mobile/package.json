@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:search": "node scripts/testProviderSearch.mjs",
     "test:booking-sync": "node scripts/testBookingSync.mjs",
     "test:rules": "node scripts/testFirestoreRules.mjs && node backend/main/src/functions/scripts/test-provider-service-migration.js && node backend/main/src/functions/scripts/test-review-integrity-migration.js",
     "test:rules:emulator": "pnpm dlx firebase-tools@15.5.1 emulators:exec --project demo-rules --only firestore,auth \"pnpm test:rules\"",

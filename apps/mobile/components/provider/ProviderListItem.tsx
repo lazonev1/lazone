@@ -12,11 +12,12 @@ type Props = {
   name: string;
   description: string;
   rating: number;
+  metadata?: string;
   avatar?: any;
   onPress?: () => void;
 };
 
-export default function ProviderListItem({ id, name, description, avatar, rating, onPress }: Props) {
+export default function ProviderListItem({ id, name, description, avatar, rating, metadata, onPress }: Props) {
   const { isBookmarked, toggleBookmark, isLoading } = useBookmarks();
   const { user } = useAuth();
   const colorScheme = Appearance.getColorScheme();
@@ -56,6 +57,7 @@ export default function ProviderListItem({ id, name, description, avatar, rating
           </TouchableOpacity>
         </View>
         <ThemedText style={styles.description}>{description}</ThemedText>
+        {metadata && <ThemedText style={styles.metadata}>{metadata}</ThemedText>}
         <ThemedText style={styles.rating}>{rating.toFixed(1)} ★</ThemedText>
       </View>
     </Pressable>
@@ -107,4 +109,5 @@ const createStyles = (
     fontSize: 13,
     color: '#FFD700',
   },
+  metadata: { marginTop: 6, fontSize: 13, lineHeight: 19 },
 });

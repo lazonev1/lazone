@@ -393,6 +393,10 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Known fixtures test price/radius/rating/category combinations in EN/FR, permissions denied, no coordinates, remote-only, and empty results. Stale requests cannot overwrite newer filters; result counts and price/location labels are truthful.
 
+  **Progress — 2026-11-07:** Implemented the search-correctness slice on `fix/trustworthy-provider-search`: service-based starting-price budgets, consistent slider defaults, precise radius/unknown-location handling, remote-only distance semantics, manual published-city browsing without GPS, EN/FR category aliases, explicit card metadata, and an identity-safe catalogue-backed hook that does not refetch per filter change. Automated filter/lifecycle fixtures, TypeScript, focused lint, and iOS/Android bundle exports pass. Native UI verification is pending because Simulator access times out; P06 intentionally remains unchecked. Initial catalogue loading still needs E02's indexed/bounded discovery work. No Firebase deployment, migration, or EAS rebuild is required. See [flow and verification](trustworthy-provider-search.md).
+
+  **Update — 2026-11-23:** Resolved against current `develop` while retaining its no-hidden-providers radius default and both search/booking CI suites. Search, booking-sync, TypeScript, full lint (0 errors), and the complete Auth/Firestore emulator suite pass. Installed iOS testing with existing Firestore providers verified known-name results, real/unknown starting-price labels, city and remote-only filters, Reset, Refresh, and provider navigation. Native slider dragging, denied-location, long-list scrolling, and Android remain to verify; P06 stays open. No rules or native dependency changed.
+
 ## Remaining work — identity, account, and trust
 
 ### A01 · P1 · Make authentication/profile state resilient
