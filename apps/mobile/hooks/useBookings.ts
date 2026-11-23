@@ -29,9 +29,7 @@ function useBookingSubscription<T>(
       refreshing: previous.key === key && previous.ready,
       error: null,
     }));
-    const unsubscribe = subscribe(id, data => {
-      if (active) setState({ key, data, ready: true, refreshing: false, error: null });
-    }, error => {
+    const handleError = (error: Error) => {
       if (!active) return;
       setState(previous => ({
         key,
@@ -41,8 +39,16 @@ function useBookingSubscription<T>(
         refreshing: false,
         error,
       }));
-    });
-    return () => { active = false; unsubscribe(); };
+    };
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = subscribe(id, data => {
+        if (active) setState({ key, data, ready: true, refreshing: false, error: null });
+      }, handleError);
+    } catch (error) {
+      handleError(error instanceof Error ? error : new Error(String(error)));
+    }
+    return () => { active = false; unsubscribe?.(); };
   }, [empty, id, key, retryVersion, subscribe]);
 
   const refresh = useCallback(async () => { setRetryVersion(value => value + 1); }, []);
@@ -63,7 +69,8 @@ export interface UseBookingsResult {
   isLoading: boolean;
   isRefreshing: boolean;
   error: Error | null;
-  createBooking: (requesterName: string, input: CreateBookingInput) => Promise<BookingViewModel>;
+  createBooking: (requesterName: string, input: CreateBookingInput, creationRequestId: string) => Promise<BookingViewModel>;
+  createBookingRequestId: () => string;
   cancelBooking: (bookingId: string) => Promise<void>;
   refreshBookings: () => Promise<void>;
 }
@@ -72,9 +79,9 @@ export function useBookings(userId?: string): UseBookingsResult {
   const { user } = useAuth();
   const ownerId = user?.uid === userId ? userId : undefined;
   const resource = useBookingSubscription(ownerId, ownerId, bookingRepo.subscribeToUserBookings, EMPTY_BOOKINGS);
-  const createBooking = useCallback(async (requesterName: string, input: CreateBookingInput) => {
+  const createBooking = useCallback(async (requesterName: string, input: CreateBookingInput, creationRequestId: string) => {
     if (!ownerId) throw new Error(i18n.t('booking:errors.signInRequired'));
-    return bookingRepo.createBooking(ownerId, requesterName, input);
+    return bookingRepo.createBooking(ownerId, requesterName, input, creationRequestId);
   }, [ownerId]);
 
   return {
@@ -83,6 +90,7 @@ export function useBookings(userId?: string): UseBookingsResult {
     isRefreshing: resource.isRefreshing,
     error: resource.error,
     createBooking,
+    createBookingRequestId: bookingRepo.createBookingRequestId,
     cancelBooking: bookingRepo.cancelBooking,
     refreshBookings: resource.refresh,
   };

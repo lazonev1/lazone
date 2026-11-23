@@ -573,7 +573,7 @@ const quickActionStyles = StyleSheet.create({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-function createStyles(theme: any, colorScheme: 'dark' | 'light' | null | undefined) {
+function createStyles(theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
   const cardBorder = colorScheme === 'dark' ? '#333' : '#e0e0e0';
 
   return StyleSheet.create({

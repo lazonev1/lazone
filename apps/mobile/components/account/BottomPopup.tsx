@@ -90,7 +90,7 @@ export function BottomPopup({ visible, onClose, title, children }: Props) {
     );
 }
 
-const createStyles = (theme: any, colorScheme: 'dark' | 'light' | null | undefined) => StyleSheet.create({
+const createStyles = (theme: any, colorScheme: ReturnType<typeof Appearance.getColorScheme>) => StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'flex-end',

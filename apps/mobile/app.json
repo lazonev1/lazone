@@ -24,7 +24,6 @@
     },
     "android": {
       "package": "com.lazone.serviceApp",
-      "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -42,10 +41,10 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "2.0.21"
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0",
+            "kotlinVersion": "2.1.20"
           },
           "ios": {
             "useFrameworks": "static"
@@ -66,7 +65,13 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "./plugins/withFirebaseNonModularFix",
-      "expo-localization"
+      "expo-localization",
+      "@react-native-community/datetimepicker",
+      "expo-image",
+      "expo-splash-screen",
+      "expo-status-bar",
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

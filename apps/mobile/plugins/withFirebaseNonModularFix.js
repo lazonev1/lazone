@@ -1,8 +1,18 @@
-const { withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
 const MARKER = '# withFirebaseNonModularFix';
+const SPM_MARKER = '# withFirebaseDisableSPM';
+
+// React Native Firebase 26 resolves Firebase through Swift Package Manager by
+// default. Firebase's SPM products cannot be combined with the static framework
+// linkage required by this Expo project, so use CocoaPods for Firebase instead.
+// RNFirebase requires this global to appear before every target block.
+const SPM_INJECTION = `${SPM_MARKER}
+$RNFirebaseDisableSPM = true
+
+`;
 
 // RNFB pods must not be Clang modules: their headers do #include into React-Core
 // headers that Expo has already made modular, causing "must be imported from module"
@@ -26,17 +36,21 @@ function withFirebaseNonModularFix(config) {
       const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
       let contents = fs.readFileSync(podfilePath, 'utf8');
 
-      if (contents.includes(MARKER)) {
-        return config;
+      if (!contents.includes(SPM_MARKER)) {
+        const firstTarget = contents.search(/^target\s/m);
+        if (firstTarget === -1) {
+          throw new Error('[withFirebaseNonModularFix] No iOS target block found');
+        }
+        contents = `${contents.slice(0, firstTarget)}${SPM_INJECTION}${contents.slice(firstTarget)}`;
       }
 
-      if (contents.includes('post_install do |installer|')) {
+      if (!contents.includes(MARKER) && contents.includes('post_install do |installer|')) {
         contents = contents.replace(
           'post_install do |installer|',
           `post_install do |installer|\n${INJECTION}`
         );
-      } else {
-        console.warn('[withFirebaseNonModularFix] No post_install block found — skipping');
+      } else if (!contents.includes(MARKER)) {
+        throw new Error('[withFirebaseNonModularFix] No post_install block found');
       }
 
       fs.writeFileSync(podfilePath, contents);

@@ -21,7 +21,10 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
+        // Expo Router's vendored navigation type includes a legacy ref shape that
+        // React Native's Pressable cannot safely consume. The navigator owns that
+        // ref, so keep the interactive props and let Pressable manage its own ref.
+        tabBarButton: ({ ref: _navigatorRef, ...props }) => <HapticTab {...props} />,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
@@ -35,7 +38,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t('tabs.home'),
-          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
 
@@ -43,21 +46,21 @@ export default function TabLayout() {
         name="booked"
         options={{
           title: t('tabs.booked'),
-          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="calendar" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: t('tabs.messages'),
-          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="message" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message" color={color} />,
         }}
       />
       <Tabs.Screen
         name="business"
         options={{
           title: t('tabs.business'),
-          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="briefcase" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase" color={color} />,
           // When href undefined, Expo will use the default href and tab is shown. Otherwise, tab is hidden.
           href: isProvider ? undefined : null, 
         }}
@@ -66,7 +69,7 @@ export default function TabLayout() {
         name="account"
         options={{
           title: t('tabs.account'),
-          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
     </Tabs>

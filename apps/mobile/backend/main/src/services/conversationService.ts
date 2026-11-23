@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   DocumentSnapshot,
-  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -14,7 +13,6 @@ import {
   updateDoc,
   where,
   runTransaction,
-  writeBatch,
 } from "firebase/firestore";
 import {auth, COLLECTIONS, db} from "../config/firebase";
 import {Message} from "../models/Message";
@@ -32,46 +30,33 @@ function requireCurrentUser(expectedUserId?: string): string {
   return currentUserId;
 }
 
-/**
- * Fetches messages for a conversation with pagination.
- * @param conversationId The ID of the conversation.
- * @param messageLimit The maximum number of messages to fetch.
- * @param startAfterDoc The document to start after for pagination.
- * @returns A promise that resolves to an array of message objects.
- */
-export async function getMessagesForConversation(
+export interface MessagePage {
+  messages: Message[];
+  oldestDocument?: DocumentSnapshot;
+  hasMore: boolean;
+}
+
+export async function getMessagePage(
   conversationId: string,
-  messageLimit: number = 20,
-  startAfterDoc?: DocumentSnapshot
-): Promise<Message[]> {
+  messageLimit: number = 50,
+  startAfterDoc?: DocumentSnapshot,
+): Promise<MessagePage> {
   const messagesColRef = collection(
     db,
     COLLECTIONS.CONVERSATIONS,
     conversationId,
-    COLLECTIONS.MESSAGES
+    COLLECTIONS.MESSAGES,
   );
-
-  let q;
-  if (startAfterDoc) {
-    q = query(
-      messagesColRef,
-      orderBy("createdAt", "desc"),
-      startAfter(startAfterDoc),
-      limit(messageLimit)
-    );
-  } else {
-    q = query(
-      messagesColRef,
-      orderBy("createdAt", "desc"),
-      limit(messageLimit)
-    );
-  }
-
-  const querySnapshot = await getDocs(q);
-
-  return querySnapshot.docs
-      .map((doc) => ({_id: doc.id, ...doc.data()} as Message))
-      .reverse();
+  const constraints = [orderBy("createdAt", "desc")];
+  const pageQuery = startAfterDoc
+    ? query(messagesColRef, ...constraints, startAfter(startAfterDoc), limit(messageLimit))
+    : query(messagesColRef, ...constraints, limit(messageLimit));
+  const snapshot = await getDocs(pageQuery);
+  return {
+    messages: snapshot.docs.map((item) => ({_id: item.id, ...item.data()} as Message)).reverse(),
+    oldestDocument: snapshot.docs.at(-1),
+    hasMore: snapshot.size === messageLimit,
+  };
 }
 
 /**
@@ -84,7 +69,8 @@ export async function getMessagesForConversation(
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  text: string
+  text: string,
+  messageId: string,
 ): Promise<Message> {
   requireCurrentUser(senderId);
   const trimmedText = text.trim();
@@ -100,20 +86,14 @@ export async function sendMessage(
     COLLECTIONS.CONVERSATIONS,
     conversationId
   );
-  const conversationSnapshot = await getDoc(conversationDocRef);
-  if (!conversationSnapshot.exists()) {
-    throw new Error("Conversation not found. Reopen the chat and try again.");
-  }
-
-  // Reference to the messages subcollection
-  const messagesColRef = collection(
+  if (!messageId) throw new Error("Message identity is required");
+  const messageDocRef = doc(
     db,
     COLLECTIONS.CONVERSATIONS,
     conversationId,
-    COLLECTIONS.MESSAGES
+    COLLECTIONS.MESSAGES,
+    messageId,
   );
-
-  // Create the new message document
   const newMessage: Omit<Message, "_id"> = {
     conversationId,
     senderId,
@@ -121,23 +101,42 @@ export async function sendMessage(
     createdAt: serverTimestamp() as Timestamp,
   };
 
-  // Create the message and update its parent conversation atomically. This
-  // prevents an orphaned message if the conversation update is rejected.
-  const messageDocRef = doc(messagesColRef);
-  const batch = writeBatch(db);
-  batch.set(messageDocRef, newMessage);
-  batch.update(conversationDocRef, {
-    lastMessage: messageDocRef,
-    updatedAt: serverTimestamp(),
-    [`lastRead.${senderId}`]: serverTimestamp(),
+  await runTransaction(db, async (transaction) => {
+    const conversationSnapshot = await transaction.get(conversationDocRef);
+    if (!conversationSnapshot.exists()) {
+      throw new Error("Conversation not found. Reopen the chat and try again.");
+    }
+    const existingMessage = await transaction.get(messageDocRef);
+    if (existingMessage.exists()) {
+      const existing = existingMessage.data() as Message;
+      if (existing.senderId !== senderId || existing.text !== trimmedText) {
+        throw new Error("Message identity conflict");
+      }
+      return;
+    }
+    transaction.set(messageDocRef, newMessage);
+    transaction.update(conversationDocRef, {
+      lastMessage: messageDocRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${senderId}`]: serverTimestamp(),
+    });
   });
-  await batch.commit();
 
   return {
     _id: messageDocRef.id,
     ...newMessage,
     createdAt: Timestamp.now(),
   } as Message;
+}
+
+/** Reserves a stable local identity without writing to Firestore. */
+export function createMessageId(conversationId: string): string {
+  return doc(collection(
+    db,
+    COLLECTIONS.CONVERSATIONS,
+    conversationId,
+    COLLECTIONS.MESSAGES,
+  )).id;
 }
 
 /**
@@ -311,7 +310,7 @@ export async function setTypingStatus(
  */
 export function subscribeToMessages(
   conversationId: string,
-  onMessagesUpdate: (messages: Message[]) => void,
+  onMessagesUpdate: (page: MessagePage) => void,
   messageLimit: number = 50,
   onError?: (error: Error) => void
 ) {
@@ -332,7 +331,11 @@ export function subscribeToMessages(
     const messages = querySnapshot.docs
       .map((doc) => ({ _id: doc.id, ...doc.data() } as Message))
       .reverse();
-    onMessagesUpdate(messages);
+    onMessagesUpdate({
+      messages,
+      oldestDocument: querySnapshot.docs.at(-1),
+      hasMore: querySnapshot.size === messageLimit,
+    });
   }, (error) => {
     console.warn('Messages subscription error:', error.message);
     onError?.(error);
