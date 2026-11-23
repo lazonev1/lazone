@@ -5,15 +5,16 @@ import {
   getDocs,
   query,
   where,
-  addDoc,
   runTransaction,
   updateDoc,
   serverTimestamp,
   Timestamp,
   orderBy,
+  onSnapshot,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { auth, db, COLLECTIONS } from '../config/firebase';
-import { BookingChecklistItem, BookingEditError, BookingStatus } from '@/types/booking';
+import { BookingChecklistItem, BookingCreationError, BookingEditError, BookingStatus } from '@/types/booking';
 import { assertValidBookingDraft } from '@/utils/bookingValidation';
 import { requireBookingTransition } from '@/utils/bookingLifecycle';
 
@@ -32,6 +33,7 @@ import { requireBookingTransition } from '@/utils/bookingLifecycle';
 
 export interface BookingDocument {
   _id: string;
+  creationRequestId?: string;
   requesterId: string;
   requesterName: string;
   providerId: string;
@@ -63,7 +65,13 @@ export interface BookingStatusEventDocument {
 
 // ========== CREATE ==========
 
+/** Reserves a collision-resistant identity locally; no network write occurs. */
+export function createBookingRequestId(): string {
+  return doc(collection(db, COLLECTIONS.BOOKINGS)).id;
+}
+
 export async function createBooking(data: {
+  creationRequestId: string;
   requesterId: string;
   requesterName: string;
   providerId: string;
@@ -79,27 +87,68 @@ export async function createBooking(data: {
 
   try {
     assertValidBookingDraft(data);
-    const docRef = await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
-      requesterId: data.requesterId,
-      requesterName: data.requesterName,
-      providerId: data.providerId,
-      providerName: data.providerName,
-      serviceId: data.serviceId,
-      serviceName: data.serviceName,
-      bookingDate: Timestamp.fromDate(data.bookingDate),
-      price: data.price,
-      notes: data.notes || null,
-      checklist: data.checklist,
-      checklistTotal: data.checklist.length,
-      checklistCompletedCount: 0,
-      checklistProgress: Object.fromEntries(data.checklist.map((item) => [item.id, false])),
-      status: 'pending' as BookingStatus,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    if (!data.creationRequestId) throw new BookingCreationError('request-conflict');
+
+    const bookingRef = doc(db, COLLECTIONS.BOOKINGS, data.creationRequestId);
+    const providerRef = doc(db, COLLECTIONS.PROVIDERS, data.providerId);
+    const serviceRef = doc(db, COLLECTIONS.PROVIDERS, data.providerId, 'services', data.serviceId);
+
+    await runTransaction(db, async (transaction) => {
+      const existingBooking = await transaction.get(bookingRef);
+
+      // A lost acknowledgement is safe to retry: the same request identity
+      // resolves immediately, even if the provider later changes the service.
+      if (existingBooking.exists()) {
+        const existing = existingBooking.data() as BookingDocument;
+        if (
+          existing.requesterId !== data.requesterId
+          || existing.creationRequestId !== data.creationRequestId
+        ) {
+          throw new BookingCreationError('request-conflict');
+        }
+        return;
+      }
+
+      const [providerSnapshot, serviceSnapshot] = await Promise.all([
+        transaction.get(providerRef),
+        transaction.get(serviceRef),
+      ]);
+
+      if (!providerSnapshot.exists() || providerSnapshot.data().publicSchemaVersion !== 1 || !serviceSnapshot.exists()) {
+        throw new BookingCreationError('service-unavailable');
+      }
+
+      const provider = providerSnapshot.data();
+      const service = serviceSnapshot.data();
+      const publishedServices = Array.isArray(provider.services) ? provider.services : [];
+      const isPublished = publishedServices.some((item) => item?.id === data.serviceId);
+      if (!isPublished || service.name !== data.serviceName) {
+        throw new BookingCreationError('service-changed');
+      }
+
+      transaction.set(bookingRef, {
+        creationRequestId: data.creationRequestId,
+        requesterId: data.requesterId,
+        requesterName: data.requesterName,
+        providerId: data.providerId,
+        providerName: data.providerName,
+        serviceId: data.serviceId,
+        serviceName: data.serviceName,
+        bookingDate: Timestamp.fromDate(data.bookingDate),
+        price: data.price,
+        notes: data.notes?.trim() || null,
+        checklist: data.checklist,
+        checklistTotal: data.checklist.length,
+        checklistCompletedCount: 0,
+        checklistProgress: Object.fromEntries(data.checklist.map((item) => [item.id, false])),
+        status: 'pending' as BookingStatus,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     });
 
-    console.log('[BookingService] Booking created with ID:', docRef.id);
-    return docRef.id;
+    console.log('[BookingService] Booking creation acknowledged:', bookingRef.id);
+    return bookingRef.id;
   } catch (error) {
     console.error('[BookingService] Error creating booking:', error);
     throw error;
@@ -190,6 +239,54 @@ export async function getBookingStatusEvents(
   return snapshot.docs.map(
     (event) => ({ _id: event.id, ...event.data() }) as BookingStatusEventDocument
   );
+}
+
+export function subscribeToBooking(
+  bookingId: string,
+  onUpdate: (booking: BookingDocument | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, COLLECTIONS.BOOKINGS, bookingId),
+    snapshot => onUpdate(snapshot.exists()
+      ? ({ _id: snapshot.id, ...snapshot.data() } as BookingDocument)
+      : null),
+    error => onError(error),
+  );
+}
+
+function subscribeToBookingQuery(
+  field: 'requesterId' | 'providerId',
+  userId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  const bookingsQuery = query(
+    collection(db, COLLECTIONS.BOOKINGS),
+    where(field, '==', userId),
+  );
+  return onSnapshot(bookingsQuery, snapshot => {
+    const bookings = snapshot.docs
+      .map(item => ({ _id: item.id, ...item.data() }) as BookingDocument)
+      .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+    onUpdate(bookings);
+  }, error => onError(error));
+}
+
+export function subscribeToRequesterBookings(
+  userId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return subscribeToBookingQuery('requesterId', userId, onUpdate, onError);
+}
+
+export function subscribeToProviderBookings(
+  providerId: string,
+  onUpdate: (bookings: BookingDocument[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return subscribeToBookingQuery('providerId', providerId, onUpdate, onError);
 }
 
 // ========== UPDATE ==========

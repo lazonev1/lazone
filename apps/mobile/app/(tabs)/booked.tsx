@@ -1,7 +1,6 @@
 import { SafeAreaView, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, View, Appearance, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ThemedText } from '@/components/ThemedText';
 import { BookingCard } from '@/components/booking/BookingCard';
 import { useBookings } from '@/hooks/useBookings';
@@ -17,21 +16,12 @@ type BookingFilter = 'active' | 'completed' | 'cancelled';
 
 export default function BookedScreen() {
   const router = useRouter();
-  const { t } = useTranslation('booking');
+  const { t } = useTranslation(['booking', 'common']);
   const { user } = useAuth();
-  const { bookings, isLoading, refreshBookings } = useBookings(user?.uid);
+  const { bookings, isLoading, isRefreshing, error, refreshBookings } = useBookings(user?.uid);
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const [activeFilter, setActiveFilter] = useState<BookingFilter>('active');
-
-  // Auto-refresh every time the tab comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.uid) {
-        refreshBookings();
-      }
-    }, [user?.uid, refreshBookings])
-  );
 
   // Partition bookings by filter category
   const activeBookings = useMemo(
@@ -91,10 +81,19 @@ export default function BookedScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refreshBookings} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={refreshBookings} />
         }
       >
         <ThemedText type="title" style={styles.title}>{t('booked.title')}</ThemedText>
+
+        {error && (
+          <View style={styles.syncBanner} accessibilityRole="alert">
+            <ThemedText style={styles.syncText}>{t('errors.liveSync')}</ThemedText>
+            <TouchableOpacity onPress={() => void refreshBookings()} accessibilityRole="button">
+              <ThemedText style={styles.retryText}>{t('common:actions.retry')}</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Filter Tabs ──────────────────────────────── */}
         {bookings.length > 0 && (
@@ -138,7 +137,7 @@ export default function BookedScreen() {
         )}
 
         {/* ── Booking List ─────────────────────────────── */}
-        {bookings.length === 0 ? (
+        {bookings.length === 0 && error ? null : bookings.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={64} color={theme.icon} />
             <ThemedText style={styles.emptyTitle}>{t('booked.empty.noneTitle')}</ThemedText>
@@ -197,6 +196,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.7,
   },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 10,
+    backgroundColor: '#FDECEA',
+  },
+  syncText: { flex: 1, color: '#9C2F22' },
+  retryText: { color: '#0A58A5', fontWeight: '700' },
 
   // ── Filter tabs ──
   filterRow: {

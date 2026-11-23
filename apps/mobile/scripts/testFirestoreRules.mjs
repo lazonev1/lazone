@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, query, runTransaction, setDoc, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, runTransaction, setDoc, serverTimestamp, startAfter, updateDoc, where, writeBatch } from 'firebase/firestore';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
 import { readFileSync } from 'node:fs';
@@ -50,6 +50,50 @@ async function expectDenied(label, operation) {
     throw new Error(`${label} failed for an unexpected reason: ${error.message}`);
   }
   throw new Error(`${label} should be denied`);
+}
+
+const liveObservers = [];
+function observeRealtimeValue(subscribe, label) {
+  let latest;
+  let failure;
+  const pending = new Set();
+  const unsubscribe = subscribe(value => {
+    latest = value;
+    pending.forEach(check => check());
+  }, error => {
+    failure = error;
+    pending.forEach(check => check());
+  });
+  const observer = {
+    waitFor(predicate, timeoutMs = 5000) {
+      return new Promise((resolve, reject) => {
+        const finish = (error) => {
+          clearTimeout(timeout);
+          pending.delete(check);
+          if (error) reject(error);
+          else resolve(latest);
+        };
+        const check = () => {
+          if (failure) finish(failure);
+          else if (latest && predicate(latest)) finish();
+        };
+        const timeout = setTimeout(() => finish(new Error(`${label} did not update within ${timeoutMs}ms`)), timeoutMs);
+        pending.add(check);
+        check();
+      });
+    },
+    stop: unsubscribe,
+  };
+  liveObservers.push(observer);
+  return observer;
+}
+
+async function createBookingIdempotently(db, bookingRef, payload) {
+  return runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(bookingRef);
+    if (!existing.exists()) transaction.set(bookingRef, payload);
+    return bookingRef.id;
+  });
 }
 
 async function writeProviderServicesInBatches(db, providerId, services, batchSize = 5) {
@@ -118,6 +162,33 @@ async function writeMessageWithSummary(
     ...summaryOverrides,
   });
   await batch.commit();
+  return messageRef;
+}
+
+async function writeMessageIdempotently(db, conversationId, senderId, text, messageId) {
+  const conversationRef = doc(db, 'conversations', conversationId);
+  const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+  await runTransaction(db, async transaction => {
+    const conversation = await transaction.get(conversationRef);
+    if (!conversation.exists()) throw new Error('conversation missing');
+    const existing = await transaction.get(messageRef);
+    if (existing.exists()) {
+      assert.equal(existing.data().senderId, senderId);
+      assert.equal(existing.data().text, text);
+      return;
+    }
+    transaction.set(messageRef, {
+      conversationId,
+      senderId,
+      text,
+      createdAt: serverTimestamp(),
+    });
+    transaction.update(conversationRef, {
+      lastMessage: messageRef,
+      updatedAt: serverTimestamp(),
+      [`lastRead.${senderId}`]: serverTimestamp(),
+    });
+  });
   return messageRef;
 }
 
@@ -195,6 +266,30 @@ async function seedAdminDocument(documentPath, fields) {
   );
   if (!response.ok) {
     throw new Error(`Unable to seed ${documentPath}: ${response.status} ${await response.text()}`);
+  }
+}
+
+async function seedAdminDocuments(documents) {
+  const response = await fetch(
+    `http://${emulatorHost}:${emulatorFirestorePort}/v1/projects/demo-rules/databases/(default)/documents:commit`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer owner',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        writes: documents.map(({ path, fields }) => ({
+          update: {
+            name: `projects/demo-rules/databases/(default)/documents/${path}`,
+            fields,
+          },
+        })),
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to seed document batch: ${response.status} ${await response.text()}`);
   }
 }
 
@@ -467,6 +562,23 @@ try {
   await expectDenied('service is not public without its parent provider', () => getDoc(
     doc(anonymousClient.db, 'providers', orphanProviderId, 'services', 'orphan-service'),
   ));
+  await expectAllowed('authenticated booking flow can confirm a service is absent', async () => {
+    const snapshot = await getDoc(doc(
+      requesterClient.db,
+      'providers',
+      providerId,
+      'services',
+      `removed-${runId}`,
+    ));
+    assert.equal(snapshot.exists(), false);
+  });
+  await expectDenied('anonymous users cannot probe absent service IDs', () => getDoc(doc(
+    anonymousClient.db,
+    'providers',
+    providerId,
+    'services',
+    `removed-${runId}`,
+  )));
 
   const earningId = `earning-${runId}`;
   await seedAdminDocument(`earnings/${earningId}`, {
@@ -488,6 +600,7 @@ try {
   const requesterBookingRef = doc(requesterClient.db, 'bookings', bookingId);
   const providerBookingRef = doc(providerClient.db, 'bookings', bookingId);
   const validBookingPayload = {
+    creationRequestId: bookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -507,7 +620,24 @@ try {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  await expectAllowed('booking creation', () => setDoc(requesterBookingRef, validBookingPayload));
+  await expectAllowed('booking creation', () => createBookingIdempotently(
+    requesterClient.db,
+    requesterBookingRef,
+    validBookingPayload,
+  ));
+  await expectAllowed('booking creation retry resolves to the original request', async () => {
+    const retriedId = await createBookingIdempotently(
+      requesterClient.db,
+      requesterBookingRef,
+      { ...validBookingPayload, notes: 'This retry must not overwrite the committed request.' },
+    );
+    assert.equal(retriedId, bookingId);
+    assert.equal((await getDoc(requesterBookingRef)).data().notes, null);
+  });
+  await expectDenied('booking request identity must match its document ID', () => setDoc(
+    doc(requesterClient.db, 'bookings', `mismatched-request-${runId}`),
+    validBookingPayload,
+  ));
 
   // Prove the client domain contract matches the actual rule boundary for
   // every status pair and participant role, including outsider denial.
@@ -540,16 +670,17 @@ try {
   const hostileBookingRef = (label) => doc(requesterClient.db, 'bookings', `${label}-${runId}`);
   await expectDenied('self-booking is rejected', () => setDoc(
     doc(providerClient.db, 'bookings', `self-${runId}`),
-    { ...validBookingPayload, requesterId: providerId },
+    { ...validBookingPayload, creationRequestId: `self-${runId}`, requesterId: providerId },
   ));
   await expectDenied('booking for a nonexistent provider service is rejected', () => setDoc(
     hostileBookingRef('missing-service'),
-    { ...validBookingPayload, serviceId: 'missing-service', serviceName: 'Missing' },
+    { ...validBookingPayload, creationRequestId: `missing-service-${runId}`, serviceId: 'missing-service', serviceName: 'Missing' },
   ));
   await expectDenied('booking cannot target an orphaned provider service', () => setDoc(
     hostileBookingRef('orphan-service'),
     {
       ...validBookingPayload,
+      creationRequestId: `orphan-service-${runId}`,
       providerId: orphanProviderId,
       providerName: 'Deleted Provider',
       serviceId: 'orphan-service',
@@ -558,44 +689,45 @@ try {
   ));
   await expectDenied('booking cannot forge the selected service name', () => setDoc(
     hostileBookingRef('forged-service-name'),
-    { ...validBookingPayload, serviceName: 'Impersonated service' },
+    { ...validBookingPayload, creationRequestId: `forged-service-name-${runId}`, serviceName: 'Impersonated service' },
   ));
   await expectDenied('booking cannot contain a negative price', () => setDoc(
     hostileBookingRef('negative-price'),
-    { ...validBookingPayload, price: -1 },
+    { ...validBookingPayload, creationRequestId: `negative-price-${runId}`, price: -1 },
   ));
   await expectDenied('booking cannot contain a fractional price', () => setDoc(
     hostileBookingRef('fractional-price'),
-    { ...validBookingPayload, price: 10.5 },
+    { ...validBookingPayload, creationRequestId: `fractional-price-${runId}`, price: 10.5 },
   ));
   await expectDenied('booking price cannot exceed the supported CFA range', () => setDoc(
     hostileBookingRef('excessive-price'),
-    { ...validBookingPayload, price: 1_000_000_000 },
+    { ...validBookingPayload, creationRequestId: `excessive-price-${runId}`, price: 1_000_000_000 },
   ));
   await expectDenied('booking must preserve the minimum scheduling lead time', () => setDoc(
     hostileBookingRef('too-soon'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() + 60_000) },
+    { ...validBookingPayload, creationRequestId: `too-soon-${runId}`, bookingDate: new Date(Date.now() + 60_000) },
   ));
   await expectDenied('booking cannot be created in the past', () => setDoc(
     hostileBookingRef('past-date'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() - 60_000) },
+    { ...validBookingPayload, creationRequestId: `past-date-${runId}`, bookingDate: new Date(Date.now() - 60_000) },
   ));
   await expectDenied('booking cannot exceed the scheduling horizon', () => setDoc(
     hostileBookingRef('far-date'),
-    { ...validBookingPayload, bookingDate: new Date(Date.now() + 366 * 24 * 60 * 60 * 1000) },
+    { ...validBookingPayload, creationRequestId: `far-date-${runId}`, bookingDate: new Date(Date.now() + 366 * 24 * 60 * 60 * 1000) },
   ));
   await expectDenied('booking cannot add unrecognized fields', () => setDoc(
     hostileBookingRef('extra-field'),
-    { ...validBookingPayload, paid: true },
+    { ...validBookingPayload, creationRequestId: `extra-field-${runId}`, paid: true },
   ));
   await expectDenied('booking cannot contain malformed checklist items', () => setDoc(
     hostileBookingRef('malformed-checklist'),
-    { ...validBookingPayload, checklist: [null], checklistProgress: { 'item-1': false } },
+    { ...validBookingPayload, creationRequestId: `malformed-checklist-${runId}`, checklist: [null], checklistProgress: { 'item-1': false } },
   ));
   await expectDenied('booking checklist IDs and progress must match', () => setDoc(
     hostileBookingRef('forged-checklist'),
     {
       ...validBookingPayload,
+      creationRequestId: `forged-checklist-${runId}`,
       checklist: [{ id: 'forged', description: 'Forged item', completed: false }],
       checklistProgress: { forged: false },
     },
@@ -623,9 +755,35 @@ try {
     { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
   ));
 
+  // Keep all four subscriptions alive for the entire lifecycle. Reattaching
+  // between assertions would hide the stale-screen bug this PR addresses.
+  const bookingObservers = [observeRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(requesterClient.db, 'bookings'),
+      where('requesterId', '==', requesterId),
+    ), snapshot => next(snapshot.docs.find(item => item.id === bookingId)?.data()), fail),
+    'requester booking list',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(providerClient.db, 'bookings'),
+      where('providerId', '==', providerId),
+    ), snapshot => next(snapshot.docs.find(item => item.id === bookingId)?.data()), fail),
+    'provider booking list',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(requesterBookingRef, snapshot => next(snapshot.data()), fail),
+    'requester booking detail',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(providerBookingRef, snapshot => next(snapshot.data()), fail),
+    'provider booking detail',
+  )];
+  const expectLiveBooking = (status, predicate = () => true) => Promise.all(
+    bookingObservers.map(observer => observer.waitFor(booking => booking.status === status && predicate(booking))),
+  );
+  await expectLiveBooking('pending');
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
+  await expectLiveBooking('confirmed');
 
   await expectDenied('requester starts service', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef,
@@ -646,6 +804,7 @@ try {
   const editRaceProviderRef = doc(providerClient.db, 'bookings', editRaceId);
   await expectAllowed('edit-race booking creation', () => setDoc(editRaceRequesterRef, {
     ...validBookingPayload,
+    creationRequestId: editRaceId,
     notes: 'Original terms',
   }));
   const editRaceResults = await Promise.allSettled([
@@ -672,6 +831,7 @@ try {
   await expectAllowed('provider starts service', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-started', 'confirmed', 'in_progress', providerId, 'provider'
   ));
+  await expectLiveBooking('in_progress');
   const startedEventRef = doc(providerClient.db, 'bookings', bookingId, 'events', 'event-started');
   await expectDenied('event update', () => updateDoc(startedEventRef, { toStatus: 'completed' }));
   await expectDenied('event delete', () => deleteDoc(startedEventRef));
@@ -685,9 +845,11 @@ try {
     checklistCompletedCount: 1,
     updatedAt: serverTimestamp(),
   }));
+  await expectLiveBooking('in_progress', booking => booking.checklistProgress['item-1'] === true);
   await expectAllowed('provider submits completion for confirmation', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-submitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectLiveBooking('awaiting_confirmation');
   await expectDenied('requester cannot reuse an older event for a new transition', () => updateDoc(
     requesterBookingRef,
     {
@@ -757,12 +919,16 @@ try {
       requesterChangeRequest: 'Please finish the remaining detail.',
     }
   ));
+  await expectLiveBooking('in_progress', booking => booking.requesterChangeRequest === 'Please finish the remaining detail.');
   await expectAllowed('provider resubmits completion', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-resubmitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectLiveBooking('awaiting_confirmation', booking => booking.requesterChangeRequest === null);
   await expectAllowed('requester confirms completion', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef, 'event-completed', 'awaiting_confirmation', 'completed', requesterId, 'requester'
   ));
+  await expectLiveBooking('completed');
+  bookingObservers.forEach(observer => observer.stop());
 
   const standaloneEventRef = doc(
     requesterClient.db,
@@ -783,6 +949,7 @@ try {
   const crossRequesterBookingRef = doc(requesterClient.db, 'bookings', crossBookingId);
   const crossProviderBookingRef = doc(providerClient.db, 'bookings', crossBookingId);
   await expectAllowed('cross-reference test booking creation', () => setDoc(crossRequesterBookingRef, {
+    creationRequestId: crossBookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -822,6 +989,7 @@ try {
   const concurrentRequesterBookingRef = doc(requesterClient.db, 'bookings', concurrentBookingId);
   const concurrentProviderBookingRef = doc(providerClient.db, 'bookings', concurrentBookingId);
   await expectAllowed('concurrency test booking creation', () => setDoc(concurrentRequesterBookingRef, {
+    creationRequestId: concurrentBookingId,
     requesterId,
     requesterName: 'Test Requester',
     providerId,
@@ -1196,6 +1364,52 @@ try {
     providerId,
     'Hello requester',
   ));
+  const retrySafeMessageId = `retry-safe-${runId}`;
+  await expectAllowed('requester sends a retry-safe message', () => writeMessageIdempotently(
+    requesterClient.db,
+    conversationId,
+    requesterId,
+    'Send this message once',
+    retrySafeMessageId,
+  ));
+  await expectAllowed('same message retry resolves without another write', async () => {
+    const retriedRef = await writeMessageIdempotently(
+      requesterClient.db,
+      conversationId,
+      requesterId,
+      'Send this message once',
+      retrySafeMessageId,
+    );
+    assert.equal(retriedRef.id, retrySafeMessageId);
+    assert.equal((await getDoc(retriedRef)).data().text, 'Send this message once');
+  });
+  await seedAdminDocuments(Array.from({ length: 105 }, (_, index) => ({
+    path: `conversations/${conversationId}/messages/history-${runId}-${index.toString().padStart(3, '0')}`,
+    fields: {
+      conversationId: { stringValue: conversationId },
+      senderId: { stringValue: index % 2 === 0 ? requesterId : providerId },
+      text: { stringValue: `History message ${index + 1}` },
+      createdAt: { timestampValue: new Date(Date.now() - (index + 1) * 1000).toISOString() },
+    },
+  })));
+  await expectAllowed('participant reads more than 100 messages through stable cursors', async () => {
+    const messagesRef = collection(requesterClient.db, 'conversations', conversationId, 'messages');
+    const messageIds = new Set();
+    let cursor;
+    for (let pageNumber = 0; pageNumber < 4; pageNumber += 1) {
+      const pageQuery = cursor
+        ? query(messagesRef, orderBy('createdAt', 'desc'), startAfter(cursor), limit(50))
+        : query(messagesRef, orderBy('createdAt', 'desc'), limit(50));
+      const page = await getDocs(pageQuery);
+      page.docs.forEach(message => {
+        assert.equal(messageIds.has(message.id), false, `message ${message.id} appeared twice`);
+        messageIds.add(message.id);
+      });
+      if (page.size < 50) break;
+      cursor = page.docs.at(-1);
+    }
+    assert.ok(messageIds.size >= 108, `expected at least 108 messages, read ${messageIds.size}`);
+  });
   await expectDenied('conversation summary cannot be rolled back to an old message', () => updateDoc(
     conversationRef,
     {
@@ -1353,6 +1567,7 @@ try {
     assert.ok(bookings.docs.some(item => item.id === bookingId));
   });
   await expectAllowed('provider can book another provider', () => setDoc(doc(requesterClient.db, 'bookings', `after-enrollment-${runId}`), {
+    creationRequestId: `after-enrollment-${runId}`,
     requesterId, requesterName: 'Test Requester', providerId, providerName: 'Test Provider',
     serviceId: 'service-1', serviceName: 'Test Service',
     bookingDate: new Date(Date.now() + 60 * 60 * 1000), price: 1000, notes: null, status: 'pending',
@@ -1375,6 +1590,7 @@ try {
 
   console.log('Firestore booking, messaging, and requester-to-provider capability checks passed.');
 } finally {
+  liveObservers.forEach(observer => observer.stop());
   await deleteApp(providerClient.app);
   await deleteApp(requesterClient.app);
   await deleteApp(outsiderClient.app);

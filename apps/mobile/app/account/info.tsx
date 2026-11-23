@@ -7,14 +7,14 @@ import EditInfoPopup from '../../components/account/EditInfoPopup';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 export default function AccountInfoScreen() {
 	const { user, userProfile, logout } = useAuth();
 	const { t } = useTranslation(['account', 'common']);
 	const [editPopupVisible, setEditPopupVisible] = useState(false);
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
 	const navigation = useNavigation();
 
 	const colorScheme = Appearance.getColorScheme();
@@ -35,6 +35,30 @@ export default function AccountInfoScreen() {
 	if (!user) { return null; }
 
 	const editData = { firstName, lastName, email, phone };
+	const handleLogout = () => {
+		Alert.alert(
+			t('info.logoutTitle'),
+			t('info.logoutMessage'),
+			[
+				{ text: t('common:actions.cancel'), style: 'cancel' },
+				{
+					text: t('info.logout'),
+					style: 'destructive',
+					onPress: async () => {
+						setIsLoggingOut(true);
+						try {
+							await logout();
+							router.replace('/(tabs)');
+						} catch {
+							Alert.alert(t('info.logoutFailedTitle'), t('info.logoutFailedMessage'));
+						} finally {
+							setIsLoggingOut(false);
+						}
+					},
+				},
+			]
+		);
+	};
 
 	return (
 		<ScrollView contentContainerStyle={styles.container}>
@@ -79,22 +103,12 @@ export default function AccountInfoScreen() {
 			</ThemedView>
 
 			<Pressable
-				style={styles.logout}
-				onPress={() => {
-					Alert.alert(
-						t('info.logoutTitle'),
-						t('info.logoutMessage'),
-						[
-							{ text: t('common:actions.cancel'), style: 'cancel' },
-							{ text: t('info.logout'), style: 'destructive', onPress: () => {
-								logout();
-								router.replace("/(tabs)");
-							} },
-						]
-					);
-				}}
+				style={[styles.logout, isLoggingOut && styles.disabled]}
+				onPress={handleLogout}
+				disabled={isLoggingOut}
+				accessibilityState={{ disabled: isLoggingOut, busy: isLoggingOut }}
 			>
-				<ThemedText style={styles.logoutText}>⎋ {t('info.logout')}</ThemedText>
+				<ThemedText style={styles.logoutText}>⎋ {isLoggingOut ? t('info.signingOut') : t('info.logout')}</ThemedText>
 			</Pressable>
 
 			<EditInfoPopup
@@ -135,7 +149,7 @@ const infoRowStyles = StyleSheet.create({
 	},
 });
 
-function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' | null | undefined) {
+function createStyles(theme: typeof Colors.light, colorScheme: ReturnType<typeof Appearance.getColorScheme>) {
 	return StyleSheet.create({
 		container: {
 			padding: 24,
@@ -187,6 +201,9 @@ function createStyles(theme: typeof Colors.light, colorScheme: 'light' | 'dark' 
 		logoutText: {
 			fontSize: 16,
 			color: '#FF3B30',
+		},
+		disabled: {
+			opacity: 0.5,
 		},
 		center: {
 			flex: 1,
