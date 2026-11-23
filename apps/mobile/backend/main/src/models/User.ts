@@ -6,7 +6,7 @@ export interface User {
   phoneNumber: string;
   firstName: string;
   lastName: string;
-  dob: Timestamp;
+  dob?: Timestamp;
   role: "requester" | "provider" | "both";
   avatar?: string;
   verified: boolean;

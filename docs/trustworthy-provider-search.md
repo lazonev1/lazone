@@ -37,11 +37,12 @@ No Firestore schema/rules, Auth flow, provider registration, native dependency, 
 
 - Actual filter module tests: prices (including mixed/invalid/missing), combined filters, exact distance boundaries, unknown coordinates, remote-only behavior, accent-insensitive city matching, deterministic order, and English/French category matches.
 - Actual hook with a mocked lifecycle: no refetch on filter changes, account-switch result masking, ignored delayed responses, same-account stale result retention, retry, and recovery.
-- TypeScript and focused lint pass; full lint has zero errors and 52 existing warnings.
+- TypeScript and full lint pass on the resolved branch (zero errors; 95 warnings, including existing warnings and the new hook's effect warning).
 - Full Firebase Auth/Firestore authorization and migration regression suite passes using emulator-only data.
 - iOS and Android JavaScript bundle exports pass.
-- Native UI verification remains pending because Simulator controls repeatedly time out; compilation is not a device UX sign-off.
+- On 2026-11-23, an installed iOS 17.5 development build loaded this branch against existing Firestore providers. Search found two `Abdoul` profiles and showed a real 50,000 CFA starting price versus an unavailable price. Published-city filtering narrowed the results to one, remote-only showed its explanation and disabled radius, Reset restored 12 results, Refresh retained the list, and a result opened the correct provider profile. The filter panel and cards were visually inspected on iPhone 15 Plus. No live data was written.
+- Simulator coordinate drag/scroll control failed during this run, so the actual native price/radius slider interaction, denied-location state, and long-list scrolling remain unverified. Their filter semantics have automated coverage; that is not a substitute for those UI checks.
 
 ## Remaining release gates
 
-Keep P06 unchecked until iOS/Android checks verify keyboard/scrolling, location denied, remote-only results, filter labels/cards, reset/refresh, and results for existing Firestore providers. E02 still owns indexed/server-side pagination and bounded discovery reads: this change removes repeat scans per filter interaction but still loads the catalogue on initial entry/explicit refresh. Category-specific browse routes remain unchanged.
+Keep P06 unchecked until iOS/Android checks verify the remaining native slider, keyboard/long-list scrolling, and denied-location behavior. E02 still owns indexed/server-side pagination and bounded discovery reads: this change removes repeat scans per filter interaction but still loads the catalogue on initial entry/explicit refresh. Category-specific browse routes remain unchanged.
