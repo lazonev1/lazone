@@ -1,5 +1,5 @@
 import { createUserWithEmailAndPassword, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, runTransaction, setDoc, serverTimestamp, startAfter, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { arrayUnion, arrayRemove, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query, runTransaction, setDoc, serverTimestamp, startAfter, updateDoc, where, writeBatch } from 'firebase/firestore';
 import assert from 'node:assert/strict';
 import { deleteApp, initializeApp } from 'firebase/app';
 
@@ -40,6 +40,42 @@ async function expectDenied(label, operation) {
     throw new Error(`${label} failed for an unexpected reason: ${error.message}`);
   }
   throw new Error(`${label} should be denied`);
+}
+
+const liveObservers = [];
+function observeRealtimeValue(subscribe, label) {
+  let latest;
+  let failure;
+  const pending = new Set();
+  const unsubscribe = subscribe(value => {
+    latest = value;
+    pending.forEach(check => check());
+  }, error => {
+    failure = error;
+    pending.forEach(check => check());
+  });
+  const observer = {
+    waitFor(predicate, timeoutMs = 5000) {
+      return new Promise((resolve, reject) => {
+        const finish = (error) => {
+          clearTimeout(timeout);
+          pending.delete(check);
+          if (error) reject(error);
+          else resolve(latest);
+        };
+        const check = () => {
+          if (failure) finish(failure);
+          else if (latest && predicate(latest)) finish();
+        };
+        const timeout = setTimeout(() => finish(new Error(`${label} did not update within ${timeoutMs}ms`)), timeoutMs);
+        pending.add(check);
+        check();
+      });
+    },
+    stop: unsubscribe,
+  };
+  liveObservers.push(observer);
+  return observer;
 }
 
 async function createBookingIdempotently(db, bookingRef, payload) {
@@ -681,9 +717,35 @@ try {
     { notes: 'Outsider-authored terms', updatedAt: serverTimestamp() },
   ));
 
+  // Keep all four subscriptions alive for the entire lifecycle. Reattaching
+  // between assertions would hide the stale-screen bug this PR addresses.
+  const bookingObservers = [observeRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(requesterClient.db, 'bookings'),
+      where('requesterId', '==', requesterId),
+    ), snapshot => next(snapshot.docs.find(item => item.id === bookingId)?.data()), fail),
+    'requester booking list',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(query(
+      collection(providerClient.db, 'bookings'),
+      where('providerId', '==', providerId),
+    ), snapshot => next(snapshot.docs.find(item => item.id === bookingId)?.data()), fail),
+    'provider booking list',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(requesterBookingRef, snapshot => next(snapshot.data()), fail),
+    'requester booking detail',
+  ), observeRealtimeValue(
+    (next, fail) => onSnapshot(providerBookingRef, snapshot => next(snapshot.data()), fail),
+    'provider booking detail',
+  )];
+  const expectLiveBooking = (status, predicate = () => true) => Promise.all(
+    bookingObservers.map(observer => observer.waitFor(booking => booking.status === status && predicate(booking))),
+  );
+  await expectLiveBooking('pending');
   await expectAllowed('provider accepts booking', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-confirmed', 'pending', 'confirmed', providerId, 'provider'
   ));
+  await expectLiveBooking('confirmed');
 
   await expectDenied('requester starts service', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef,
@@ -731,6 +793,7 @@ try {
   await expectAllowed('provider starts service', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-started', 'confirmed', 'in_progress', providerId, 'provider'
   ));
+  await expectLiveBooking('in_progress');
   const startedEventRef = doc(providerClient.db, 'bookings', bookingId, 'events', 'event-started');
   await expectDenied('event update', () => updateDoc(startedEventRef, { toStatus: 'completed' }));
   await expectDenied('event delete', () => deleteDoc(startedEventRef));
@@ -744,9 +807,11 @@ try {
     checklistCompletedCount: 1,
     updatedAt: serverTimestamp(),
   }));
+  await expectLiveBooking('in_progress', booking => booking.checklistProgress['item-1'] === true);
   await expectAllowed('provider submits completion for confirmation', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-submitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectLiveBooking('awaiting_confirmation');
   await expectDenied('requester cannot reuse an older event for a new transition', () => updateDoc(
     requesterBookingRef,
     {
@@ -816,12 +881,16 @@ try {
       requesterChangeRequest: 'Please finish the remaining detail.',
     }
   ));
+  await expectLiveBooking('in_progress', booking => booking.requesterChangeRequest === 'Please finish the remaining detail.');
   await expectAllowed('provider resubmits completion', () => writeStatusTransition(
     providerClient.db, providerBookingRef, 'event-resubmitted', 'in_progress', 'awaiting_confirmation', providerId, 'provider', { requesterChangeRequest: null }
   ));
+  await expectLiveBooking('awaiting_confirmation', booking => booking.requesterChangeRequest === null);
   await expectAllowed('requester confirms completion', () => writeStatusTransition(
     requesterClient.db, requesterBookingRef, 'event-completed', 'awaiting_confirmation', 'completed', requesterId, 'requester'
   ));
+  await expectLiveBooking('completed');
+  bookingObservers.forEach(observer => observer.stop());
 
   const standaloneEventRef = doc(
     requesterClient.db,
@@ -1483,6 +1552,7 @@ try {
 
   console.log('Firestore booking, messaging, and requester-to-provider capability checks passed.');
 } finally {
+  liveObservers.forEach(observer => observer.stop());
   await deleteApp(providerClient.app);
   await deleteApp(requesterClient.app);
   await deleteApp(outsiderClient.app);
