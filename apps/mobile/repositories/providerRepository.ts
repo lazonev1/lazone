@@ -10,6 +10,7 @@ import {
 import { calculateDistance, isValidCoordinates, Coordinates } from "@/backend/main/src/utils/geo";
 import { getPublicProfile } from "@/backend/main/src/services/publicProfileService";
 import { isValidCfaAmount, MARKETPLACE_LIMITS } from '@/constants/Marketplace';
+import { filterProviders } from '@/utils/providerSearch';
 
 /**
  * Repository Layer - Transforms Database Models to UI ViewModels
@@ -141,6 +142,7 @@ export async function getProvidersByCategory(
 export interface SearchProvidersParams {
   query?: string;
   category?: string;
+  city?: string;
   remoteOnly?: boolean;
   minRating?: number;
   maxPrice?: number;
@@ -159,7 +161,6 @@ export async function searchProviders(
   try {
     // Use backend search for basic filtering
     let providers = await ProviderService.searchProviders({
-      query: params.query,
       category: params.category,
       remoteOnly: params.remoteOnly,
       minRating: params.minRating,
@@ -187,32 +188,7 @@ export async function searchProviders(
       })
     );
 
-    // Apply additional client-side filters that need ViewModel data
-    let results = viewModels;
-
-    // Filter by max distance if specified and user location is available
-    if (params.maxDistance !== undefined && params.userLocation) {
-      // Unknown distance must not masquerade as a nearby provider.
-      results = results.filter(
-        (p) => p.distance !== undefined && p.distance <= params.maxDistance!
-      );
-    }
-
-    // Filter by max price if specified
-    if (params.maxPrice !== undefined) {
-      results = results.filter((p) => {
-        if (!p.pricing || p.pricing === "Contact for pricing") return true;
-        const priceMatch = p.pricing.match(/(\d+)/g);
-        if (priceMatch && priceMatch.length > 0) {
-          const maxProviderPrice = parseInt(priceMatch[priceMatch.length - 1]);
-          return !isNaN(maxProviderPrice) && maxProviderPrice <= params.maxPrice!;
-        }
-        return true;
-      });
-    }
-
-    // Sort by rating (highest first)
-    return results.sort((a, b) => b.rating - a.rating);
+    return filterProviders(viewModels, params);
   } catch (error) {
     console.error("Error searching providers:", error);
     throw error;

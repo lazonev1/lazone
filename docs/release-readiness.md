@@ -243,6 +243,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Double tap, slow response, app backgrounding, network loss before/after commit, stale service, invalid amount, and retry produce at most one booking with accurate feedback. Valid users can enter and submit all required information without extra entrance friction.
 
+  **Progress — 2026-11-07:** Implemented on `fix/idempotent-booking-creation`. One stable request ID now survives retries, a Firestore transaction returns an already-committed request instead of creating another, and submission revalidates the current public provider/service. Rapid double taps are synchronously blocked; bounded shared validation remains in the form/service/rules; recoverable failures keep the draft and provide safe localized retry guidance. Rules bind the request ID to the booking document ID. TypeScript, focused ESLint, and the complete Auth/Firestore emulator suite pass, including an idempotent retry that cannot overwrite the original. See [the before/after flow and rollout guide](idempotent-booking-creation.md). Keep B01 open until the PR is merged, compatible rules are deployed, and a two-account native booking retry is verified.
+
 ### B02 · P1 · Load editable bookings from the authoritative record — complete
 
 - [x] **Resolved:** Booking editing now routes by ID, reloads the authorized current record, and cannot overwrite terms after provider acceptance.
@@ -264,6 +266,8 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
   **Required:** Use scoped realtime subscriptions or an equally reliable invalidation strategy, cancel stale work on identity/ID changes, distinguish initial load from refresh, and reconcile mutations per booking. Keep previously loaded data visible with an explicit stale/retry state when appropriate.
 
   **Done when:** Two active accounts see accept/start/submit/changes/confirm/cancel reflected without reopening screens; logout/account switching cannot flash another user's records; racing mutations do not roll back unrelated actions.
+
+  **Progress — 2026-11-23:** Resolved against current develop while preserving retry-safe creation. TypeScript, hook/repository regressions, full lint (0 errors), Auth/Firestore rules, migration suites, and four persistent cross-account lifecycle listeners pass. Actual two-iPhone testing verified native booking creation, live accept/start/checklist/submit/changes/resubmit/confirm, complete timelines, provider totals, and cancellation without reopening the other participant's details. Resumed iOS checks also passed unsaved edit retention during live updates, permission-loss clearing and Retry recovery on details/requester list/provider dashboard, and logout/account switching in both directions. Temporary test configuration and local fault injection were removed/restored; shared rules/data were not changed. The owner accepted iOS as this PR's verification scope; Android release verification is delegated to the coworker who normally performs it. B03 remains unchecked only until that release check is recorded, not as a blocker to this PR. No Firestore deployment, migration, or EAS rebuild is required. See [flow and verification](realtime-booking-sync.md).
 
 ### B04 · P1 · Make checklist interaction stable and explain its role once
 
@@ -389,6 +393,10 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
   **Done when:** Known fixtures test price/radius/rating/category combinations in EN/FR, permissions denied, no coordinates, remote-only, and empty results. Stale requests cannot overwrite newer filters; result counts and price/location labels are truthful.
 
+  **Progress — 2026-11-07:** Implemented the search-correctness slice on `fix/trustworthy-provider-search`: service-based starting-price budgets, consistent slider defaults, precise radius/unknown-location handling, remote-only distance semantics, manual published-city browsing without GPS, EN/FR category aliases, explicit card metadata, and an identity-safe catalogue-backed hook that does not refetch per filter change. Automated filter/lifecycle fixtures, TypeScript, focused lint, and iOS/Android bundle exports pass. Native UI verification is pending because Simulator access times out; P06 intentionally remains unchecked. Initial catalogue loading still needs E02's indexed/bounded discovery work. No Firebase deployment, migration, or EAS rebuild is required. See [flow and verification](trustworthy-provider-search.md).
+
+  **Update — 2026-11-23:** Resolved against current `develop` while retaining its no-hidden-providers radius default and both search/booking CI suites. Search, booking-sync, TypeScript, full lint (0 errors), and the complete Auth/Firestore emulator suite pass. Installed iOS testing with existing Firestore providers verified known-name results, real/unknown starting-price labels, city and remote-only filters, Reset, Refresh, and provider navigation. Native slider dragging, denied-location, long-list scrolling, and Android remain to verify; P06 stays open. No rules or native dependency changed.
+
 ## Remaining work — identity, account, and trust
 
 ### A01 · P1 · Make authentication/profile state resilient
@@ -445,13 +453,15 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
 
 ### M01 · P1 · Deliver reliable message history and sending
 
-- [ ] **Problem:** The live query exposes only the latest 50 messages; the screen has no older-history flow. Scroll/read effects depend on array length, which stops changing at the cap. A failed send can restore an old message over newer typing, and a post-write transformation failure can be presented as a failed send.
+- [x] **Problem:** The live query exposes only the latest 50 messages; the screen has no older-history flow. Scroll/read effects depend on array length, which stops changing at the cap. A failed send can restore an old message over newer typing, and a post-write transformation failure can be presented as a failed send.
 
   **Sources:** [chat screen][chat-ui], [message hooks][message-hooks], [message mapping][message-repo], [conversation service][conversation-service].
 
   **Required:** Implement cursor-based older history with a virtualized list and stable anchoring; use message identity rather than count for updates. Add pending/sent/failed state with idempotent retry and draft protection; do not force-scroll someone reading older messages. Show a new-message affordance and preserve position when loading history.
 
   **Done when:** A conversation exceeding 100 messages remains fully readable; reconnect/duplicate delivery/order changes reconcile; failed retry does not duplicate messages or lose a newer draft; reading older history is not interrupted.
+
+  **Completed — 2026-11-07:** The chat now combines a realtime latest page with cursor-loaded history in a virtualized, position-preserving list. Stable message IDs reconcile live, historical, and optimistic entries; transactional sends atomically update the message and conversation summary, while retries reuse the same ID. Pending/failed states, explicit retry, draft protection, and a new-message affordance prevent silent loss, duplication, and forced scrolling. EN/FR accessibility labels and 44-point composer targets are included. TypeScript, focused lint, Android bundling, the full Firebase emulator suite (including more than 100 cursor-paged messages and same-ID retry), and an iPhone live send/reload/no-duplicate check passed. No migration, rules deployment, or EAS rebuild is required. See [flow and verification](reliable-message-history.md).
 
 ### M02 · P1 · Correct realtime chat metadata and error recovery
 
@@ -516,6 +526,10 @@ Detailed versions, advisory decisions, build IDs, and verification evidence are 
   **Required:** Use safe-area/header-aware keyboard handling and focus measurement, suitable return/Done actions, scrollable bounded sheets, and stable form layout. Remove overlapping invisible touch layers and redundant nested controls. Test long checklists, service lists, translated labels, and display-size changes; define tablet/web support explicitly.
 
   **Done when:** On small iPhone and Android screens, users can edit the second/last checklist item, dismiss numeric keyboards, select the last category, and reach primary actions without erratic scroll, clipped text, or accidental navigation. Add recorded regression cases for these previously reported problems.
+
+  **Progress — 2026-11-07:** The shared booking-service/provider-category selector slice is implemented on `fix/accessible-scrollable-selectors`: bounded virtualized options, safe-area/reactive sizing, flexible labels, 48-unit targets, localized EN/FR copy, explicit accessibility states, and close/back/escape/focus callbacks. Actual-component structural/handler tests cover 200 options and last-option selection and run in CI; TypeScript/focused lint pass. Native scrolling/screen-reader sign-off remains pending because Simulator control times out. The broader U03 keyboard/layout work remains open. See [selector flow and verification](scrollable-selectors.md).
+
+  **Update — 2026-11-23:** Resolved against current `develop`, preserving selector, search, and booking CI checks. Selector, search, booking-sync, TypeScript, zero-error lint, and the full Auth/Firestore emulator suite pass. Installed iOS testing verified booking service selection/prefill and last-category selection, checked state, close, and draft preservation without writing live data. Long-list touch scrolling and small-screen/screen-reader checks remain unverified; U03/U02 stay open. See [native evidence and remaining checks](scrollable-selectors.md).
 
 ### U04 · P1 · Complete localization, not just translation resources
 

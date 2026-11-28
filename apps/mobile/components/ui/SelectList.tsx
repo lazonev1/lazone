@@ -1,9 +1,11 @@
-import { View, StyleSheet, Appearance, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, FlatList, useColorScheme, useWindowDimensions, AccessibilityInfo, findNodeHandle } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 type Option = {
   label: string;
@@ -16,27 +18,45 @@ type Props = {
   options: Option[];
   onChange: (value: string) => void;
   error?: string;
+  disabled?: boolean;
   style?: any;
 };
 
-export function SelectList({ label, value, options, onChange, error, style }: Props) {
+export function SelectList({ label, value, options, onChange, error, disabled = false, style }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
-  const colorScheme = Appearance.getColorScheme();
+  const colorScheme = useColorScheme();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation('common');
+  const triggerRef = useRef<View>(null);
+  const headingRef = useRef<View>(null);
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const styles = createStyles(theme, colorScheme);
 
   const selectedOption = options.find(opt => opt.value === value);
+  const focus = (target: View | null) => {
+    const handle = target ? findNodeHandle(target) : null;
+    if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+  };
+  const close = () => setModalVisible(false);
 
   return (
     <View style={[styles.container, style]}>
       <ThemedText style={styles.label}>{label}</ThemedText>
       
       <TouchableOpacity 
+        ref={triggerRef}
         style={[styles.selectButton, error && styles.errorBorder]}
         onPress={() => setModalVisible(true)}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityValue={{ text: selectedOption?.label ?? t('select.placeholder') }}
+        accessibilityHint={error || t('select.openHint')}
+        accessibilityState={{ expanded: modalVisible, disabled }}
       >
         <ThemedText style={styles.selectText}>
-          {selectedOption?.label || 'Select an option'}
+          {selectedOption?.label || t('select.placeholder')}
         </ThemedText>
         <Ionicons 
           name="chevron-down" 
@@ -45,33 +65,54 @@ export function SelectList({ label, value, options, onChange, error, style }: Pr
         />
       </TouchableOpacity>
 
-      {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      {error && <ThemedText style={styles.error} accessibilityRole="alert">{error}</ThemedText>}
 
       <Modal
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={close}
+        onShow={() => focus(headingRef.current)}
+        onDismiss={() => focus(triggerRef.current)}
+        supportedOrientations={['portrait', 'landscape']}
       >
         <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalContent}>
+          <ThemedView
+            style={[styles.modalContent, { maxHeight: Math.max(120, height - insets.top - 24), paddingBottom: Math.max(insets.bottom, 16) }]}
+            accessibilityViewIsModal
+            onAccessibilityEscape={close}
+          >
             <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>{label}</ThemedText>
+              <View ref={headingRef} accessible accessibilityRole="header" accessibilityLabel={label} style={{ flex: 1 }}>
+                <ThemedText style={styles.modalTitle}>{label}</ThemedText>
+              </View>
               <TouchableOpacity 
-                onPress={() => setModalVisible(false)}
+                onPress={close}
                 style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('select.close')}
               >
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
-            {options.map((option) => (
+            <FlatList
+              data={options}
+              style={[styles.optionList, { maxHeight: height * 0.65 }]}
+              keyExtractor={option => option.value}
+              extraData={value}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={12}
+              ListEmptyComponent={<ThemedText style={styles.emptyText}>{t('select.empty')}</ThemedText>}
+              renderItem={({ item: option }) => (
               <TouchableOpacity
-                key={option.value}
                 style={styles.optionItem}
+                accessibilityRole="radio"
+                accessibilityLabel={option.label}
+                accessibilityState={{ checked: value === option.value }}
                 onPress={() => {
                   onChange(option.value);
-                  setModalVisible(false);
+                  close();
                 }}
               >
                 <ThemedText style={[
@@ -88,7 +129,8 @@ export function SelectList({ label, value, options, onChange, error, style }: Pr
                   />
                 )}
               </TouchableOpacity>
-            ))}
+              )}
+            />
           </ThemedView>
         </View>
       </Modal>
@@ -98,7 +140,7 @@ export function SelectList({ label, value, options, onChange, error, style }: Pr
 
 const createStyles = (
   theme: typeof Colors.light,
-  colorScheme: ReturnType<typeof Appearance.getColorScheme>
+  colorScheme: ReturnType<typeof useColorScheme>
 ) => StyleSheet.create({
   container: {
     width: '100%',
@@ -121,6 +163,8 @@ const createStyles = (
   },
   selectText: {
     fontSize: 16,
+    flex: 1,
+    marginRight: 12,
   },
   errorBorder: {
     borderColor: '#FF3B30',
@@ -139,7 +183,7 @@ const createStyles = (
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingVertical: 20,
-    maxHeight: '80%',
+    flexShrink: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -153,18 +197,26 @@ const createStyles = (
     fontWeight: '600',
   },
   closeButton: {
-    padding: 4,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  optionList: { flexGrow: 0, flexShrink: 1 },
+  emptyText: { padding: 20 },
   optionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    minHeight: 48,
     borderBottomWidth: 1,
     borderBottomColor: colorScheme === 'dark' ? '#333' : '#eee',
   },
   optionText: {
     fontSize: 16,
+    flex: 1,
+    marginRight: 12,
   },
   selectedOptionText: {
     color: '#0A58A5',

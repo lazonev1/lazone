@@ -29,6 +29,9 @@ jobs:
       - run: pnpm audit:prod
       - run: pnpm --filter ./apps/mobile lint
       - run: pnpm --filter ./apps/mobile typecheck
+      - run: pnpm --filter ./apps/mobile test:selectors
+      - run: pnpm --filter ./apps/mobile test:search
+      - run: pnpm --filter ./apps/mobile test:booking-sync
       - run: pnpm --filter ./apps/mobile test:rules:emulator
       - run: pnpm --filter ./apps/mobile test:access:emulator
       - run: node --check apps/mobile/backend/main/src/functions/index.js

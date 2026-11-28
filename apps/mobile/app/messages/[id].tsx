@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Image, ScrollView, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions, AppState, AppStateStatus } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Image, FlatList, TextInput, TouchableOpacity, Appearance, Alert, ActivityIndicator, useWindowDimensions, AppState, AppStateStatus, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useIsFocused, useLocalSearchParams } from 'expo-router';
 import {
@@ -25,7 +25,7 @@ export default function ConversationScreen() {
   const conversationId = Array.isArray(params.id) ? params.id[0] : params.id;
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<FlatList<DisplayItem> | null>(null);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
   const [messageText, setMessageText] = useState('');
@@ -35,6 +35,10 @@ export default function ConversationScreen() {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingSentRef = useRef(false);
   const lastMarkedReadRef = useRef<string | null>(null);
+  const initialScrollCompleteRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const latestMessageIdRef = useRef<string | null>(null);
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const styles = createStyles(theme, colorScheme);
   const { height: screenHeight } = useWindowDimensions();
   const { t } = useTranslation(['messages', 'common']);
@@ -43,6 +47,13 @@ export default function ConversationScreen() {
   const userId = user?.uid ?? '';
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    initialScrollCompleteRef.current = false;
+    isNearBottomRef.current = true;
+    latestMessageIdRef.current = null;
+    setShowNewMessage(false);
+  }, [conversationId]);
 
   // Calculate keyboard offset dynamically based on screen size
   const keyboardOffset = Platform.OS === 'ios' ? 90 : Math.max(100, screenHeight * 0.1);
@@ -54,7 +65,18 @@ export default function ConversationScreen() {
     error: peerError,
     retry: retryPeer,
   } = useConversationPeer(conversationId, userId);
-  const { messages, loading, error, retry: retryMessages, sendMessage } = useMessages(
+  const {
+    messages,
+    loading,
+    error,
+    retry: retryMessages,
+    sendMessage,
+    retryMessage,
+    loadOlder,
+    hasOlder,
+    loadingOlder,
+    olderError,
+  } = useMessages(
     peer ? conversationId : undefined,
   );
 
@@ -78,14 +100,19 @@ export default function ConversationScreen() {
     });
   }, [appState, conversationId, error, isFocused, messages, userId]);
 
-  // Scroll to bottom when messages update
+  // Follow only the newest message. Loading history at the top must preserve
+  // position, and incoming messages must not interrupt someone reading it.
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+    const latest = messages.at(-1);
+    if (!latest || latestMessageIdRef.current === latest._id) return;
+    latestMessageIdRef.current = latest._id;
+    if (!initialScrollCompleteRef.current || isNearBottomRef.current || latest.senderId === userId) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: initialScrollCompleteRef.current }), 50);
+      setShowNewMessage(false);
+    } else {
+      setShowNewMessage(true);
     }
-  }, [messages.length]);
+  }, [messages, userId]);
 
   const clearTyping = useCallback(() => {
     if (typingTimeoutRef.current) {
@@ -203,9 +230,6 @@ export default function ConversationScreen() {
       await sendMessage(userId, text);
     } catch (err) {
       console.error('Failed to send message:', err);
-      Alert.alert(t('common:alerts.error'), t('chat.sendFailed'));
-      // Do not overwrite anything typed while the send was pending.
-      setMessageText((current) => current.trim() ? current : text);
     }
   };
 
@@ -216,7 +240,12 @@ export default function ConversationScreen() {
     time: string;
     isOutgoing: boolean;
     date: string;
+    deliveryStatus?: 'pending' | 'sent' | 'failed';
   };
+
+  type DisplayItem =
+    | { kind: 'date'; id: string; date: string }
+    | { kind: 'message'; id: string; message: DisplayMessage; showAvatar: boolean };
 
   const displayMessages: DisplayMessage[] = messages.map(msg => {
     const msgDate = new Date(msg.createdAt);
@@ -226,20 +255,28 @@ export default function ConversationScreen() {
       time: msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOutgoing: msg.senderId === userId,
       date: formatDateDivider(msg.createdAt),
+      deliveryStatus: msg.deliveryStatus,
     };
   });
 
-  const groupedMessages: Record<string, DisplayMessage[]> = {};
-  displayMessages.forEach((msg) => {
-    if (!groupedMessages[msg.date]) {
-      groupedMessages[msg.date] = [];
+  const displayItems: DisplayItem[] = [];
+  displayMessages.forEach((message, index) => {
+    if (index === 0 || displayMessages[index - 1].date !== message.date) {
+      displayItems.push({ kind: 'date', id: `date-${message.id}`, date: message.date });
     }
-    groupedMessages[msg.date].push(msg);
+    const next = displayMessages[index + 1];
+    displayItems.push({
+      kind: 'message',
+      id: message.id,
+      message,
+      showAvatar: !message.isOutgoing && (!next || next.date !== message.date || next.isOutgoing),
+    });
   });
 
-  const shouldShowAvatar = (msgs: DisplayMessage[], index: number) => {
-    if (index === msgs.length - 1) return true;
-    return msgs[index].isOutgoing !== msgs[index + 1].isOutgoing;
+  const handleListScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    isNearBottomRef.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 96;
+    if (isNearBottomRef.current) setShowNewMessage(false);
   };
 
   if ((loading || peerLoading) && messages.length === 0 && !peerError) {
@@ -289,42 +326,91 @@ export default function ConversationScreen() {
         style={styles.keyboardAvoid}
         keyboardVerticalOffset={keyboardOffset}
       >
-        <ScrollView
+        <FlatList
           ref={scrollRef}
+          data={displayItems}
+          keyExtractor={(item) => item.id}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messageContent}
           keyboardShouldPersistTaps="handled"
-        >
-          {loadError && (
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onScroll={handleListScroll}
+          scrollEventThrottle={100}
+          onContentSizeChange={() => {
+            if (initialScrollCompleteRef.current || displayItems.length === 0) return;
+            initialScrollCompleteRef.current = true;
+            scrollRef.current?.scrollToEnd({ animated: false });
+          }}
+          ListHeaderComponent={<>
+            {hasOlder && (
+              <TouchableOpacity
+                style={styles.loadOlderButton}
+                onPress={() => void loadOlder()}
+                disabled={loadingOlder}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat.loadOlder')}
+              >
+                {loadingOlder
+                  ? <ActivityIndicator color={theme.tint} />
+                  : <ThemedText style={styles.retryText}>{t('chat.loadOlder')}</ThemedText>}
+              </TouchableOpacity>
+            )}
+            {olderError && (
+              <ThemedText style={styles.olderError} accessibilityRole="alert">
+                {t('chat.loadOlderFailed')}
+              </ThemedText>
+            )}
+            {loadError && (
             <View style={styles.errorBanner} accessibilityRole="alert">
               <ThemedText style={styles.errorText}>{t('chat.loadError')}</ThemedText>
               <TouchableOpacity onPress={retry} accessibilityRole="button">
                 <ThemedText style={styles.retryText}>{t('chat.retry')}</ThemedText>
               </TouchableOpacity>
             </View>
-          )}
-          {Object.entries(groupedMessages).map(([date, msgs]) => (
-            <View key={date}>
-              <DateDivider date={date} />
-
-              {msgs.map((msg, index) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg.text}
-                  time={msg.time}
-                  isOutgoing={msg.isOutgoing}
-                  senderAvatar={!msg.isOutgoing && shouldShowAvatar(msgs, index)
-                    ? contactAvatar
+            )}
+          </>}
+          renderItem={({ item }) => item.kind === 'date'
+            ? <DateDivider date={item.date} />
+            : <MessageBubble
+                message={item.message.text}
+                time={item.message.time}
+                isOutgoing={item.message.isOutgoing}
+                deliveryStatus={item.message.deliveryStatus}
+                statusLabel={item.message.deliveryStatus === 'pending'
+                  ? t('chat.sending')
+                  : item.message.deliveryStatus === 'failed'
+                    ? t('chat.notSent')
                     : undefined}
-                />
-              ))}
-            </View>
-          ))}
-        </ScrollView>
+                retryLabel={item.message.deliveryStatus === 'failed' ? t('chat.retrySend') : undefined}
+                onRetry={item.message.deliveryStatus === 'failed'
+                  ? () => void retryMessage(item.message.id)
+                  : undefined}
+                senderAvatar={item.showAvatar ? contactAvatar : undefined}
+              />}
+        />
+
+        {showNewMessage && (
+          <TouchableOpacity
+            style={styles.newMessageButton}
+            onPress={() => {
+              scrollRef.current?.scrollToEnd({ animated: true });
+              setShowNewMessage(false);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('chat.newMessage')}
+          >
+            <ThemedText style={styles.newMessageText}>{t('chat.newMessage')}</ThemedText>
+          </TouchableOpacity>
+        )}
 
         {!peerError && <View style={[styles.inputContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
           <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.inputButton} onPress={() => Alert.alert(t('chat.comingSoon'))}>
+            <TouchableOpacity
+              style={styles.inputButton}
+              onPress={() => Alert.alert(t('chat.comingSoon'))}
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.addAttachment')}
+            >
               <Ionicons name='add-outline' size={24} color='#0A58A5' />
             </TouchableOpacity>
 
@@ -336,12 +422,15 @@ export default function ConversationScreen() {
               onChangeText={handleTextChange}
               multiline
               maxLength={4000}
+              accessibilityLabel={t('chat.inputPlaceholder')}
             />
           </View>
 
           <TouchableOpacity
             style={[styles.voiceButton, isRecording && styles.voiceButtonRecording]}
             onPress={handleVoiceRecord}
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? t('chat.stopRecording') : t('chat.recordVoice')}
           >
             <Ionicons name={isRecording ? 'stop' : 'mic'} size={20} color='#fff' />
           </TouchableOpacity>
@@ -350,6 +439,8 @@ export default function ConversationScreen() {
             style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
             disabled={!messageText.trim()}
             onPress={handleSendMessage}
+            accessibilityRole="button"
+            accessibilityLabel={t('chat.sendMessage')}
           >
             <Ionicons name="send" size={20} color="#fff" />
           </TouchableOpacity>
@@ -416,6 +507,31 @@ function createStyles(theme: any, colorScheme: any) {
       color: '#0A58A5',
       fontWeight: '700',
     },
+    loadOlderButton: {
+      alignSelf: 'center',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: 16,
+      marginVertical: 8,
+    },
+    olderError: {
+      color: '#C0392B',
+      textAlign: 'center',
+      marginHorizontal: 16,
+      marginBottom: 8,
+    },
+    newMessageButton: {
+      alignSelf: 'center',
+      backgroundColor: '#0A58A5',
+      borderRadius: 18,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginBottom: 6,
+    },
+    newMessageText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
     inputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -438,7 +554,8 @@ function createStyles(theme: any, colorScheme: any) {
     inputButton: {
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 4,
+      width: 44,
+      height: 44,
     },
     input: {
       flex: 1,
@@ -449,17 +566,17 @@ function createStyles(theme: any, colorScheme: any) {
     },
     sendButton: {
       backgroundColor: '#0A58A5',
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
     },
     voiceButton: {
       backgroundColor: '#0A58A5',
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 8,
