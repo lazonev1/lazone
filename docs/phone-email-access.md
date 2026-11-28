@@ -104,6 +104,10 @@ No Firestore rules, indexes, Functions, or data migrations change: every rule ke
 
 Record the values actually configured, with dates, in the release evidence.
 
+Status observed 2026-11-27: real-number SMS works on physical Android devices. No SHA
+fingerprints are registered (`google-services.json` has no `certificate_hash`), so Android
+code requests fall back to reCAPTCHA. The APNs key has not been confirmed.
+
 ## Verification
 
 From `apps/mobile`:
