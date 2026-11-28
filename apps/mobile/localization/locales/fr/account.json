@@ -61,7 +61,9 @@
       "emailPlaceholder": "Saisissez votre adresse e-mail",
       "phone": "Téléphone",
       "phonePlaceholder": "Saisissez votre numéro de téléphone"
-    }
+    },
+    "signInMethods": "Modes de connexion",
+    "notConfirmed": "non confirmé"
   },
   "notifications": {
     "title": "Notifications",
@@ -159,5 +161,48 @@
       "dark": "Sombre",
       "darkDescription": "Fond sombre avec texte clair"
     }
+  },
+  "loginMethods": {
+    "title": "Modes de connexion",
+    "description": "Chaque mode vous connecte à ce même compte, avec les mêmes réservations, messages et activité.",
+    "phoneTitle": "Numéro de téléphone",
+    "emailTitle": "E-mail et mot de passe",
+    "verified": "Vérifié",
+    "notConfirmed": "Non confirmé",
+    "none": "Non ajouté",
+    "addPhone": "Ajouter un numéro",
+    "changePhone": "Changer de numéro",
+    "addEmail": "Ajouter un e-mail et un mot de passe",
+    "remove": "Supprimer",
+    "onlyMethod": "C'est votre seul mode de connexion : il ne peut pas être supprimé.",
+    "resendConfirmation": "Renvoyer l'e-mail de confirmation",
+    "refreshConfirmation": "J'ai confirmé mon e-mail",
+    "confirmationSent": "Nous avons envoyé un lien de confirmation à {{email}}. Ouvrez-le, puis touchez « J'ai confirmé mon e-mail ».",
+    "confirmationFailed": "Impossible d'envoyer l'e-mail de confirmation. Veuillez réessayer plus tard.",
+    "removePhoneTitle": "Supprimer la connexion par téléphone ?",
+    "removePhoneMessage": "Vous ne pourrez plus vous connecter avec le {{phone}}. Votre compte, vos réservations et vos messages restent inchangés.",
+    "removeEmailTitle": "Supprimer la connexion par e-mail ?",
+    "removeEmailMessage": "Vous ne pourrez plus vous connecter avec {{email}}. Votre compte, vos réservations et vos messages restent inchangés.",
+    "phoneAdded": "Numéro ajouté. Vous pouvez maintenant l'utiliser pour vous connecter.",
+    "phoneChanged": "Numéro mis à jour. Connectez-vous désormais avec le nouveau numéro.",
+    "emailAdded": "E-mail ajouté. Nous avons envoyé un lien de confirmation à {{email}}.",
+    "removed": "Mode de connexion supprimé.",
+    "addPhoneTitle": "Ajouter un numéro de téléphone",
+    "changePhoneTitle": "Saisissez votre nouveau numéro",
+    "addPhoneSubmit": "Vérifier et ajouter",
+    "changePhoneSubmit": "Vérifier le nouveau numéro",
+    "addEmailTitle": "Ajouter la connexion par e-mail",
+    "emailLabel": "Adresse e-mail",
+    "passwordLabel": "Mot de passe",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "addEmailSubmit": "Ajouter l'e-mail",
+    "adding": "Ajout…",
+    "reauthTitle": "Confirmez votre identité",
+    "reauthPhone": "Nous enverrons un code à votre numéro actuel.",
+    "reauthPassword": "Saisissez le mot de passe de {{email}}.",
+    "reauthSubmit": "Confirmer",
+    "confirming": "Confirmation…",
+    "cancel": "Annuler"
   }
 }

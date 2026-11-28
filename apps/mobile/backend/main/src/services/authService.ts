@@ -1,8 +1,17 @@
 import {
+  AuthCredential,
   createUserWithEmailAndPassword,
   deleteUser,
+  EmailAuthProvider,
+  linkWithCredential,
+  PhoneAuthCredential,
+  reauthenticateWithCredential,
+  sendEmailVerification,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  unlink,
+  updatePhoneNumber,
   User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -15,15 +24,48 @@ import {
 } from "firebase/firestore";
 import { auth, db, COLLECTIONS } from "../config/firebase";
 import { User } from "../models/User";
+import { LAST_LOGIN_METHOD_CODE } from "./accountAccessErrors";
+
+export type LoginMethod = "phone" | "password";
+
+const PROVIDER_IDS: Record<LoginMethod, string> = {
+  phone: "phone",
+  password: "password",
+};
 
 /**
- * Creates a new user account
+ * Private and public documents for a new account. Login identities live in
+ * Firebase Authentication; `phoneNumber` is kept empty for the existing
+ * account schema and is never treated as a credential.
+ */
+function newAccountDocuments(firstName: string, lastName: string) {
+  const account: Omit<User, "_id" | "dob" | "createdAt" | "updatedAt"> = {
+    firstName,
+    lastName,
+    phoneNumber: "",
+    role: "requester",
+    verified: false,
+    subscriptionType: "free",
+    bookmarked: [],
+  };
+  return {
+    account: { ...account, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
+    publicProfile: { firstName, lastName, updatedAt: serverTimestamp() },
+  };
+}
+
+function splitFullName(fullName: string) {
+  const [firstName, ...lastNameParts] = fullName.trim().split(/\s+/);
+  return { firstName: firstName || "", lastName: lastNameParts.join(" ") };
+}
+
+/**
+ * Creates a new email/password account
  */
 export async function signupUser(
   fullName: string,
   email: string,
-  password: string,
-  phoneNumber: string
+  password: string
 ): Promise<FirebaseUser> {
   // 1. Create user in Firebase Auth
   const userCredential = await createUserWithEmailAndPassword(
@@ -33,33 +75,12 @@ export async function signupUser(
   );
   const firebaseUser = userCredential.user;
 
-  // 2. Prepare user data for Firestore
-  const [firstName, ...lastNameParts] = fullName.split(" ");
-  const lastName = lastNameParts.join(" ");
-
-  const newUser: Omit<User, "_id" | "dob" | "createdAt" | "updatedAt"> = {
-    firstName: firstName || "",
-    lastName: lastName || "",
-    phoneNumber: phoneNumber || "",
-    role: "requester",
-    verified: false,
-    subscriptionType: "free",
-    bookmarked: [],
-  };
-
-  // 3. Create user document in Firestore
-  const userDocRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
+  // 2. Create the private and public profile documents together
+  const { firstName, lastName } = splitFullName(fullName);
+  const { account, publicProfile } = newAccountDocuments(firstName, lastName);
   const batch = writeBatch(db);
-  batch.set(userDocRef, {
-    ...newUser,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  batch.set(doc(db, COLLECTIONS.PUBLIC_PROFILES, firebaseUser.uid), {
-    firstName: newUser.firstName,
-    lastName: newUser.lastName,
-    updatedAt: serverTimestamp(),
-  });
+  batch.set(doc(db, COLLECTIONS.USERS, firebaseUser.uid), account);
+  batch.set(doc(db, COLLECTIONS.PUBLIC_PROFILES, firebaseUser.uid), publicProfile);
   try {
     await batch.commit();
   } catch (profileWriteError) {
@@ -79,7 +100,30 @@ export async function signupUser(
     throw profileWriteError;
   }
 
+  // 3. Ownership confirmation is requested but not required to use the app.
+  await requestEmailVerification(firebaseUser);
   return firebaseUser;
+}
+
+/**
+ * Creates the profile for a signed-in account that has none yet (a new phone
+ * account, or an interrupted signup). Returns false if another device already
+ * created it, in which case the existing profile is left unchanged.
+ */
+export async function createUserProfile(
+  userId: string,
+  firstName: string,
+  lastName: string
+): Promise<boolean> {
+  if (auth.currentUser?.uid !== userId) throw new Error("Cannot create another account's profile");
+  const userDocRef = doc(db, COLLECTIONS.USERS, userId);
+  const { account, publicProfile } = newAccountDocuments(firstName.trim(), lastName.trim());
+  return runTransaction(db, async transaction => {
+    if ((await transaction.get(userDocRef)).exists()) return false;
+    transaction.set(userDocRef, account);
+    transaction.set(doc(db, COLLECTIONS.PUBLIC_PROFILES, userId), publicProfile);
+    return true;
+  });
 }
 
 /**
@@ -92,6 +136,85 @@ export async function loginUser(email: string, password: string): Promise<Fireba
     password
   );
   return userCredential.user;
+}
+
+/**
+ * Signs in with a verified SMS code. A new number creates a new Auth account;
+ * an existing number always returns its existing account.
+ */
+export async function loginWithPhone(credential: PhoneAuthCredential): Promise<FirebaseUser> {
+  return (await signInWithCredential(auth, credential)).user;
+}
+
+function requireCurrentUser(): FirebaseUser {
+  const user = auth.currentUser;
+  if (!user) throw Object.assign(new Error("No authenticated user"), { code: "auth/requires-recent-login" });
+  return user;
+}
+
+export function loginMethods(user: FirebaseUser): LoginMethod[] {
+  return (Object.keys(PROVIDER_IDS) as LoginMethod[])
+    .filter(method => user.providerData.some(info => info.providerId === PROVIDER_IDS[method]));
+}
+
+/** Sends the email ownership link. Failure is not fatal; the user can resend. */
+export async function requestEmailVerification(user: FirebaseUser = requireCurrentUser()): Promise<boolean> {
+  if (!user.email || user.emailVerified) return false;
+  try {
+    await sendEmailVerification(user);
+    return true;
+  } catch (error) {
+    console.warn("Email verification request failed:", (error as { code?: string }).code);
+    return false;
+  }
+}
+
+/** Adds a verified phone number to the current account (same UID). */
+export async function linkPhone(credential: PhoneAuthCredential): Promise<FirebaseUser> {
+  const user = (await linkWithCredential(requireCurrentUser(), credential)).user;
+  await user.reload();
+  return user;
+}
+
+/** Adds email/password sign-in to the current account (same UID). */
+export async function linkEmailPassword(email: string, password: string): Promise<FirebaseUser> {
+  const credential = EmailAuthProvider.credential(email.trim(), password);
+  const user = (await linkWithCredential(requireCurrentUser(), credential)).user;
+  await requestEmailVerification(user);
+  await user.reload();
+  return user;
+}
+
+/** Replaces the account's phone number with a newly verified one. */
+export async function changePhone(credential: PhoneAuthCredential): Promise<FirebaseUser> {
+  const user = requireCurrentUser();
+  await updatePhoneNumber(user, credential);
+  await user.reload();
+  return user;
+}
+
+/** Confirms the person holding this session before a credential change. */
+export async function reauthenticate(credential: AuthCredential): Promise<void> {
+  await reauthenticateWithCredential(requireCurrentUser(), credential);
+}
+
+export function passwordCredential(password: string): AuthCredential {
+  const email = requireCurrentUser().email;
+  if (!email) throw Object.assign(new Error("No email login"), { code: "auth/missing-email" });
+  return EmailAuthProvider.credential(email, password);
+}
+
+/** Removes a login method, refusing to remove the account's last one. */
+export async function removeLoginMethod(method: LoginMethod): Promise<FirebaseUser> {
+  const user = requireCurrentUser();
+  const methods = loginMethods(user);
+  if (!methods.includes(method)) return user;
+  if (methods.length < 2) {
+    throw Object.assign(new Error("Cannot remove the last login method"), { code: LAST_LOGIN_METHOD_CODE });
+  }
+  const updated = await unlink(user, PROVIDER_IDS[method]);
+  await updated.reload();
+  return updated;
 }
 
 /**
@@ -121,11 +244,12 @@ export async function getUserProfile(userId: string): Promise<User | null> {
 }
 
 /**
- * Updates user profile fields in Firestore
+ * Updates user profile fields in Firestore. Login identities (phone and email)
+ * are managed through Firebase Authentication, not this profile.
  */
 export async function updateUserProfile(
   userId: string,
-  data: { firstName?: string; lastName?: string; phoneNumber?: string }
+  data: { firstName?: string; lastName?: string }
 ): Promise<void> {
   const userDocRef = doc(db, COLLECTIONS.USERS, userId);
   const nameChanged = data.firstName !== undefined || data.lastName !== undefined;

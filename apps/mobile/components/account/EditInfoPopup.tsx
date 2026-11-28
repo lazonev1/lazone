@@ -13,16 +13,12 @@ type Props = {
 	initialData: {
 		firstName: string;
 		lastName: string;
-		email: string;
-		phone: string;
 	};
 };
 
 export default function EditInfoPopup({ visible, onClose, initialData }: Props) {
 	const [firstName, setFirstName] = useState(initialData.firstName);
 	const [lastName, setLastName] = useState(initialData.lastName);
-	const [email, setEmail] = useState(initialData.email);
-	const [phone, setPhone] = useState(initialData.phone);
 	const [saving, setSaving] = useState(false);
 
 	const { updateProfile } = useAuth();
@@ -35,8 +31,6 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 		if (visible) {
 			setFirstName(initialData.firstName);
 			setLastName(initialData.lastName);
-			setEmail(initialData.email);
-			setPhone(initialData.phone);
 		}
 	}, [visible]);
 
@@ -59,7 +53,6 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 							await updateProfile({
 								firstName: firstName.trim(),
 								lastName: lastName.trim(),
-								phoneNumber: phone.trim(),
 							});
 							Alert.alert(t('common:alerts.success'), t('info.editPopup.successMessage'));
 							onClose();
@@ -88,22 +81,6 @@ export default function EditInfoPopup({ visible, onClose, initialData }: Props) 
 						onChangeText={setLastName}
 						placeholder={t('info.editPopup.lastNamePlaceholder')}
 					/>
-					<EditableField
-						label={t('info.editPopup.email')}
-						value={email}
-						onChangeText={setEmail}
-						keyboardType="email-address"
-						placeholder={t('info.editPopup.emailPlaceholder')}
-						autoCapitalize="none"
-					/>
-					<EditableField
-						label={t('info.editPopup.phone')}
-						value={phone}
-						onChangeText={setPhone}
-						keyboardType="phone-pad"
-						placeholder={t('info.editPopup.phonePlaceholder')}
-					/>
-
 					<View style={styles.buttonContainer}>
 						{saving ? (
 							<ActivityIndicator size="large" color={theme.tint} />
